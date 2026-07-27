@@ -469,6 +469,10 @@
         }
         /* A/S 보드: 컬럼 내부 세로 스크롤 없이 전체가 늘어나 페이지 단위로 스크롤 */
         #asBoard .kcol-body { max-height: none; overflow-y: visible; }
+        /* A/S 소그룹 (시안 D — 좌측 색 세로바) */
+        .as-grpD { border-left: 3px solid var(--border); padding-left: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .as-grpD-lbl { font-size: 10.5px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
+        .as-grpD-lbl .amt { margin-left: auto; color: var(--text-tertiary); font-weight: 700; }
         .kdeal {
             background: var(--bg-main);
             border: 1px solid var(--border);
@@ -1120,6 +1124,21 @@
                 </div>
             </div>
 
+            <!-- ===== 미수금 상세 내역 ===== -->
+            <div class="modal-overlay" id="unpaidModal">
+                <div class="modal" style="max-width:640px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">미수금 누적 상세 내역</h2>
+                        <button class="modal-close" onclick="closeUnpaidModal()">×</button>
+                    </div>
+                    <div style="padding:10px 22px 0;">
+                        <button class="btn btn-secondary btn-sm" onclick="copyUnpaidList()" id="unpaidCopyBtn">📋 목록 복사</button>
+                        <span style="font-size:11.5px;color:var(--text-tertiary);margin-left:8px;">복사해서 붙여넣으면 그대로 공유할 수 있어요</span>
+                    </div>
+                    <div class="modal-body" id="unpaidList" style="padding:14px 22px 22px;max-height:66vh;overflow-y:auto;"></div>
+                </div>
+            </div>
+
             <!-- ===== 출고·납품 관리 ===== -->
             <div class="page" id="shipPage">
                 <div class="page-header">
@@ -1382,6 +1401,13 @@
                         </select>
                         <div class="form-hint" id="shInvHint"></div>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">수금 상태</label>
+                    <select class="form-input" id="shCollected">
+                        <option value="0">💰 수금 전</option>
+                        <option value="1">✅ 수금 완료</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1888,10 +1914,12 @@ function shipDone(s){ return s.ship_status === 'done'; } // 출고 완료만 매
 // 출고 탭 칩 필터 상태
 let shipStatusF = '';  // '' | 'request' | 'done'
 let shipInvF = '';     // '' | 'unissued' | 'issued'
+let shipCollF = '';    // '' | 'uncollected' | 'collected'
 let shipYearF = '';    // 'YYYY'
 let shipMonthF = '';   // '01'~'12'
 function setShipStatusF(v){ shipStatusF = v; renderShip(); }
 function setShipInvF(v){ shipInvF = v; renderShip(); }
+function setShipCollF(v){ shipCollF = v; renderShip(); }
 function setShipYearF(v){ shipYearF = v; shipMonthF = ''; renderShip(); }
 function setShipMonthF(v){ shipMonthF = v; renderShip(); }
 function shipRevYear(year){ return shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(String(year))).reduce((a,s)=>a+(s.amount||0),0); }
@@ -2104,12 +2132,13 @@ function collectedInYear(year){ // 입금일 기준 (원)
   });
   return sum;
 }
-function totalUnpaid(){ // 누적 미수금(원)
+function totalUnpaid(){ // 누적 미수금(원) — 소스별 내역 포함
   let sum = 0, cnt = 0;
-  deals.forEach(d => { const u = dealUnpaid(d); if (u>0){ sum+=u; cnt++; } });
-  recvList.forEach(r => { if (!r.deal_id && r.status!=='received'){ sum += manToWon(r.amount); cnt++; } });
-  productSales.forEach(p => { if (p.status!=='received'){ sum += (p.amount||0); cnt++; } });
-  return {sum, cnt};
+  let dealSum = 0, dealCnt = 0, recvSum = 0, recvCnt = 0, psSum = 0, psCnt = 0;
+  deals.forEach(d => { const u = dealUnpaid(d); if (u>0){ sum+=u; cnt++; dealSum+=u; dealCnt++; } });
+  recvList.forEach(r => { if (!r.deal_id && r.status!=='received'){ const v = manToWon(r.amount); sum += v; cnt++; recvSum+=v; recvCnt++; } });
+  productSales.forEach(p => { if (p.status!=='received'){ const v = (p.amount||0); sum += v; cnt++; psSum+=v; psCnt++; } });
+  return {sum, cnt, dealSum, dealCnt, recvSum, recvCnt, psSum, psCnt};
 }
 
 /* ---- 페이지 전환 ---- */
@@ -2287,10 +2316,11 @@ function renderDashboard(){
       <div class="stat-value">${fmtMoney(collected)}</div>
       <div class="stat-sub">영업 수금 + 제품 판매 합산</div>
     </div>
-    <div class="stat-card" style="cursor:pointer" onclick="goUnpaid()">
+    <div class="stat-card" style="cursor:pointer" onclick="openUnpaidDetail()">
       <div class="stat-label">미수금 누적</div>
       <div class="stat-value" style="color:${unpaid.sum>0?'var(--status-critical)':'inherit'}">${fmtMoney(unpaid.sum)}</div>
       <div class="stat-sub">${unpaid.cnt}건 · 눌러서 확인</div>
+      <div class="stat-sub" style="margin-top:5px;line-height:1.6;">딜 ${fmtMoney(unpaid.dealSum)} <span style="color:var(--text-tertiary)">(${unpaid.dealCnt})</span> · 개별수금 ${fmtMoney(unpaid.recvSum)} <span style="color:var(--text-tertiary)">(${unpaid.recvCnt})</span> · 제품판매 ${fmtMoney(unpaid.psSum)} <span style="color:var(--text-tertiary)">(${unpaid.psCnt})</span></div>
     </div>
     <div class="stat-card">
       <div class="stat-label">진행 중 딜</div>
@@ -2326,6 +2356,72 @@ function goUnpaid(){
   $('stageFilter').value = ''; $('searchInput').value = ''; $('projYearFilter').value = ''; $('personFilter').value = '';
   renderProjects();
 }
+let _unpaidText = '';
+function unpaidBreakdownItems(){
+  const dealItems = deals.filter(d=>dealUnpaid(d)>0).map(d=>({
+    label:(d.name||d.co||'딜'), sub:dispStage(d), amount:(d.amount||0), paid:dealPaid(d), unpaid:dealUnpaid(d)
+  })).sort((a,b)=>b.unpaid-a.unpaid);
+  const recvItems = recvList.filter(r=>!r.deal_id && r.status!=='received').map(r=>({
+    label:(r.company_name||'수금 건'), sub:(RECV_LABEL[r.status]||r.status||''), unpaid:manToWon(r.amount)
+  })).sort((a,b)=>b.unpaid-a.unpaid);
+  const psItems = productSales.filter(p=>p.status!=='received').map(p=>({
+    label:(p.product||p.name||p.company||'제품판매'), sub:(p.company||RECV_LABEL[p.status]||p.status||''), unpaid:(p.amount||0)
+  })).sort((a,b)=>b.unpaid-a.unpaid);
+  return {dealItems, recvItems, psItems};
+}
+function openUnpaidDetail(){
+  const {dealItems, recvItems, psItems} = unpaidBreakdownItems();
+  const dealSum = dealItems.reduce((s,x)=>s+x.unpaid,0);
+  const recvSum = recvItems.reduce((s,x)=>s+x.unpaid,0);
+  const psSum   = psItems.reduce((s,x)=>s+x.unpaid,0);
+  const total = dealSum + recvSum + psSum;
+  const won = n => (Math.round(n)).toLocaleString()+'원';
+  const section = (title, sum, items, cols) => `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 8px;">
+      <div style="font-size:14px;font-weight:800;">${title} <span style="color:var(--text-tertiary);font-weight:600;">${items.length}건</span></div>
+      <div style="font-size:14px;font-weight:800;color:var(--status-critical);">${won(sum)}</div>
+    </div>
+    ${items.length ? `<table class="data-table" style="font-size:12.5px;"><thead><tr>${cols}</tr></thead><tbody>${
+      items.map(it=>`<tr>
+        <td style="font-weight:600;">${esc(it.label)}${it.sub?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;">${esc(it.sub)}</div>`:''}</td>
+        ${it.amount!=null?`<td class="td-num td-muted">${won(it.amount)}</td><td class="td-num td-muted">${won(it.paid)}</td>`:''}
+        <td class="td-num" style="font-weight:800;">${won(it.unpaid)}</td>
+      </tr>`).join('')
+    }</tbody></table>` : `<div style="font-size:12.5px;color:var(--text-tertiary);padding:4px 0;">해당 없음</div>`}`;
+
+  $('unpaidList').innerHTML =
+    `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:12px 15px;">
+      <div style="font-size:13px;font-weight:700;">미수금 총액</div>
+      <div style="font-size:19px;font-weight:800;color:var(--status-critical);">${won(total)}</div>
+    </div>` +
+    section('① 딜 미수금 (설치완료 이후 · 계약금액 − 수금액)', dealSum, dealItems,
+      '<th>딜 / 단계</th><th class="td-num">계약금액</th><th class="td-num">수금액</th><th class="td-num">미수금</th>') +
+    section('② 개별 수금 건 (딜 미연결 · 수금 완료 아님)', recvSum, recvItems, '<th>고객사 / 상태</th><th class="td-num">미수금</th>') +
+    section('③ 제품 판매 (수금 완료 아님)', psSum, psItems, '<th>제품 / 상태</th><th class="td-num">미수금</th>');
+
+  const lines = [];
+  lines.push(`[미수금 누적 상세] 총 ${won(total)}`);
+  lines.push(`— 딜 ${won(dealSum)} · 개별수금 ${won(recvSum)} · 제품판매 ${won(psSum)}`);
+  lines.push('');
+  lines.push(`① 딜 미수금 (${dealItems.length}건) ${won(dealSum)}`);
+  dealItems.forEach((it,i)=>lines.push(`  ${i+1}. ${it.label} [${it.sub}] 계약 ${won(it.amount)} · 수금 ${won(it.paid)} · 미수금 ${won(it.unpaid)}`));
+  lines.push('');
+  lines.push(`② 개별 수금 건 (${recvItems.length}건) ${won(recvSum)}`);
+  recvItems.forEach((it,i)=>lines.push(`  ${i+1}. ${it.label} [${it.sub}] ${won(it.unpaid)}`));
+  lines.push('');
+  lines.push(`③ 제품 판매 (${psItems.length}건) ${won(psSum)}`);
+  psItems.forEach((it,i)=>lines.push(`  ${i+1}. ${it.label} [${it.sub}] ${won(it.unpaid)}`));
+  _unpaidText = lines.join('\n');
+
+  $('unpaidModal').classList.add('active');
+}
+function closeUnpaidModal(){ $('unpaidModal').classList.remove('active'); }
+function copyUnpaidList(){
+  const done = ()=>{ const b=$('unpaidCopyBtn'); const t=b.textContent; b.textContent='✅ 복사됨'; setTimeout(()=>b.textContent=t,1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(_unpaidText).then(done).catch(()=>{ fallbackCopy(_unpaidText); done(); });
+  else { fallbackCopy(_unpaidText); done(); }
+}
+function fallbackCopy(txt){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
 function goStage(name){
   showPage('projects');
   $('stageFilter').value = name;
@@ -3219,14 +3315,10 @@ function renderAs(){
   if (asView === 'board') {
     $('asBoard').innerHTML = AS_STATUSES.map(st=>{
       const cd = list.filter(c=>c.status===st);
-      // 세금계산서 발행 완료 컬럼 — 수금 전/완료 소그룹 분리 (시안 B+D)
+      // 세금계산서 발행 완료 컬럼 — 수금 전/완료 소그룹 분리 (시안 D)
       if (st === AS_TAX) {
         const before = cd.filter(c=>!asCollected(c)), done = cd.filter(c=>asCollected(c));
         const beforeAmt = before.reduce((s,c)=>s+(c.cost||0),0), doneAmt = done.reduce((s,c)=>s+(c.cost||0),0);
-        const sub = (label, color, arr, amt) => arr.length ? `
-          <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:${color};margin:12px 0 7px;padding-top:10px;border-top:1px dashed var(--border);">
-            ${label} · ${arr.length}건 <span style="margin-left:auto;color:var(--text-tertiary);font-weight:700;">${amt?fmtWon(amt)+'원':''}</span>
-          </div>${arr.map(asCardHtml).join('')}` : '';
         return `<div class="kanban-col" style="min-width:280px;">
           <div class="kcol-hd">
             <span class="kcol-dot" style="background:${AS_COLORS[st]}"></span>
@@ -3234,7 +3326,22 @@ function renderAs(){
             <span class="kcol-meta">${cd.length}건<br>수금 ${done.length}/${cd.length}</span>
           </div>
           <div class="kcol-body">
-            ${cd.length ? (sub('💰 수금 전','var(--amber, #d97706)',before,beforeAmt) + sub('✅ 수금 완료','#15803d',done,doneAmt)) : '<div class="kcol-empty">건 없음</div>'}
+            ${cd.length ? (asGroupD('💰 수금 전','#d97706','#b45309',before,beforeAmt) + asGroupD('✅ 수금 완료','#15803d','#15803d',done,doneAmt)) : '<div class="kcol-empty">건 없음</div>'}
+          </div>
+        </div>`;
+      }
+      // 완료 컬럼 — 무상/유상 소그룹 분리 (시안 D)
+      if (st === '완료') {
+        const free = cd.filter(c=>!c.paid), paid = cd.filter(c=>c.paid);
+        const paidAmt = paid.reduce((s,c)=>s+(c.cost||0),0);
+        return `<div class="kanban-col">
+          <div class="kcol-hd">
+            <span class="kcol-dot" style="background:${AS_COLORS[st]}"></span>
+            <span class="kcol-name">${st}</span>
+            <span class="kcol-meta">${cd.length}건<br>무상 ${free.length} · 유상 ${paid.length}</span>
+          </div>
+          <div class="kcol-body">
+            ${cd.length ? (asGroupD('🆓 무상','#c7cdd4','#6b7684',free,0) + asGroupD('💰 유상','#2563eb','#1e4c8f',paid,paidAmt)) : '<div class="kcol-empty">건 없음</div>'}
           </div>
         </div>`;
       }
@@ -3269,6 +3376,14 @@ function renderAs(){
         </tr>`).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:26px;"><div class="empty-desc">조건에 맞는 A/S 건이 없어요</div></div></td></tr>`}</tbody>`;
   }
   updateAsNavBadge();
+}
+// A/S 소그룹 (시안 D — 좌측 색 세로바 + 소제목·건수·금액)
+function asGroupD(label, borderColor, labelColor, arr, amt){
+  if (!arr.length) return '';
+  return `<div class="as-grpD" style="border-color:${borderColor};">
+    <div class="as-grpD-lbl" style="color:${labelColor};">${label} · ${arr.length}건 <span class="amt">${amt?fmtWon(amt)+'원':''}</span></div>
+    ${arr.map(asCardHtml).join('')}
+  </div>`;
 }
 function asCardHtml(c){
   const dday = asDday(c);
@@ -3435,6 +3550,20 @@ function deleteAs(){
 }
 
 /* ================= 출고·납품 관리 ================= */
+// 출고 진행 스텝 (출고→계산서→수금) · 반투명 A (연한 채움)
+function shipStepper(s){
+  const d1 = s.ship_status === 'done', d2 = !!s.tax_invoice_issued, d3 = !!s.collected;
+  const dot = (on, color, bg) => on
+    ? `<span style="width:17px;height:17px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:${bg};color:${color};flex-shrink:0;">✓</span>`
+    : `<span style="width:17px;height:17px;border-radius:50%;display:inline-block;background:rgba(148,163,184,.16);flex-shrink:0;"></span>`;
+  const lbl = (on, color, text) => `<span style="font-size:10.5px;font-weight:700;color:${on?color:'var(--text-tertiary)'};">${text}</span>`;
+  const line = `<span style="width:12px;height:2px;background:#eef1f4;display:inline-block;flex-shrink:0;"></span>`;
+  return `<div style="display:flex;align-items:center;gap:3px;">
+    <span style="display:flex;align-items:center;gap:4px;">${dot(d1,'#2563eb','rgba(37,99,235,.18)')}${lbl(d1,'#2563eb','출고')}</span>${line}
+    <span style="display:flex;align-items:center;gap:4px;">${dot(d2,'#7c3aed','rgba(124,58,237,.18)')}${lbl(d2,'#7c3aed','계산서')}</span>${line}
+    <span style="display:flex;align-items:center;gap:4px;">${dot(d3,'#16a34a','rgba(22,163,74,.20)')}${lbl(d3,'#15803d','수금')}</span>
+  </div>`;
+}
 function renderShip(){
   const q = ($('shipSearch').value||'').toLowerCase();
   // 검색어만 적용한 기준 목록 (칩 건수 계산용)
@@ -3449,6 +3578,8 @@ function renderShip(){
     if (shipStatusF === 'request' && shipDone(s)) return false;
     if (shipInvF === 'issued' && !s.tax_invoice_issued) return false;
     if (shipInvF === 'unissued' && s.tax_invoice_issued) return false;
+    if (shipCollF === 'collected' && !s.collected) return false;
+    if (shipCollF === 'uncollected' && s.collected) return false;
     return true;
   }).sort((a,b)=>String(b.ship_date||'').localeCompare(String(a.ship_date||'')));
 
@@ -3476,7 +3607,15 @@ function renderShip(){
       ${chip(`미발행 <span style="opacity:.75;">${nUniss}</span>`, shipInvF==='unissued', "setShipInvF('unissued')", '#dc2626')}
       ${chip(`발행 <span style="opacity:.75;">${nIssued}</span>`, shipInvF==='issued', "setShipInvF('issued')", '#16a34a')}
     </div>`;
-  $('shipChips').innerHTML = statusRow + invRow;
+  // 수금
+  const nColl = invScope.filter(s=>s.collected).length, nUncoll = invScope.length - nColl;
+  const collRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      ${rowLbl('수금')}
+      ${chip('전체', !shipCollF, "setShipCollF('')")}
+      ${chip(`💰 수금 전 <span style="opacity:.75;">${nUncoll}</span>`, shipCollF==='uncollected', "setShipCollF('uncollected')", '#d97706')}
+      ${chip(`✅ 수금 완료 <span style="opacity:.75;">${nColl}</span>`, shipCollF==='collected', "setShipCollF('collected')", '#16a34a')}
+    </div>`;
+  $('shipChips').innerHTML = statusRow + invRow + collRow;
 
   // KPI
   const now = new Date();
@@ -3495,7 +3634,7 @@ function renderShip(){
     <div class="stat-card"><div class="stat-label">세금계산서 미발행</div><div class="stat-value" style="color:${shipments.filter(s=>!s.tax_invoice_issued).length?'var(--status-critical)':'inherit'}">${shipments.filter(s=>!s.tax_invoice_issued).length}<span class="unit">건</span></div><div class="stat-sub">전체 ${shipments.length}건 중 · 발행 ${shipments.filter(s=>s.tax_invoice_issued).length}건</div></div>`;
 
   $('shipTable').innerHTML = `
-    <thead><tr><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>세금계산서</th><th>담당</th></tr></thead>
+    <thead><tr><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
     <tbody>${list.length ? list.map(s=>{
       const inv = s.tax_invoice_issued
         ? `<span class="status-badge badge-paid" style="font-size:11px;padding:3px 9px;">발행 ${s.tax_invoice_date?fmtDate(s.tax_invoice_date):''}</span>`
@@ -3516,7 +3655,7 @@ function renderShip(){
         <td class="td-num" style="font-weight:700;">${fmtWon(s.amount||0)}</td>
         <td class="td-num td-muted">${fmtWon(Math.round((s.amount||0)*1.1))}</td>
         <td>${shipStage}</td>
-        <td>${inv}</td>
+        <td>${shipStepper(s)}</td>
         <td>${esc(s.person||'-')}</td>
       </tr>`;}).join('') : `<tr><td colspan="10"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">등록된 출고·납품 건이 없어요</div><div class="empty-desc">오른쪽 위 "새 출고 등록"으로 추가하면 출고일 기준으로 매출에 반영돼요</div></div></td></tr>`}</tbody>`;
 }
@@ -3560,6 +3699,7 @@ function openShipModal(id){
   $('shDate').value = s?.ship_date || new Date().toISOString().slice(0,10);
   $('shStatus').value = s?.ship_status || 'request';
   $('shInv').value = s?.tax_invoice_issued ? '1' : '0';
+  $('shCollected').value = s?.collected ? '1' : '0';
   $('shInvDate').value = (s?.tax_invoice_date || '').slice(0,10);
   $('shMemo').value = s?.memo || '';
   onShipStatusChange();
@@ -3647,6 +3787,7 @@ function saveShip(){
     // 출고 완료 건만 세금계산서 발행 상태 반영 (출고 요청은 항상 미발행)
     tax_invoice_issued: $('shStatus').value === 'done' && $('shInv').value === '1',
     tax_invoice_date: ($('shStatus').value === 'done' && $('shInv').value === '1') ? ($('shInvDate').value || shipDate) : null,
+    collected: $('shCollected').value === '1',
     memo: $('shMemo').value.trim() || null,
     updated_at: new Date().toISOString()
   };
@@ -3902,6 +4043,7 @@ $('editModal').addEventListener('click', e=>{ if(e.target===$('editModal')) clos
 $('asModal').addEventListener('click', e=>{ if(e.target===$('asModal')) closeAsModal(); });
 $('shipModal').addEventListener('click', e=>{ if(e.target===$('shipModal')) closeShipModal(); });
 $('calDayModal').addEventListener('click', e=>{ if(e.target===$('calDayModal')) closeCalDay(); });
+$('unpaidModal').addEventListener('click', e=>{ if(e.target===$('unpaidModal')) closeUnpaidModal(); });
 $('asImportInput').addEventListener('change', function(){
   if (this.files.length) importAs(this.files[0]);
   this.value = '';
