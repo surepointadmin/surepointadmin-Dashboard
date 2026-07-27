@@ -2026,6 +2026,14 @@ function fmtDate(d){ return d ? String(d).slice(0,10).replace(/-/g,'.') : '-'; }
 function dealInvoiced(d){ return canonStage(d)==='세금계산서발행 완료' || !!d.tax_invoice_issued || recvList.some(r=>r.deal_id===d.id && r.tax_invoice_issued); }
 function dispStage(d){ return canonStage(d); }
 function stageIdx(d){ return STAGES.indexOf(dispStage(d)); }
+// 딜명 자동생성: 도입현장 + 제품 (없으면 원래 딜명/고객사로 대체)
+function dealTitle(d){
+  if (!d) return '딜';
+  const parts = [];
+  if (d.site && String(d.site).trim()) parts.push(String(d.site).trim());
+  if (d.prod && String(d.prod).trim()) parts.push(String(d.prod).trim());
+  return parts.length ? parts.join(' · ') : (d.name || d.co || '딜');
+}
 function isLost(d){ return canonStage(d) === LOST; }
 function isRevenue(d){ return !isLost(d) && REVENUE_STAGES.has(canonStage(d)); }
 function revDate(d){ return d.delivery_date || d.close_date || (d.created_at||'').slice(0,10) || null; }
@@ -2220,7 +2228,7 @@ function renderCalendar(){
     const shown = evs.slice(0,3);
     const evHtml = shown.map(d=>{
       const col = isLost(d) ? '#94a3b8' : (STAGE_COLORS[dispStage(d)]||'#9ca3af');
-      const nm = (d.name||d.co||'딜');
+      const nm = dealTitle(d);
       return `<div class="cal-ev" style="background:${hexToRgba(col,0.15)};color:${col};border-left:3px solid ${col};" title="${esc(nm)} · ${dealCalDateLabel(d)}">${esc(nm)}</div>`;
     }).join('');
     const moreHtml = evs.length>3 ? `<div class="cal-more">+${evs.length-3}건 더</div>` : '';
@@ -2248,7 +2256,7 @@ function openCalDay(ds){
     return `<div onclick="closeCalDay();openDetail(${d.id})" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:background .12s;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
       <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0;"></span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(d.name||d.co||'딜')}</div>
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dealTitle(d))}</div>
         <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:600;">${d.co?esc(d.co)+' · ':''}${esc(dispStage(d))} · ${dealCalDateLabel(d)}</div>
       </div>
       ${d.amount?`<div style="font-size:13px;font-weight:800;flex-shrink:0;">${fmtMoney(d.amount)}</div>`:''}
@@ -2359,7 +2367,7 @@ function goUnpaid(){
 let _unpaidText = '';
 function unpaidBreakdownItems(){
   const dealItems = deals.filter(d=>dealUnpaid(d)>0).map(d=>({
-    label:(d.name||d.co||'딜'), sub:dispStage(d), amount:(d.amount||0), paid:dealPaid(d), unpaid:dealUnpaid(d)
+    label:dealTitle(d), sub:dispStage(d), amount:(d.amount||0), paid:dealPaid(d), unpaid:dealUnpaid(d)
   })).sort((a,b)=>b.unpaid-a.unpaid);
   const recvItems = recvList.filter(r=>!r.deal_id && r.status!=='received').map(r=>({
     label:(r.company_name||'수금 건'), sub:(RECV_LABEL[r.status]||r.status||''), unpaid:manToWon(r.amount)
@@ -2822,10 +2830,10 @@ function projectCardHtml(d, seq){
       const kseq = orderSeq(o) || 2;
       const inst = !isLost(o) && isRevenue(o);
       const stageLbl = isLost(o) ? '실패·보류' : dispStage(o);
-      return `<div onclick="event.stopPropagation();openDetail(${o.id})" title="${esc(o.name)} — 클릭하면 상세로 이동"
+      return `<div onclick="event.stopPropagation();openDetail(${o.id})" title="${esc(dealTitle(o))} — 클릭하면 상세로 이동"
         style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 11px;background:#f5f7ff;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;">
         <b style="color:#4338ca;flex-shrink:0;">${kseq}차</b>
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(o.name)}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dealTitle(o))}</span>
         <span style="flex-shrink:0;color:${inst?'#15803d':'var(--text-tertiary)'};">${stageLbl}</span>
         ${o.amount?`<span style="flex-shrink:0;">${fmtMoney(o.amount)}</span>`:''}
         <span style="flex-shrink:0;">${inst?'✅':'⏳'}</span>
@@ -2844,9 +2852,9 @@ function projectCardHtml(d, seq){
   <div class="project-card" onclick="openDetail(${d.id})">
     <div class="pc-wrap">
       <div class="pc-left">
-        <div class="pc-name">${seqChip?seqChip+' ':''}${esc(d.name)}</div>
+        <div class="pc-name">${seqChip?seqChip+' ':''}${esc(dealTitle(d))}</div>
+        <div class="pc-co"><span>🏢 ${esc(d.co||'-')} · ${esc(d.person||'-')}</span>${asBadge(d)||''}${repeatBadge(d)||''}</div>
         ${d.site?`<div class="pc-site"><span class="pin">📍</span>${esc(d.site)}</div>`:''}
-        <div class="pc-co"><span>${esc(d.co||'-')} · ${esc(d.person||'-')}</span>${asBadge(d)||''}${repeatBadge(d)||''}</div>
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
       </div>
@@ -2873,7 +2881,7 @@ function kdealHtml(d){
                   d.close_date ? `목표 ${String(d.close_date).slice(5,10).replace('-','/')}` : '';
   return `<div class="kdeal" onclick="openDetail(${d.id})">
     <div class="kdeal-top">
-      <div class="kdeal-name">${esc(d.name)}</div>
+      <div class="kdeal-name">${esc(dealTitle(d))}</div>
       <div class="kdeal-amt">${d.amount?fmtMoney(d.amount):''}</div>
     </div>
     <div class="kdeal-co">${esc(d.co||'-')}${d.site?` · 📍${esc(d.site)}`:''}</div>
@@ -2972,7 +2980,7 @@ function openDetail(id){
   $('detailHeader').innerHTML = `
     <div class="detail-title-row">
       <div>
-        <div class="detail-title">${esc(d.name)}</div>
+        <div class="detail-title">${esc(dealTitle(d))}</div>
         <div class="detail-sub">${esc(d.co||'-')}${d.site?` · 📍 ${esc(d.site)}`:''}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -3205,7 +3213,7 @@ function relatedDealsHtml(d){
           const seq = orderSeq(o);
           return `<tr style="cursor:pointer;${cur?'background:#eef2ff;':''}" onclick="${cur?'':`openDetail(${o.id})`}">
             <td class="td-num">${fmtDate(o.created_at)}</td>
-            <td style="font-weight:600">${seq?`<span class="status-badge badge-repeat" style="font-size:11px;padding:2px 8px;font-weight:700;">${seq}차${seq>1?' 추가':''}</span> `:''}${esc(o.name)}${cur?' <span style="font-size:11px;color:#4338ca;font-weight:700;">← 현재</span>':''}</td>
+            <td style="font-weight:600">${seq?`<span class="status-badge badge-repeat" style="font-size:11px;padding:2px 8px;font-weight:700;">${seq}차${seq>1?' 추가':''}</span> `:''}${esc(dealTitle(o))}${cur?' <span style="font-size:11px;color:#4338ca;font-weight:700;">← 현재</span>':''}</td>
             <td><span class="status-badge ${isLost(o)?'badge-lost':(STAGE_BADGE[stageIdx(o)]||'badge-pre')}" style="font-size:11px;padding:3px 9px;">${esc(dispStage(o))}</span></td>
             <td class="td-num">${isRevenue(o)?fmtDate(revDate(o)):'-'}</td>
             <td class="td-num">${o.amount?fmtMoney(o.amount):'-'}</td>
