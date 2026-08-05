@@ -1042,10 +1042,10 @@
                         <option value="">전체 년도</option>
                     </select>
                     <select class="filter-select" id="sortFilter" onchange="renderProjects()">
+                        <option value="install_desc">납품기한 ↓ 최신순</option>
+                        <option value="install_asc">납품기한 ↑ 빠른순</option>
                         <option value="created_desc">추가 날짜 ↓ 최신순</option>
                         <option value="created_asc">추가 날짜 ↑ 오래된순</option>
-                        <option value="install_asc">설치 날짜 ↑ 빠른순</option>
-                        <option value="install_desc">설치 날짜 ↓ 늦은순</option>
                     </select>
                 </div>
 
@@ -1201,6 +1201,7 @@
                         <div class="section-desc">surepoint 재무 운영툴의 수금 데이터와 연동돼요 (금액은 공급가, VAT 포함액 병기)</div>
                         <div id="payQuick"></div>
                         <div class="pay-summary" id="paySummary"></div>
+                        <div id="payLedger"></div>
                         <div style="overflow-x:auto;">
                             <table class="data-table" id="payTable"></table>
                         </div>
@@ -1608,6 +1609,16 @@
                         <input type="text" class="form-input" id="edCo" placeholder="예: 현대중공업">
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">계약목표일 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
+                        <input type="date" class="form-input" id="edClose">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">납품기한 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
+                        <input type="date" class="form-input" id="edDelivery">
+                    </div>
+                </div>
                 <div class="form-group">
                     <label class="form-label">도입현장</label>
                     <input type="text" class="form-input" id="edSite" placeholder="예: 포스코 광양제철소">
@@ -1837,6 +1848,9 @@ async function loadKvRemote(){
     // 진행 기록 항목별 메모
     if (map.log_notes != null) { logNotes = map.log_notes || {}; try{ localStorage.setItem(LOGNOTE_LS_KEY, JSON.stringify(logNotes)); }catch(e){} }
     else if (logNotes && Object.keys(logNotes).length) { await sbUpsert(KV_TABLE, [{k:'log_notes', data:logNotes}], 'k'); }
+    // 딜 수금 내역
+    if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
+    else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
   } catch(e){ kvRemoteOn = false; }
 }
 function syncKv(k, obj){ if (!kvRemoteOn) return; sbUpsert(KV_TABLE, [{k, data:obj}], 'k').catch(()=>toast('팀 공유 저장 실패 — 잠시 후 다시 시도해 주세요', true)); }
@@ -1914,6 +1928,7 @@ function loadAsLocal(){
   loadShipLocal();
   loadDealNotes();
   loadLogNotes();
+  loadDealPayments();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -1925,6 +1940,12 @@ const LOGNOTE_LS_KEY = 'sp_log_notes_v1';
 let logNotes = {};
 function loadLogNotes(){ try { logNotes = JSON.parse(localStorage.getItem(LOGNOTE_LS_KEY) || '{}') || {}; } catch(e){ logNotes = {}; } }
 function saveLogNotes(){ try { localStorage.setItem(LOGNOTE_LS_KEY, JSON.stringify(logNotes)); } catch(e){} syncKv('log_notes', logNotes); }
+/* 딜 수금 내역(입금 기록) — { dealId: [{amount(원), date, memo}] } · 팀 공유. 영업툴에 수금 금액 컬럼이 없어 별도 관리 */
+const PAY_LS_KEY = 'sp_deal_payments_v1';
+let dealPayments = {};
+function loadDealPayments(){ try { dealPayments = JSON.parse(localStorage.getItem(PAY_LS_KEY) || '{}') || {}; } catch(e){ dealPayments = {}; } }
+function saveDealPayments(){ try { localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); } catch(e){} syncKv('deal_payments', dealPayments); }
+function dealPaidLocal(d){ const arr = (d && dealPayments[d.id]) || []; return arr.reduce((s,p)=>s+(Number(p.amount)||0),0); }
 function getDealNote(id){ return dealNotes[id] || ''; }
 function setDealNote(id, txt){ txt = (txt||'').trim(); if (txt) dealNotes[id] = txt; else delete dealNotes[id]; saveDealNotes(); }
 /* ---- 출고·납품 로컬 저장 ---- */
@@ -2066,6 +2087,12 @@ function inflowTag(id){
 /* 딜 수금 상태: deal.recv_status 우선, 연결 receivables 로 보정 */
 function dealRecvState(d){
   if (!isRevenue(d)) return null;
+  // 수금 내역(입금 기록)이 있으면 우선: 전액 이상=완납, 일부=부분수금(연체 지정 시 연체)
+  const local = dealPaidLocal(d), amt = d.amount||0;
+  if (local > 0) {
+    if (amt > 0 && local >= amt) return 'received';
+    return d.recv_status === 'overdue' ? 'overdue' : 'pending';
+  }
   let st = d.recv_status || 'pending';
   const linked = recvList.filter(r => r.deal_id === d.id);
   if (st !== 'received' && linked.length) {
@@ -2096,6 +2123,8 @@ function warrantyBadgeAs(dealId){
     : `<span class="status-badge badge-none" title="설치 ${fmtDate(w.start)} + 1년 → ${fmtDate(w.end)} 만료됨 (유상 A/S 대상)">🛡️ 보증 만료</span>`;
 }
 function dealPaid(d){ // 수금액(원)
+  const local = dealPaidLocal(d);
+  if (local > 0) return Math.min(d.amount||0, local);   // 수금 내역이 있으면 그 합산 우선
   const linked = recvList.filter(r => r.deal_id === d.id && r.status === 'received');
   if (linked.length) return Math.min(d.amount||0, linked.reduce((s,r)=>s+manToWon(r.amount),0));
   return dealRecvState(d) === 'received' ? (d.amount||0) : 0;
@@ -2654,9 +2683,9 @@ function renderProjects(){
   });
 
   // 정렬
-  const sort = $('sortFilter').value || 'created_desc';
+  const sort = $('sortFilter').value || 'install_desc';
   const createdKey = d => String(d.created_at||'');
-  const installKey = d => String(d.delivery_date||''); // 설치(납품기한) 날짜
+  const installKey = d => String(d.delivery_date||''); // 납품기한 날짜
   list.sort((a,b)=>{
     if (sort === 'created_desc') return createdKey(b).localeCompare(createdKey(a));
     if (sort === 'created_asc')  return createdKey(a).localeCompare(createdKey(b));
@@ -2824,11 +2853,10 @@ function projectCardHtml(d, seq){
   // 오른쪽: 날짜
   let dtHtml;
   if (lost) dtHtml = `<span>보류된 딜</span>`;
+  else if (d.delivery_date) dtHtml = `<span>📦 납품기한</span><br>${fmtDate(d.delivery_date)}`;
   else if (installed) dtHtml = `<span>설치</span> ${fmtDate(rd)}`;
-  else {
-    const schedD = d.delivery_date || d.close_date;
-    dtHtml = schedD ? `<span>${d.delivery_date?'납품기한':'계약목표'}</span> ${fmtDate(schedD)}` : `<span>일정 미정</span>`;
-  }
+  else if (d.close_date) dtHtml = `<span>계약목표</span> ${fmtDate(d.close_date)}`;
+  else dtHtml = `<span>일정 미정</span>`;
   // 오른쪽: 수금/매출 상태 (시안 B — 색 pill: 완납=초록·부분수금=주황·연체=빨강·미수금=회색)
   let payHtml;
   if (st) {
@@ -3074,6 +3102,8 @@ function renderSettle(){
     <div class="pay-sum-item"><div class="pay-sum-label">수금액</div><div class="pay-sum-value" style="color:var(--primary)">${fmtMoney(paid)}</div></div>
     <div class="pay-sum-item"><div class="pay-sum-label">미수금</div><div class="pay-sum-value" style="color:${remain>0&&DELIVERED_STAGES.has(canonStage(d))?'var(--status-critical)':'inherit'}">${fmtMoney(remain)}</div></div>`;
 
+  renderPayLedger(d);
+
   if (!linked.length) {
     const stMsg = st ? `현재 수금 상태: <b>${RECV_LABEL[st]}</b>${d.recv_expected_date?` · 예상 수금일 ${fmtDate(d.recv_expected_date)}`:''}${d.tax_invoice_date?` · 계산서 ${fmtDate(d.tax_invoice_date)} 발행`:''}` : '아직 정산 단계가 아니에요 (설치·납품 완료 후 집계돼요)';
     $('payTable').innerHTML = `<tr><td><div class="empty-state" style="padding:26px;">
@@ -3099,6 +3129,65 @@ function renderSettle(){
     }).join('')}</tbody>`;
 }
 function si0(d){ const i = stageIdx(d); return i<0?0:i; }
+/* ---- 수금 내역(입금 기록) — 분할지급 대응, 자동 % 계산 · 팀 공유 ---- */
+function renderPayLedger(d){
+  const el = $('payLedger'); if(!el) return;
+  const amt = d.amount||0;
+  const pays = (dealPayments[d.id]||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const paidL = pays.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const pct = amt ? Math.min(100, Math.round(paidL/amt*100)) : 0;
+  const barColor = pct>=100 ? '#16a34a' : (pct>0 ? '#d97706' : '#cbd5e1');
+  const pctColor = pct>=100 ? '#15803d' : (pct>0 ? '#b45309' : 'var(--text-tertiary)');
+  const rows = pays.length ? pays.map((p,i)=>`
+    <tr>
+      <td class="td-num" style="font-weight:700;white-space:nowrap;">${fmtDate(p.date)}</td>
+      <td class="td-num" style="font-weight:700;">${fmtMoney(Number(p.amount)||0)}</td>
+      <td style="color:var(--text-tertiary);font-size:12px;">${esc(p.memo||'')}</td>
+      <td style="text-align:right;"><span onclick="deleteDealPayment(${d.id},${i})" title="삭제" style="color:var(--status-critical);cursor:pointer;font-weight:800;">×</span></td>
+    </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);font-size:12.5px;padding:14px;">아직 입금 기록이 없어요 — 입금이 들어오면 아래에서 추가하세요</td></tr>`;
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = `
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;">
+        <div style="font-size:14px;font-weight:800;">💰 수금 내역 (입금 기록)</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--text-secondary);">누적 ${fmtMoney(paidL)} / ${fmtMoney(amt)} · <span style="color:${pctColor};font-weight:800;">${pct}%</span></div>
+      </div>
+      <div style="height:8px;background:#eef1f4;border-radius:5px;overflow:hidden;margin-bottom:14px;"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:5px;transition:width .2s;"></div></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:11px 12px;">
+        <div style="flex:1;min-width:120px;"><label style="font-size:11px;color:var(--text-tertiary);font-weight:700;display:block;margin-bottom:4px;">입금액 (원)</label><input type="number" min="0" id="payAddAmt" class="form-input" placeholder="예: 5000000" oninput="payAddHint()" style="font-size:13px;"><div id="payAddHint" style="font-size:11px;color:var(--primary);font-weight:700;margin-top:3px;"></div></div>
+        <div><label style="font-size:11px;color:var(--text-tertiary);font-weight:700;display:block;margin-bottom:4px;">입금일</label><input type="date" id="payAddDate" class="form-input" value="${today}" style="font-size:13px;"></div>
+        <div style="flex:1;min-width:110px;"><label style="font-size:11px;color:var(--text-tertiary);font-weight:700;display:block;margin-bottom:4px;">메모 (선택)</label><input type="text" id="payAddMemo" class="form-input" placeholder="예: 3회차" style="font-size:13px;"></div>
+        <button class="btn btn-primary btn-sm" onclick="addDealPayment(${d.id})">＋ 입금 추가</button>
+      </div>
+      <div style="overflow-x:auto;"><table class="data-table" style="font-size:13px;"><thead><tr><th>입금일</th><th class="td-num">입금액</th><th>메모</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+function payAddHint(){
+  const v = parseInt($('payAddAmt').value)||0;
+  $('payAddHint').innerHTML = v ? `${fmtMoney(v)}원` : '';
+}
+function addDealPayment(dealId){
+  const amt = parseInt($('payAddAmt').value)||0;
+  const date = $('payAddDate').value || new Date().toISOString().slice(0,10);
+  const memo = ($('payAddMemo').value||'').trim();
+  if (amt<=0){ $('payAddAmt').focus(); toast('입금액을 입력해 주세요', true); return; }
+  if (!dealPayments[dealId]) dealPayments[dealId] = [];
+  dealPayments[dealId].push({ amount: amt, date, memo, at: new Date().toISOString() });
+  saveDealPayments();
+  const d = deals.find(x=>x.id===dealId);
+  renderSettle();
+  toast('입금 기록을 추가했어요 ✓');
+  if ($('projectsPage').classList.contains('active')) renderProjects();
+}
+function deleteDealPayment(dealId, i){
+  const arr = dealPayments[dealId]; if(!arr) return;
+  if (!confirm('이 입금 기록을 삭제할까요?')) return;
+  arr.splice(i,1);
+  if (!arr.length) delete dealPayments[dealId];
+  saveDealPayments();
+  renderSettle();
+  if ($('projectsPage').classList.contains('active')) renderProjects();
+}
 
 /* ---- 빠른 수정: 입금 · 세금계산서 (상세 페이지 정산 현황, 저장 버튼으로 반영) ----
    화면의 입금·계산서 표시는 딜 값 + 연결된 수금 건(receivables) 기준으로 계산되므로
@@ -4086,6 +4175,8 @@ function openEditModal(){
   $('edInv').value = d.tax_invoice_issued ? '1' : '0';
   $('edInvDate').value = (d.tax_invoice_date||'').slice(0,10);
   $('edCreated').value = (d.created_at||'').slice(0,10);
+  $('edClose').value = (d.close_date||'').slice(0,10);
+  $('edDelivery').value = (d.delivery_date||'').slice(0,10);
   $('edCo').value = d.co || '';
   $('edSite').value = d.site || '';
   $('edContactName').value = d.contact_name || '';
@@ -4157,6 +4248,11 @@ async function saveEdit(){
   // 등록일
   const created = $('edCreated').value;
   if (created && created !== (d.created_at||'').slice(0,10)) patch.created_at = created + 'T00:00:00+09:00';
+  // 계약목표일 · 납품기한 (영업툴 연동 컬럼)
+  const closeD = $('edClose').value;
+  if (closeD !== (d.close_date||'').slice(0,10)) patch.close_date = closeD || null;
+  const deliv = $('edDelivery').value;
+  if (deliv !== (d.delivery_date||'').slice(0,10)) patch.delivery_date = deliv || null;
   // 단계: 선택한 표준 단계를 그대로 저장 (영업툴과 동일한 단계명)
   const sel = $('edStage').value;
   if (sel !== dispStage(d)) {
