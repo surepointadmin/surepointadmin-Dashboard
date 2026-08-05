@@ -670,6 +670,18 @@
         }
         .visit-memo { font-size: 14px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; }
         .visit-by { font-size: 12px; color: var(--text-tertiary); margin-top: 8px; }
+        /* 진행 기록 항목별 메모 (시안 B — 답글 스레드) */
+        .log-thread { margin-top: 11px; padding-left: 11px; border-left: 2px solid #d9ead0; display: flex; flex-direction: column; gap: 7px; }
+        .log-note { position: relative; background: #f2f7ee; border: 1px solid #d9ead0; border-radius: 8px; padding: 8px 11px; }
+        .log-note-text { font-size: 13px; color: #2f5233; line-height: 1.5; white-space: pre-wrap; padding-right: 20px; }
+        .log-note-by { font-size: 10.5px; color: #5a7a4f; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+        .log-note-trash { position: absolute; top: 6px; right: 7px; border: none; background: transparent; color: #9aa3ad; cursor: pointer; padding: 2px; line-height: 1; border-radius: 5px; display: inline-flex; }
+        .log-note-trash:hover { color: #dc2626; background: #fdecec; }
+        .log-note-trash svg { width: 13px; height: 13px; }
+        .log-addbar { display: flex; gap: 6px; margin-top: 11px; }
+        .log-addinput { flex: 1; border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; font-size: 12.5px; font-family: inherit; outline: none; }
+        .log-addinput:focus { border-color: var(--primary); }
+        .log-addbtn { border: none; border-radius: 7px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; padding: 0 14px; cursor: pointer; white-space: nowrap; }
 
         /* ===== Edit modal ===== */
         .modal-overlay {
@@ -1822,6 +1834,9 @@ async function loadKvRemote(){
     // 딜 특이사항
     if (map.deal_notes != null) { dealNotes = map.deal_notes || {}; try{ localStorage.setItem(DNOTE_LS_KEY, JSON.stringify(dealNotes)); }catch(e){} }
     else if (dealNotes && Object.keys(dealNotes).length) { await sbUpsert(KV_TABLE, [{k:'deal_notes', data:dealNotes}], 'k'); }
+    // 진행 기록 항목별 메모
+    if (map.log_notes != null) { logNotes = map.log_notes || {}; try{ localStorage.setItem(LOGNOTE_LS_KEY, JSON.stringify(logNotes)); }catch(e){} }
+    else if (logNotes && Object.keys(logNotes).length) { await sbUpsert(KV_TABLE, [{k:'log_notes', data:logNotes}], 'k'); }
   } catch(e){ kvRemoteOn = false; }
 }
 function syncKv(k, obj){ if (!kvRemoteOn) return; sbUpsert(KV_TABLE, [{k, data:obj}], 'k').catch(()=>toast('팀 공유 저장 실패 — 잠시 후 다시 시도해 주세요', true)); }
@@ -1898,12 +1913,18 @@ function loadAsLocal(){
   loadLinksLocal();
   loadShipLocal();
   loadDealNotes();
+  loadLogNotes();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
 let dealNotes = {};
 function loadDealNotes(){ try { dealNotes = JSON.parse(localStorage.getItem(DNOTE_LS_KEY) || '{}') || {}; } catch(e){ dealNotes = {}; } }
 function saveDealNotes(){ try { localStorage.setItem(DNOTE_LS_KEY, JSON.stringify(dealNotes)); } catch(e){} syncKv('deal_notes', dealNotes); }
+/* 진행 기록 항목별 메모 — 로그별 메모 배열 { logKey: [{text, at}] } · 팀 공유 */
+const LOGNOTE_LS_KEY = 'sp_log_notes_v1';
+let logNotes = {};
+function loadLogNotes(){ try { logNotes = JSON.parse(localStorage.getItem(LOGNOTE_LS_KEY) || '{}') || {}; } catch(e){ logNotes = {}; } }
+function saveLogNotes(){ try { localStorage.setItem(LOGNOTE_LS_KEY, JSON.stringify(logNotes)); } catch(e){} syncKv('log_notes', logNotes); }
 function getDealNote(id){ return dealNotes[id] || ''; }
 function setDealNote(id, txt){ txt = (txt||'').trim(); if (txt) dealNotes[id] = txt; else delete dealNotes[id]; saveDealNotes(); }
 /* ---- 출고·납품 로컬 저장 ---- */
@@ -3125,10 +3146,23 @@ async function savePayQuick(){
   finally { btn.disabled = false; btn.textContent = '저장'; }
 }
 
+function logKey(h){
+  const raw = (h.id!=null) ? ('id'+h.id) : ('dk'+(h.deal_id||'')+'_'+(h.created_at||''));
+  return raw.replace(/[^a-zA-Z0-9_]/g,'');
+}
 function renderHistory(){
   const logs = dealLogs.filter(l=>l.deal_id===currentDealId);
   const sorted = [...logs].sort((a,b)=> (a.created_at||'') < (b.created_at||'') ? 1 : -1);
-  $('historyTimeline').innerHTML = sorted.length ? sorted.map(h=>`
+  $('historyTimeline').innerHTML = sorted.length ? sorted.map(h=>{
+    const k = logKey(h);
+    const notes = logNotes[k] || [];
+    const thread = notes.length ? `<div class="log-thread">${notes.map((n,i)=>`
+      <div class="log-note">
+        <button class="log-note-trash" title="메모 삭제" onclick="deleteLogNote('${k}',${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        <div class="log-note-text">${esc(n.text||'')}</div>
+        <div class="log-note-by">✍️ ${n.person?esc(n.person)+' · ':''}${fmtDate(n.at)} ${(n.at||'').slice(11,16)}</div>
+      </div>`).join('')}</div>` : '';
+    return `
     <div class="visit-card">
       <div class="visit-header">
         <span class="visit-date">${fmtDate(h.created_at)} <span style="font-weight:400;color:var(--text-tertiary);font-size:12px;">${(h.created_at||'').slice(11,16)}</span></span>
@@ -3136,8 +3170,31 @@ function renderHistory(){
       </div>
       <div class="visit-memo">${esc(h.text||'')}</div>
       ${h.person?`<div class="visit-by">작성 · ${esc(h.person)}</div>`:''}
-    </div>`).join('')
+      ${thread}
+      <div class="log-addbar">
+        <input class="log-addinput" id="login_${k}" placeholder="이 기록에 메모 남기기…" onkeydown="if(event.key==='Enter')addLogNote('${k}')">
+        <button class="log-addbtn" onclick="addLogNote('${k}')">등록</button>
+      </div>
+    </div>`;
+  }).join('')
   : `<div class="empty-state" style="padding:24px;"><div class="empty-title" style="font-size:15px;">기록이 없어요</div><div class="empty-desc">surepoint의 활동 로그가 여기에 표시돼요</div></div>`;
+}
+function addLogNote(k){
+  const el = $('login_'+k); if(!el) return;
+  const txt = (el.value||'').trim(); if(!txt){ el.focus(); return; }
+  if(!logNotes[k]) logNotes[k] = [];
+  logNotes[k].push({ text: txt, at: new Date().toISOString() });
+  saveLogNotes();
+  renderHistory();
+  toast('메모를 추가했어요 ✓');
+}
+function deleteLogNote(k, i){
+  if(!logNotes[k]) return;
+  if(!confirm('이 메모를 삭제할까요?')) return;
+  logNotes[k].splice(i,1);
+  if(!logNotes[k].length) delete logNotes[k];
+  saveLogNotes();
+  renderHistory();
 }
 
 function renderInfo(){
