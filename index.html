@@ -1463,6 +1463,35 @@
                         <input type="text" class="form-input" id="shMemo" placeholder="예: 택배 발송, 송장번호 등">
                     </div>
                 </div>
+                <!-- 반품 처리 (시안 A: 토글 → 펼침) -->
+                <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:16px;">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+                        <input type="checkbox" id="shReturned" onchange="onShipReturnToggle()" style="width:17px;height:17px;accent-color:var(--status-critical);cursor:pointer;">
+                        <span style="font-size:14px;font-weight:700;color:var(--status-critical);">🔄 반품 처리</span>
+                        <span style="font-size:11.5px;color:var(--text-tertiary);font-weight:500;">켜면 반품 금액만큼 매출에서 자동으로 빠져요</span>
+                    </label>
+                    <div id="shReturnFields" style="display:none;margin-top:12px;background:#fdf5f5;border:1px solid #f2d6d6;border-radius:10px;padding:14px;">
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label class="form-label">반품일</label>
+                                <input type="date" class="form-input" id="shReturnDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">반품 수량 (대)</label>
+                                <input type="number" min="0" class="form-input" id="shReturnQty" placeholder="예: 2">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">반품 금액 (원)</label>
+                                <input type="number" min="0" class="form-input" id="shReturnAmount" placeholder="예: 2000000" oninput="onShipReturnAmt()">
+                                <div class="form-hint" id="shReturnHint"></div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">반품 사유</label>
+                            <input type="text" class="form-input" id="shReturnReason" placeholder="예: 불량 · 오배송 · 고객 취소 등">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" style="margin-right:auto;color:var(--status-critical);display:none;" id="shDeleteBtn" onclick="deleteShip()">삭제</button>
@@ -2008,6 +2037,9 @@ function loadShipLocal(){ try { shipments = JSON.parse(localStorage.getItem(SHIP
 function saveShipLocal(){ try { localStorage.setItem(SHIP_LS_KEY, JSON.stringify(shipments)); } catch(e){ toast('저장 공간 부족 — 백업 후 정리해 주세요', true); } if (shipRemoteOn) syncShipRemote(); }
 function shipYears(){ return [...new Set(shipments.map(s=>(s.ship_date||'').slice(0,4)).filter(Boolean))].sort().reverse(); }
 function shipDone(s){ return s.ship_status === 'done'; } // 출고 완료만 매출 반영 (출고 요청은 제외)
+function shipReturned(s){ return !!(s && s.returned); }                              // 반품 처리 여부
+function shipReturnAmt(s){ return shipReturned(s) ? (Number(s.return_amount)||0) : 0; } // 반품 금액
+function shipNet(s){ return Math.max(0, (s.amount||0) - shipReturnAmt(s)); }         // 净 매출 = 출고금액 − 반품금액
 // 출고 탭 칩 필터 상태
 let shipStatusF = '';  // '' | 'request' | 'done'
 let shipInvF = '';     // '' | 'unissued' | 'issued'
@@ -2019,7 +2051,7 @@ function setShipInvF(v){ shipInvF = v; renderShip(); }
 function setShipCollF(v){ shipCollF = v; renderShip(); }
 function setShipYearF(v){ shipYearF = v; shipMonthF = ''; renderShip(); }
 function setShipMonthF(v){ shipMonthF = v; renderShip(); }
-function shipRevYear(year){ return shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(String(year))).reduce((a,s)=>a+(s.amount||0),0); }
+function shipRevYear(year){ return shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(String(year))).reduce((a,s)=>a+shipNet(s),0); }
 function saveAsLocal(){
   try { localStorage.setItem(AS_LS_KEY, JSON.stringify(asCases)); }
   catch(e){ toast('저장 공간 부족 — 백업 후 오래된 기록을 정리해 주세요', true); }
@@ -2208,8 +2240,8 @@ function revenueByMonth(year){
     if (!sd || !sd.startsWith(String(year))) return;
     const m = parseInt(sd.slice(5,7),10)-1;
     if (m<0||m>11) return;
-    arr[m] += (s.amount||0);
-    items[m].push({ name: (s.name||s.co||'출고') + ' (출고)', amount: s.amount||0 });
+    arr[m] += shipNet(s);
+    items[m].push({ name: (s.name||s.co||'출고') + ' (출고)' + (shipReturned(s)?' · 반품차감':''), amount: shipNet(s) });
   });
   return {arr, items};
 }
@@ -2227,7 +2259,7 @@ function revenueOfYear(year, uptoMonth){
     const sd = s.ship_date;
     if (!sd || !sd.startsWith(String(year))) return;
     if (uptoMonth && parseInt(sd.slice(5,7),10) > uptoMonth) return;
-    sum += (s.amount||0);
+    sum += shipNet(s);
   });
   return sum;
 }
@@ -2402,7 +2434,7 @@ function renderDashboard(){
   const psYearAmt = psYear.reduce((s,p)=>s+(p.amount||0),0);
   // 출고·납품(설치 없이 출고) 연간 — 출고 완료 건만, 출고일 기준
   const shipYear = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(String(y)));
-  const shipYearAmt = shipYear.reduce((s,x)=>s+(x.amount||0),0);
+  const shipYearAmt = shipYear.reduce((s,x)=>s+shipNet(x),0);
 
   // ── 핵심 매출 히어로 배너 (시안 A) ──
   let heroDelta = '';
@@ -3881,7 +3913,7 @@ function renderShip(){
   const now = new Date();
   const thisMonth = now.toISOString().slice(0,7);
   const thisYear = String(now.getFullYear());
-  const monthAmt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).reduce((a,s)=>a+(s.amount||0),0);
+  const monthAmt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).reduce((a,s)=>a+shipNet(s),0);
   const monthCnt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).length;
   const yearAmt = shipRevYear(thisYear);
   const yearCnt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisYear)).length;
@@ -3908,12 +3940,12 @@ function renderShip(){
       return `
       <tr style="cursor:pointer" onclick="openShipModal(${s.id})">
         <td class="td-num" style="font-weight:700;">${fmtDate(s.ship_date)}</td>
-        <td style="font-weight:600">${esc(s.name||'-')}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}</td>
+        <td style="font-weight:600">${esc(s.name||'-')}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}</td>
         <td>${esc(s.co||'-')}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
         <td>${esc(s.prod||'-')}${(Array.isArray(s.products)&&s.products.length>1)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">${s.products.map(p=>esc(p.name||'제품')+(p.qty?` ×${p.qty}`:'')).join(', ')}</div>`:''}</td>
         <td class="td-num">${s.qty||0}</td>
-        <td class="td-num" style="font-weight:700;">${fmtWon(s.amount||0)}</td>
-        <td class="td-num td-muted">${fmtWon(Math.round((s.amount||0)*1.1))}</td>
+        <td class="td-num" style="font-weight:700;">${shipReturned(s)?`<span style="color:var(--status-critical);">${fmtWon(shipNet(s))}</span><div style="font-size:11px;color:var(--text-tertiary);font-weight:600;text-decoration:line-through;">${fmtWon(s.amount||0)}</div>`:fmtWon(s.amount||0)}</td>
+        <td class="td-num td-muted">${fmtWon(Math.round(shipNet(s)*1.1))}</td>
         <td>${shipStage}</td>
         <td>${shipStepper(s)}</td>
         <td>${esc(s.person||'-')}</td>
@@ -3962,6 +3994,13 @@ function openShipModal(id){
   $('shCollected').value = s?.collected ? '1' : '0';
   $('shInvDate').value = (s?.tax_invoice_date || '').slice(0,10);
   $('shMemo').value = s?.memo || '';
+  // 반품 처리 (시안 A)
+  $('shReturned').checked = !!s?.returned;
+  $('shReturnDate').value = (s?.return_date || '').slice(0,10);
+  $('shReturnQty').value = s?.return_qty ?? '';
+  $('shReturnAmount').value = s?.return_amount ?? '';
+  $('shReturnReason').value = s?.return_reason || '';
+  onShipReturnToggle();
   onShipStatusChange();
   $('shipModal').classList.add('active');
 }
@@ -3979,6 +4018,21 @@ function onShipStatusChange(){
 function onShipInvChange(){
   // 발행으로 바꾸면서 발행일이 비어 있으면 출고일(없으면 오늘)로 기본 채움
   if ($('shInv').value === '1' && !$('shInvDate').value) $('shInvDate').value = $('shDate').value || new Date().toISOString().slice(0,10);
+}
+function onShipReturnToggle(){
+  const on = $('shReturned').checked;
+  $('shReturnFields').style.display = on ? '' : 'none';
+  if (on && !$('shReturnDate').value) $('shReturnDate').value = new Date().toISOString().slice(0,10);
+  onShipReturnAmt();
+}
+function onShipReturnAmt(){
+  // 반품 금액이 출고 총액을 넘지 않도록 안내 + 净액 미리보기
+  const total = shipProductsTotal();
+  const ret = parseFloat($('shReturnAmount').value)||0;
+  const hint = $('shReturnHint'); if(!hint) return;
+  if (!ret) { hint.textContent = ''; return; }
+  if (ret >= total && total>0) { hint.innerHTML = `<span style="color:var(--status-critical)">전량 반품 · 净 매출 0원</span>`; }
+  else { hint.innerHTML = `净 매출 <b>${fmtWon(Math.max(0,total-ret))}원</b>`; }
 }
 function shipProductsTotal(){ return shipProducts.reduce((a,p)=>a + (Math.round((parseFloat(p.qty)||0)*(parseFloat(p.unit)||0))), 0); }
 function renderShipProducts(){
@@ -4049,6 +4103,12 @@ function saveShip(){
     tax_invoice_date: ($('shStatus').value === 'done' && $('shInv').value === '1') ? ($('shInvDate').value || shipDate) : null,
     collected: $('shCollected').value === '1',
     memo: $('shMemo').value.trim() || null,
+    // 반품 처리 (시안 A) — 净 매출 = 출고금액 − 반품금액
+    returned: $('shReturned').checked,
+    return_date: $('shReturned').checked ? ($('shReturnDate').value || null) : null,
+    return_qty: $('shReturned').checked ? (parseFloat($('shReturnQty').value)||0) : null,
+    return_amount: $('shReturned').checked ? (parseFloat($('shReturnAmount').value)||0) : null,
+    return_reason: $('shReturned').checked ? ($('shReturnReason').value.trim() || null) : null,
     updated_at: new Date().toISOString()
   };
   if (currentShipId) {
