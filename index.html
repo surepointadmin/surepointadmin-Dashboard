@@ -475,9 +475,16 @@
         /* A/S 보드: 컬럼 내부 세로 스크롤 없이 전체가 늘어나 페이지 단위로 스크롤 */
         #asBoard .kcol-body { max-height: none; overflow-y: visible; }
         /* A/S 소그룹 (시안 D — 좌측 색 세로바) */
-        .as-grpD { border-left: 3px solid var(--border); padding-left: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .as-grpD { border-left: 3px solid var(--border); padding-left: 10px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .as-grpD:last-child { margin-bottom: 0; }
         .as-grpD-lbl { font-size: 10.5px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
         .as-grpD-lbl .amt { margin-left: auto; color: var(--text-tertiary); font-weight: 700; }
+        /* A/S 비용 부담 주체 pill (유상=파랑·슈어=빨강·설치팀=노랑·미지정=회색) */
+        .bear-cust  { background: #eaf1ff; color: #2563eb; }
+        .bear-sure  { background: #fdecec; color: #dc2626; }
+        .bear-team  { background: #fef7cd; color: #a16207; }
+        .bear-unset { background: #f2f4f6; color: #6b7684; }
+        .badge-warranty { background: #eef1f4; color: #6b7684; }
         .kdeal {
             background: var(--bg-main);
             border: 1px solid var(--border);
@@ -1339,16 +1346,24 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">유상 / 무상</label>
-                        <select class="form-input" id="asPaid">
+                        <select class="form-input" id="asPaid" onchange="onAsPaidChange()">
                             <option value="false">무상</option>
                             <option value="true">유상</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">비용 (원)</label>
+                        <label class="form-label" id="asCostLabel">비용 (원)</label>
                         <input type="number" class="form-input" id="asCost" min="0" oninput="$('asCostHint').textContent = (parseInt(this.value)||0) ? fmtWon(parseInt(this.value))+'원' : ''">
                         <div class="form-hint" id="asCostHint"></div>
                     </div>
+                </div>
+                <div class="form-group" id="asFreeCauseWrap">
+                    <label class="form-label">무상 원인 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(비용 부담 주체가 자동 결정돼요)</span></label>
+                    <select class="form-input" id="asFreeCause" onchange="onAsFreeCauseChange()">
+                        <option value="product">제품 하자 (보증) → 🏢 슈어포인트 부담</option>
+                        <option value="install">설치 문제 → 🛠️ 설치팀 부담</option>
+                    </select>
+                    <div class="form-hint" id="asBearerHint"></div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">메모</label>
@@ -1825,6 +1840,19 @@ const AS_COLORS = {'접수':'#f59e0b','방문 예정':'#3b82f6','조치 중':'#a
 const AS_BADGE = {'접수':'badge-partial','방문 예정':'badge-contract','조치 중':'badge-verbal','완료':'badge-paid','세금계산서 발행 완료':'badge-contract','보류':'badge-none'};
 function asCollected(c){ return !!c.collected; } // true=수금 완료, false=수금 전
 function asDone(c){ return c.status==='완료' || c.status===AS_TAX; } // A/S 작업 완료(진행 아님)
+/* 비용 부담 주체: 유상=고객(cust) · 무상+제품하자=슈어(sure) · 무상+설치문제=설치팀(team) · 무상 원인 미지정=unset */
+function asBearer(c){
+  if (c.paid) return 'cust';
+  if (c.free_cause === 'product') return 'sure';
+  if (c.free_cause === 'install') return 'team';
+  return 'unset';
+}
+const BEARER_META = {
+  cust:  {cls:'bear-cust',  border:'#2563eb', label:'#2563eb', grp:'💳 유상',        pill:'유상'},
+  sure:  {cls:'bear-sure',  border:'#dc2626', label:'#dc2626', grp:'🏢 슈어 부담',    pill:'🏢 슈어 부담'},
+  team:  {cls:'bear-team',  border:'#eab308', label:'#a16207', grp:'🛠️ 설치팀 부담',  pill:'🛠️ 설치팀 부담'},
+  unset: {cls:'bear-unset', border:'#cbd5e1', label:'#6b7684', grp:'🆓 무상 · 원인 미지정', pill:'무상 · 원인 미지정'}
+};
 let asView = 'board';
 let currentAsId = null;
 // 출고·납품(설치 없이 출고만 되는 건) — 팀 공유(Supabase 전용 테이블) + 로컬 캐시
@@ -2206,8 +2234,8 @@ function warrantyBadgeAs(dealId){
   const d = deals.find(x=>x.id===dealId); if (!d) return '';
   const w = warrantyInfo(d); if (!w) return '';
   return w.active
-    ? `<span class="status-badge badge-paid" title="설치 ${fmtDate(w.start)} + 1년 → ${fmtDate(w.end)} 만료 (무상 A/S 대상)">🛡️ 보증 중 D-${w.daysLeft}</span>`
-    : `<span class="status-badge badge-none" title="설치 ${fmtDate(w.start)} + 1년 → ${fmtDate(w.end)} 만료됨 (유상 A/S 대상)">🛡️ 보증 만료</span>`;
+    ? `<span class="status-badge badge-warranty" title="설치 ${fmtDate(w.start)} + 1년 → ${fmtDate(w.end)} 만료 (보증 기간 내)">🛡️ 보증 중 D-${w.daysLeft}</span>`
+    : `<span class="status-badge badge-none" title="설치 ${fmtDate(w.start)} + 1년 → ${fmtDate(w.end)} 만료됨 (보증 만료)">🛡️ 보증 만료</span>`;
 }
 function dealPaid(d){ // 수금액(원)
   const local = dealPaidLocal(d);
@@ -3512,7 +3540,7 @@ function asHistoryHtml(d){
             <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(c.symptom||'')}">${esc(c.symptom||'-')}</td>
             <td>${esc(c.person||'-')}</td>
             <td class="td-num">${fmtDate(c.completed_date)}</td>
-            <td>${c.paid?`유상${c.cost?' · '+fmtMoney(c.cost):''}`:'무상'}</td>
+            <td>${(()=>{const m=BEARER_META[asBearer(c)];return `<span class="status-badge ${m.cls}">${m.pill}</span>${c.cost?' · '+fmtMoney(c.cost):''}`;})()}</td>
           </tr>`).join('')}</tbody>
       </table></div>` : `<div style="font-size:13px;color:var(--text-tertiary);">이 딜에서 접수된 A/S가 없어요.</div>`}
     </div>`;
@@ -3604,22 +3632,26 @@ function renderAs(){
             <span class="kcol-meta">${cd.length}건<br>수금 ${done.length}/${cd.length}</span>
           </div>
           <div class="kcol-body">
-            ${cd.length ? (asGroupD('💰 수금 전','#d97706','#b45309',before,beforeAmt) + asGroupD('✅ 수금 완료','#15803d','#15803d',done,doneAmt)) : '<div class="kcol-empty">건 없음</div>'}
+            ${cd.length ? (asGroupD('💰 수금 전','#7c3aed','#7c3aed',before,beforeAmt) + asGroupD('✅ 수금 완료','#15803d','#15803d',done,doneAmt)) : '<div class="kcol-empty">건 없음</div>'}
           </div>
         </div>`;
       }
-      // 완료 컬럼 — 무상/유상 소그룹 분리 (시안 D)
+      // 완료 컬럼 — 비용 부담 주체 3(+1)그룹 (시안 D · 왼쪽 세로 바)
       if (st === '완료') {
-        const free = cd.filter(c=>!c.paid), paid = cd.filter(c=>c.paid);
-        const paidAmt = paid.reduce((s,c)=>s+(c.cost||0),0);
+        const cust = cd.filter(c=>asBearer(c)==='cust');
+        const sure = cd.filter(c=>asBearer(c)==='sure');
+        const team = cd.filter(c=>asBearer(c)==='team');
+        const unset= cd.filter(c=>asBearer(c)==='unset');
+        const sum = a => a.reduce((s,c)=>s+(c.cost||0),0);
+        const grp = (key, arr) => { const m = BEARER_META[key]; return asGroupD(m.grp, m.border, m.label, arr, sum(arr)); };
         return `<div class="kanban-col">
           <div class="kcol-hd">
             <span class="kcol-dot" style="background:${AS_COLORS[st]}"></span>
             <span class="kcol-name">${st}</span>
-            <span class="kcol-meta">${cd.length}건<br>무상 ${free.length} · 유상 ${paid.length}</span>
+            <span class="kcol-meta">${cd.length}건<br>슈어 ${sure.length} · 설치 ${team.length} · 유상 ${cust.length}${unset.length?` · 미지정 ${unset.length}`:''}</span>
           </div>
           <div class="kcol-body">
-            ${cd.length ? (asGroupD('💰 유상','#2563eb','#1e4c8f',paid,paidAmt) + asGroupD('🆓 무상','#c7cdd4','#6b7684',free,0)) : '<div class="kcol-empty">건 없음</div>'}
+            ${cd.length ? (grp('cust',cust) + grp('sure',sure) + grp('team',team) + grp('unset',unset)) : '<div class="kcol-empty">건 없음</div>'}
           </div>
         </div>`;
       }
@@ -3662,7 +3694,7 @@ function renderAs(){
           <td class="td-num">${fmtDate(c.received_date)}</td>
           <td class="td-num">${fmtDate(c.completed_date)}</td>
           <td>${c.deal_id?(warrantyBadgeAs(c.deal_id)||'-'):'-'}</td>
-          <td>${c.paid?'<span class="status-badge badge-contract">유상</span>':'<span class="status-badge badge-none">무상</span>'}</td>
+          <td>${(()=>{const m=BEARER_META[asBearer(c)];return `<span class="status-badge ${m.cls}">${m.pill}</span>`;})()}</td>
           <td class="td-num">${c.cost?fmtWon(c.cost)+'원':'-'}</td>
           <td>${c.status===AS_TAX?asRecvBadge(c):'-'}</td>
         </tr>`).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:26px;"><div class="empty-desc">조건에 맞는 A/S 건이 없어요</div></div></td></tr>`}</tbody>`;
@@ -3681,8 +3713,7 @@ function asCardHtml(c){
   const dday = asDday(c);
   const asFootBadges = [];
   if (c.priority==='긴급') asFootBadges.push('<span class="status-badge badge-unpaid">긴급</span>');
-  if (c.paid) asFootBadges.push(`<span class="status-badge badge-contract">유상${c.cost?' '+fmtWon(c.cost)+'원':''}</span>`);
-  else asFootBadges.push('<span class="status-badge badge-free-ghost">무상</span>');
+  { const m = BEARER_META[asBearer(c)]; asFootBadges.push(`<span class="status-badge ${m.cls}">${m.pill}${c.cost?' '+fmtWon(c.cost)+'원':''}</span>`); }
   if (c.deal_id) { const w = warrantyBadgeAs(c.deal_id); if (w) asFootBadges.push(w); }
   if (c.visit_date && !asDone(c)) asFootBadges.push(`<span class="kdeal-date">방문 ${String(c.visit_date).slice(5,10).replace('-','/')}</span>`);
   return `<div class="kdeal" onclick="openAsModal(${c.id})">
@@ -3743,13 +3774,29 @@ function openAsModal(id, prefillDealId){
   $('asPaid').value = c?.paid ? 'true' : 'false';
   $('asCost').value = c?.cost || '';
   $('asCostHint').textContent = c?.cost ? fmtWon(c.cost)+'원' : '';
+  $('asFreeCause').value = (c?.free_cause === 'install') ? 'install' : 'product';
   $('asMemo').value = c?.memo || '';
+  onAsPaidChange();
   if (!c && prefillDealId) asDealAutofill();
   updateAsWarrantyHint();
   $('asModal').classList.add('active');
 }
 function onAsStatusChange(){
   $('asCollectedWrap').style.display = $('asStatus').value === AS_TAX ? '' : 'none';
+}
+function onAsPaidChange(){
+  const paid = $('asPaid').value === 'true';
+  $('asFreeCauseWrap').style.display = paid ? 'none' : '';
+  $('asCostLabel').textContent = paid ? '비용 (원) · 고객 청구' : '공임 비용 (원) · 내부 부담';
+  onAsFreeCauseChange();
+}
+function onAsFreeCauseChange(){
+  const paid = $('asPaid').value === 'true';
+  const hint = $('asBearerHint'); if (!hint) return;
+  if (paid) { hint.textContent = ''; return; }
+  hint.innerHTML = $('asFreeCause').value === 'install'
+    ? '→ <b style="color:#a16207">🛠️ 설치팀이 100% 부담</b> (설치 과실)'
+    : '→ <b style="color:#dc2626">🏢 슈어포인트가 100% 부담</b> (제품 하자·보증)';
 }
 function closeAsModal(){ $('asModal').classList.remove('active'); }
 function updateAsProjBar(){
@@ -3808,6 +3855,8 @@ async function saveAs(){
     action_taken: $('asAction').value.trim() || null,
     paid: $('asPaid').value === 'true',
     cost: parseInt($('asCost').value) || 0,
+    // 무상일 때만 원인 저장(제품 하자=슈어 부담 / 설치 문제=설치팀 부담). 유상이면 원인 없음.
+    free_cause: $('asPaid').value === 'true' ? null : $('asFreeCause').value,
     memo: $('asMemo').value.trim() || null,
     updated_at: new Date().toISOString()
   };
