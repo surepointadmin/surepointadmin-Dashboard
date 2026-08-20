@@ -392,6 +392,18 @@
         .cal-ev { font-size: 10.5px; font-weight: 700; color: #fff; padding: 2px 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.4; }
         .cal-ev:hover { filter: brightness(1.08); }
         .cal-more { font-size: 10px; color: var(--text-tertiary); font-weight: 700; cursor: pointer; padding-left: 2px; }
+        /* 설치 기간 밴드 캘린더 (시안 C) */
+        #calBody { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .cal-week { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); }
+        .calw-cell { border-right: 1px solid #eef0f2; border-top: 1px solid #eef0f2; padding: 5px 7px; background: var(--bg-card); }
+        .cal-week:first-child .calw-cell { border-top: none; }
+        .calw-cell:last-child { border-right: none; }
+        .calw-cell.other { background: #fafbfc; }
+        .calw-cell.today { box-shadow: inset 0 0 0 2px var(--primary); }
+        .calw-cell.has-ev { cursor: pointer; }
+        .calw-cell.has-ev:hover { background: var(--bg-main); }
+        .cal-band { position: absolute; height: 19px; display: flex; align-items: center; font-size: 10.5px; font-weight: 700; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .cal-band:hover { filter: brightness(0.97); }
         .project-info {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
             padding-top: 14px; border-top: 1px solid var(--border);
@@ -592,9 +604,9 @@
         .di-sec:first-child { padding-top: 2px; border-top: none; }
         .di-sec-h { font-size: 11.5px; font-weight: 800; color: var(--text-tertiary); letter-spacing: .3px; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
         .di-sec-ic { width: 22px; height: 22px; border-radius: 7px; background: #eef2ff; color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
-        .di-kv { display: grid; grid-template-columns: 90px 1fr 90px 1fr; gap: 8px 14px; font-size: 13px; }
-        .di-kv.one { grid-template-columns: 90px 1fr; }
-        .di-kv .k { color: var(--text-tertiary); font-weight: 600; }
+        .di-kv { display: grid; grid-template-columns: 108px 1fr 108px 1fr; gap: 8px 14px; font-size: 13px; }
+        .di-kv.one { grid-template-columns: 108px 1fr; }
+        .di-kv .k { color: var(--text-tertiary); font-weight: 600; white-space: nowrap; }
         .di-kv .v { color: var(--text-primary); font-weight: 700; word-break: break-word; }
         .di-kv .v.mut { color: var(--text-tertiary); font-weight: 500; }
         .di-note-box { background: #fffdf5; border: 1px solid #f4e6bf; border-radius: 10px; padding: 11px 13px; font-size: 12.5px; color: #7a5b12; line-height: 1.55; white-space: pre-wrap; }
@@ -1015,7 +1027,7 @@
                             <div class="section-header">
                                 <div class="section-title" id="monthlyChartTitle">월별 매출</div>
                             </div>
-                            <div class="section-desc">설치중 이후 딜 + 출고·납품을 설치일(없으면 계약목표일)·출고일 월로 집계해요</div>
+                            <div class="section-desc">설치중 이후 딜 + 출고·납품을 설치일(없으면 설치 시작일)·출고일 월로 집계해요</div>
                             <div class="chart-wrap" id="monthlyChart"></div>
                         </div>
                         <div class="section-card">
@@ -1097,8 +1109,8 @@
                         <option value="">전체 년도</option>
                     </select>
                     <select class="filter-select" id="sortFilter" onchange="renderProjects()">
-                        <option value="install_desc">납품기한 ↓ 최신순</option>
-                        <option value="install_asc">납품기한 ↑ 빠른순</option>
+                        <option value="install_desc">설치 완료일 ↓ 최신순</option>
+                        <option value="install_asc">설치 완료일 ↑ 빠른순</option>
                         <option value="created_desc">추가 날짜 ↓ 최신순</option>
                         <option value="created_asc">추가 날짜 ↑ 오래된순</option>
                     </select>
@@ -1164,7 +1176,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">캘린더</h1>
-                        <p class="page-subtitle">카드 목록의 프로젝트를 날짜별로 확인하세요 · 설치 완료 건은 설치일, 진행 중 건은 납품기한·계약목표 기준이에요</p>
+                        <p class="page-subtitle">카드 목록의 프로젝트를 날짜별로 확인하세요 · 설치 완료 건은 설치일, 진행 중 건은 설치 완료일·설치 시작일 기준이에요</p>
                     </div>
                 </div>
                 <div id="calChips" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;"></div>
@@ -1175,8 +1187,8 @@
                         <button class="btn btn-secondary btn-sm" onclick="calToday()">오늘</button>
                         <button class="btn btn-secondary btn-sm" onclick="calShift(1)" title="다음 달">다음 ▶</button>
                     </div>
-                    <div class="cal-grid cal-head" id="calHead"></div>
-                    <div class="cal-grid" id="calBody"></div>
+                    <div class="cal-grid cal-head" id="calHead" style="gap:0;margin-bottom:8px;"></div>
+                    <div id="calBody"></div>
                 </div>
             </div>
 
@@ -1590,38 +1602,36 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">유입 경로</label>
-                        <select class="form-input" id="ncInflow"></select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">제품명</label>
-                        <input type="text" class="form-input" id="ncProd" placeholder="예: AI-S2 3대" oninput="ncAutoName()">
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">유입 경로</label>
+                    <select class="form-input" id="ncInflow"></select>
                 </div>
-                <div class="form-row-3">
-                    <div class="form-group">
-                        <label class="form-label">수량 (대)</label>
-                        <input type="number" class="form-input" id="ncQty" min="0" value="1" oninput="calcNcAmount()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">대당 단가 (원)</label>
-                        <input type="number" class="form-input" id="ncUnit" min="0" oninput="calcNcAmount()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">총 금액 (원)</label>
-                        <input type="number" class="form-input" id="ncAmount" min="0" oninput="updateNcAmountHint()">
-                        <div class="form-hint" id="ncAmountHint"></div>
+                <div class="form-group">
+                    <label class="form-label">제품 구성 <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;">(제품·설치비 여러 개 입력 가능)</span></label>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr>
+                            <th style="text-align:left;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;">제품명</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:56px;">수량</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:96px;">대당 단가</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:88px;">설치비/대</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:86px;">소계</th>
+                            <th style="width:22px;"></th>
+                        </tr></thead>
+                        <tbody id="ncItemsRows"></tbody>
+                    </table>
+                    <button type="button" onclick="addDealItem()" style="margin-top:8px;width:100%;border:1px dashed #a9c9ea;background:#f2f8fd;color:var(--primary);border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 제품 추가</button>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+                        <span style="font-size:12.5px;font-weight:700;color:var(--text-secondary);">총 금액 (공급가)</span>
+                        <div style="text-align:right;"><div id="ncItemsTotal" style="font-size:17px;font-weight:800;">0원</div><div id="ncItemsVat" style="font-size:11px;color:var(--text-tertiary);"></div></div>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">계약목표일 (선택)</label>
+                        <label class="form-label">설치 시작일 (선택)</label>
                         <input type="date" class="form-input" id="ncClose">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">납품기한 (선택)</label>
+                        <label class="form-label">설치 완료일 (선택)</label>
                         <input type="date" class="form-input" id="ncDelivery">
                     </div>
                 </div>
@@ -1679,11 +1689,11 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">계약목표일 (선택)</label>
+                        <label class="form-label">설치 시작일 (선택)</label>
                         <input type="date" class="form-input" id="noClose">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">납품기한 (선택)</label>
+                        <label class="form-label">설치 완료일 (선택)</label>
                         <input type="date" class="form-input" id="noDelivery">
                     </div>
                 </div>
@@ -1726,11 +1736,11 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">계약목표일 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
+                        <label class="form-label">설치 시작일 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
                         <input type="date" class="form-input" id="edClose">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">납품기한 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
+                        <label class="form-label">설치 완료일 (선택) <span style="color:var(--primary);font-size:11px;font-weight:600;">영업툴 연동</span></label>
                         <input type="date" class="form-input" id="edDelivery">
                     </div>
                 </div>
@@ -1765,23 +1775,39 @@
                     <input type="text" class="form-input" id="edContactEmail" placeholder="예: hong@company.com">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">제품명</label>
-                    <input type="text" class="form-input" id="edProd" placeholder="예: AI-S2 3대">
+                    <label class="form-label">제품 구성 <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;">(제품·설치비 여러 개 입력 가능)</span></label>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr>
+                            <th style="text-align:left;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;">제품명</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:56px;">수량</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:96px;">대당 단가</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:88px;">설치비/대</th>
+                            <th style="text-align:right;font-size:11px;color:var(--text-tertiary);font-weight:700;padding:4px 5px;width:86px;">소계</th>
+                            <th style="width:22px;"></th>
+                        </tr></thead>
+                        <tbody id="edItemsRows"></tbody>
+                    </table>
+                    <button type="button" onclick="addDealItem()" style="margin-top:8px;width:100%;border:1px dashed #a9c9ea;background:#f2f8fd;color:var(--primary);border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 제품 추가</button>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+                        <span style="font-size:12.5px;font-weight:700;color:var(--text-secondary);">총 금액 (공급가)</span>
+                        <div style="text-align:right;"><div id="edItemsTotal" style="font-size:17px;font-weight:800;">0원</div><div id="edItemsVat" style="font-size:11px;color:var(--text-tertiary);"></div></div>
+                    </div>
                 </div>
-                <div class="form-row-3">
-                    <div class="form-group">
-                        <label class="form-label">수량 (대)</label>
-                        <input type="number" class="form-input" id="edQty" min="0" oninput="calcEditAmount()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">대당 단가 (원)</label>
-                        <input type="number" class="form-input" id="edUnit" min="0" oninput="calcEditAmount()">
-                        <div class="form-hint" id="edUnitHint"></div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">총 금액 (원)</label>
-                        <input type="number" class="form-input" id="edAmount" min="0" oninput="updateEditAmountHint()">
-                        <div class="form-hint" id="edAmountHint"></div>
+                <div class="form-group" style="border-top:1px dashed var(--border);padding-top:14px;">
+                    <label class="form-label" style="color:var(--primary);">🚜 지게차 정보</label>
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:12px;">제조사</label>
+                            <select class="form-input" id="edForkMaker"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:12px;">동력 구분</label>
+                            <select class="form-input" id="edForkPower"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:12px;">모델명</label>
+                            <input type="text" class="form-input" id="edForkModel" placeholder="예: 8FGL25">
+                        </div>
                     </div>
                 </div>
                 <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:16px;">
@@ -1830,7 +1856,7 @@
      expenses / product_sales
    - 단계: 잠재 발굴 → 미팅·접촉 → 제안·견적 → 구두합의
            → 계약 완료 → 설치 → 납품 완료  (+ 실패·보류)
-   - 매출 인식: 설치·납품 완료 딜, 납품기한(없으면 계약목표일) 기준
+   - 매출 인식: 설치·납품 완료 딜, 설치 완료일(없으면 설치 시작일) 기준
    - 금액 단위: deals/product_sales = 원, receivables/expenses = 만원
    ========================================================= */
 const SB_URL = 'https://yxmxrjcmhguczrgyxgfo.supabase.co';
@@ -1997,6 +2023,12 @@ async function loadKvRemote(){
     // 딜 메모(채팅)
     if (map.deal_chat != null) { dealChat = map.deal_chat || {}; try{ localStorage.setItem(DCHAT_LS_KEY, JSON.stringify(dealChat)); }catch(e){} }
     else if (dealChat && Object.keys(dealChat).length) { await sbUpsert(KV_TABLE, [{k:'deal_chat', data:dealChat}], 'k'); }
+    // 딜 지게차 정보
+    if (map.deal_forklift != null) { dealForklift = map.deal_forklift || {}; try{ localStorage.setItem(DFORK_LS_KEY, JSON.stringify(dealForklift)); }catch(e){} }
+    else if (dealForklift && Object.keys(dealForklift).length) { await sbUpsert(KV_TABLE, [{k:'deal_forklift', data:dealForklift}], 'k'); }
+    // 딜 제품 구성(여러 제품+설치비)
+    if (map.deal_items != null) { dealItems = map.deal_items || {}; try{ localStorage.setItem(DITEMS_LS_KEY, JSON.stringify(dealItems)); }catch(e){} }
+    else if (dealItems && Object.keys(dealItems).length) { await sbUpsert(KV_TABLE, [{k:'deal_items', data:dealItems}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2083,6 +2115,8 @@ function loadAsLocal(){
   loadDealPayments();
   loadDealInstall();
   loadDealChat();
+  loadDealForklift();
+  loadDealItems();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -2094,6 +2128,58 @@ const DCHAT_LS_KEY = 'sp_deal_chat_v1';
 let dealChat = {};
 function loadDealChat(){ try { dealChat = JSON.parse(localStorage.getItem(DCHAT_LS_KEY) || '{}') || {}; } catch(e){ dealChat = {}; } }
 function saveDealChat(){ try { localStorage.setItem(DCHAT_LS_KEY, JSON.stringify(dealChat)); } catch(e){} syncKv('deal_chat', dealChat); }
+/* 딜 지게차 정보 — { dealId: {maker, power, model} } · 팀 공유 (영업툴 스키마 영향 없음) */
+const FORK_MAKERS = ['현대','두산','클라크','도요타','BYD','항차','헬리','니치유','기타'];
+const FORK_POWERS = ['전동','디젤'];
+const DFORK_LS_KEY = 'sp_deal_forklift_v1';
+let dealForklift = {};
+function loadDealForklift(){ try { dealForklift = JSON.parse(localStorage.getItem(DFORK_LS_KEY) || '{}') || {}; } catch(e){ dealForklift = {}; } }
+function saveDealForklift(){ try { localStorage.setItem(DFORK_LS_KEY, JSON.stringify(dealForklift)); } catch(e){} syncKv('deal_forklift', dealForklift); }
+function getDealForklift(id){ return dealForklift[id] || {maker:'',power:'',model:''}; }
+function setDealForklift(id, maker, power, model){ maker=(maker||'').trim(); power=(power||'').trim(); model=(model||'').trim(); if (maker||power||model) dealForklift[id] = {maker, power, model}; else delete dealForklift[id]; saveDealForklift(); }
+/* 딜 제품 구성(여러 제품 + 설치비/대) — { dealId: [{name, qty, unit, fee}] } · 팀 공유 */
+const DITEMS_LS_KEY = 'sp_deal_items_v1';
+let dealItems = {};
+function loadDealItems(){ try { dealItems = JSON.parse(localStorage.getItem(DITEMS_LS_KEY) || '{}') || {}; } catch(e){ dealItems = {}; } }
+function saveDealItems(){ try { localStorage.setItem(DITEMS_LS_KEY, JSON.stringify(dealItems)); } catch(e){} syncKv('deal_items', dealItems); }
+function getDealItems(id){ return dealItems[id] || null; }
+function cleanDealItemArr(rows){ return (rows||[]).map(p=>({name:(p.name||'').trim(), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0, fee:parseFloat(p.fee)||0})).filter(p=>p.name||p.qty||p.unit||p.fee); }
+function setDealItems(id, rows){ const clean=cleanDealItemArr(rows); if(clean.length) dealItems[id]=clean; else delete dealItems[id]; saveDealItems(); }
+/* --- 폼 제품 구성 편집 (등록/수정 공용) --- */
+let dealItemRows = [], _itT=null, _itTot=null, _itVat=null;
+function bindDealItems(rowsId, totId, vatId){ _itT=$(rowsId); _itTot=$(totId); _itVat=$(vatId); }
+function itemSub(p){ return Math.round((parseFloat(p.qty)||0)*((parseFloat(p.unit)||0)+(parseFloat(p.fee)||0))); }
+function dealItemsTotal(){ return dealItemRows.reduce((a,p)=>a+itemSub(p),0); }
+function dealItemsQtySum(){ return dealItemRows.reduce((a,p)=>a+(parseFloat(p.qty)||0),0); }
+function dealItemsProdSummary(){ const r=dealItemRows.filter(p=>(p.name||'').trim()); return r.length?((r[0].name||'제품')+(r.length>1?` 외 ${r.length-1}건`:'')):null; }
+function refreshDealItemsTotal(){ const t=dealItemsTotal(); if(_itTot)_itTot.textContent=fmtWon(t)+'원'; if(_itVat)_itVat.textContent=t?`VAT 포함 ${fmtWon(Math.round(t*1.1))}원`:''; }
+function renderDealItems(){
+  if(!_itT) return;
+  _itT.innerHTML = dealItemRows.map((p,i)=>`<tr>
+    <td style="padding:4px 5px;"><input type="text" class="form-input" style="font-size:13px;padding:7px 9px;" placeholder="예: AI-S3 80V" value="${esc(p.name||'')}" oninput="updateDealItem(${i},'name',this.value)"></td>
+    <td style="padding:4px 5px;"><input type="number" min="0" class="form-input" style="font-size:13px;padding:7px 6px;text-align:right;" value="${p.qty??''}" oninput="updateDealItem(${i},'qty',this.value)"></td>
+    <td style="padding:4px 5px;"><input type="number" min="0" class="form-input" style="font-size:13px;padding:7px 6px;text-align:right;" value="${p.unit??''}" oninput="updateDealItem(${i},'unit',this.value)"></td>
+    <td style="padding:4px 5px;"><input type="number" min="0" class="form-input" style="font-size:13px;padding:7px 6px;text-align:right;" value="${p.fee??''}" oninput="updateDealItem(${i},'fee',this.value)"></td>
+    <td style="padding:4px 5px;text-align:right;font-weight:700;white-space:nowrap;font-size:13px;">${fmtWon(itemSub(p))}</td>
+    <td style="padding:4px 2px;text-align:center;"><span onclick="removeDealItem(${i})" title="삭제" style="color:var(--status-critical);cursor:pointer;font-weight:800;font-size:15px;">×</span></td>
+  </tr>`).join('');
+  refreshDealItemsTotal();
+}
+function updateDealItem(i, f, v){
+  if(!dealItemRows[i]) return;
+  dealItemRows[i][f] = (f==='name') ? v : (parseFloat(v)||0);
+  const row = _itT && _itT.children[i];
+  if(row) row.children[4].textContent = fmtWon(itemSub(dealItemRows[i]));
+  refreshDealItemsTotal();
+}
+function addDealItem(){ dealItemRows.push({name:'',qty:1,unit:0,fee:0}); renderDealItems(); }
+function removeDealItem(i){ dealItemRows.splice(i,1); if(!dealItemRows.length) dealItemRows.push({name:'',qty:1,unit:0,fee:0}); renderDealItems(); }
+function initDealItemRows(d){
+  const kv = d ? getDealItems(d.id) : null;
+  if (kv && kv.length) dealItemRows = kv.map(p=>({name:p.name||'', qty:p.qty??0, unit:p.unit??0, fee:p.fee??0}));
+  else if (d) dealItemRows = [{name:d.prod||'', qty:d.qty??1, unit:d.unit_price??0, fee:0}];
+  else dealItemRows = [{name:'', qty:1, unit:0, fee:0}];
+}
 /* 진행 기록 항목별 메모 — 로그별 메모 배열 { logKey: [{text, at}] } · 팀 공유 */
 const LOGNOTE_LS_KEY = 'sp_log_notes_v1';
 let logNotes = {};
@@ -2388,11 +2474,18 @@ let calGroup = 'all';                  // all | rev(설치완료) | pre(설치 �
 function dealCalDate(d){
   if (isLost(d)) return null;
   if (isRevenue(d)) return revDate(d);                 // 설치일
-  return d.delivery_date || d.close_date || null;      // 납품기한 / 계약목표
+  return d.delivery_date || d.close_date || null;      // 설치 완료일 / 설치 시작일
 }
 function dealCalDateLabel(d){
   if (isRevenue(d)) return '설치';
-  return d.delivery_date ? '납품기한' : '계약목표';
+  return d.delivery_date ? '설치 완료일' : '설치 시작일';
+}
+/* 설치 기간: 시작일(close_date)~완료일(delivery_date). 하나만 있으면 하루짜리 */
+function dealSpan(d){
+  const s = (d.close_date||'').slice(0,10), e = (d.delivery_date||'').slice(0,10);
+  if (s && e) return s<=e ? {start:s, end:e} : {start:e, end:s};
+  const one = (dealCalDate(d)||'').slice(0,10);
+  return one ? {start:one, end:one} : null;
 }
 function calShift(delta){
   if (calYear === null){ const t = new Date(); calYear = t.getFullYear(); calMonth = t.getMonth(); }
@@ -2431,33 +2524,59 @@ function renderCalendar(){
   const wk = ['일','월','화','수','목','금','토'];
   $('calHead').innerHTML = wk.map((w,i)=>`<div class="cal-hd ${i===0?'sun':(i===6?'sat':'')}">${w}</div>`).join('');
 
-  // 그리드: 그 달 1일의 요일부터, 6주(42칸)
+  // 그리드: 6주 × 7일. 설치 시작~완료 기간을 이어진 밴드(시안 C)로 표시
   const first = new Date(y, m, 1);
   const startDow = first.getDay();
   const daysInMonth = new Date(y, m+1, 0).getDate();
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const cells = [];
-  for (let i=0;i<42;i++){
-    const dayNum = i - startDow + 1;
-    const inMonth = dayNum>=1 && dayNum<=daysInMonth;
-    const cellDate = new Date(y, m, dayNum);
-    const ds = `${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`;
-    const dow = cellDate.getDay();
-    const evs = byDay[ds] || [];
-    const shown = evs.slice(0,3);
-    const evHtml = shown.map(d=>{
-      const col = isLost(d) ? '#94a3b8' : (STAGE_COLORS[dispStage(d)]||'#9ca3af');
-      const nm = dealTitle(d);
-      return `<div class="cal-ev" style="background:${hexToRgba(col,0.15)};color:${col};border-left:3px solid ${col};" title="${esc(nm)} · ${dealCalDateLabel(d)}">${esc(nm)}</div>`;
-    }).join('');
-    const moreHtml = evs.length>3 ? `<div class="cal-more">+${evs.length-3}건 더</div>` : '';
-    const clickable = inMonth && evs.length;
-    cells.push(`<div class="cal-cell ${inMonth?'':'other'} ${ds===todayStr?'today':''} ${clickable?'has-ev':''}" ${clickable?`onclick="openCalDay('${ds}')"`:''}>
-      <div class="cal-dnum ${dow===0?'sun':(dow===6?'sat':'')}">${cellDate.getDate()}</div>
-      ${inMonth?evHtml+moreHtml:''}
-    </div>`);
+  const dstr = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  // 대상 딜의 설치 기간
+  const spans = [];
+  evAll.forEach(d=>{ const sp = dealSpan(d); if (sp) spans.push({d, start:sp.start, end:sp.end}); });
+  let html = '';
+  for (let w=0; w<6; w++){
+    const wd = [];
+    for (let c=0;c<7;c++){ const dn = w*7 + c - startDow + 1; const cd = new Date(y,m,dn); wd.push({c, cd, ds:dstr(cd), inMonth: dn>=1&&dn<=daysInMonth, dow:cd.getDay()}); }
+    const weekStart = wd[0].ds, weekEnd = wd[6].ds;
+    // 이 주와 겹치는 세그먼트 → 열 범위
+    const segs = [];
+    spans.forEach(s=>{
+      if (s.end < weekStart || s.start > weekEnd) return;
+      let cs = 0; for (let c=0;c<7;c++){ if (wd[c].ds >= s.start){ cs=c; break; } if (c===6) cs=6; }
+      if (s.start <= weekStart) cs = 0;
+      let ce = 6; for (let c=6;c>=0;c--){ if (wd[c].ds <= s.end){ ce=c; break; } }
+      if (s.end >= weekEnd) ce = 6;
+      segs.push({ d:s.d, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
+    });
+    // 레인 배정 (겹치면 아래로 쌓기)
+    segs.sort((a,b)=> a.cs-b.cs || (b.ce-b.cs)-(a.ce-a.cs));
+    const lanes = [];
+    segs.forEach(sg=>{ let ln=0; for(;;){ const used=lanes[ln]||(lanes[ln]=[]); if (used.every(u=> sg.cs>u.ce || sg.ce<u.cs)){ used.push(sg); sg.lane=ln; break; } ln++; } });
+    const maxLane = lanes.length ? lanes.length-1 : -1;
+    const cellMinH = Math.max(104, 26 + (maxLane+1)*22 + 6);
+    // 날짜 셀
+    let cellsHtml = '';
+    wd.forEach(x=>{
+      const has = x.inMonth && segs.some(sg=> x.c>=sg.cs && x.c<=sg.ce);
+      cellsHtml += `<div class="calw-cell ${x.inMonth?'':'other'} ${x.ds===todayStr?'today':''} ${has?'has-ev':''}" style="min-height:${cellMinH}px;" ${has?`onclick="openCalDay('${x.ds}')"`:''}>
+        <div class="cal-dnum ${x.dow===0?'sun':(x.dow===6?'sat':'')}">${x.cd.getDate()}</div>
+      </div>`;
+    });
+    // 설치 기간 밴드
+    let bandsHtml = '';
+    segs.forEach(sg=>{
+      const col = isLost(sg.d) ? '#94a3b8' : (STAGE_COLORS[dispStage(sg.d)]||'#9ca3af');
+      const nm = dealTitle(sg.d);
+      const left = `calc(${(sg.cs/7*100).toFixed(4)}% + 3px)`;
+      const width = `calc(${((sg.ce-sg.cs+1)/7*100).toFixed(4)}% - 6px)`;
+      const top = 26 + (sg.lane||0)*22;
+      const rl = sg.contL ? '0' : '6px', rr = sg.contR ? '0' : '6px';
+      bandsHtml += `<div class="cal-band" onclick="event.stopPropagation();openDetail(${sg.d.id})" title="${esc(nm)} · ${esc(String(sg.d.close_date||'').slice(5,10))}~${esc(String(sg.d.delivery_date||'').slice(5,10))}"
+        style="left:${left};width:${width};top:${top}px;background:${hexToRgba(col,0.15)};border:1px solid ${hexToRgba(col,0.45)};color:${col};border-radius:${rl} ${rr} ${rr} ${rl};">${sg.multi?'🔧 ':''}${esc(nm)}</div>`;
+    });
+    html += `<div class="cal-week">${cellsHtml}${bandsHtml}</div>`;
   }
-  $('calBody').innerHTML = cells.join('');
+  $('calBody').innerHTML = html;
 }
 function hexToRgba(hex, a){
   const h = String(hex).replace('#','');
@@ -2466,7 +2585,7 @@ function hexToRgba(hex, a){
 }
 function openCalDay(ds){
   const inGroup = d => calGroup==='all' ? true : (calGroup==='rev' ? isRevenue(d) : (!isRevenue(d) && !isLost(d)));
-  const evs = deals.filter(d=>!isLost(d) && inGroup(d) && dealCalDate(d) && String(dealCalDate(d)).slice(0,10)===ds);
+  const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
   if (!evs.length) return;
   const p = ds.split('-');
   $('calDayTitle').textContent = `${+p[1]}월 ${+p[2]}일 · ${evs.length}건`;
@@ -2854,7 +2973,7 @@ function renderProjects(){
   // 정렬
   const sort = $('sortFilter').value || 'install_desc';
   const createdKey = d => String(d.created_at||'');
-  const installKey = d => String(d.delivery_date||''); // 납품기한 날짜
+  const installKey = d => String(d.delivery_date||''); // 설치 완료일 날짜
   list.sort((a,b)=>{
     if (sort === 'created_desc') return createdKey(b).localeCompare(createdKey(a));
     if (sort === 'created_asc')  return createdKey(a).localeCompare(createdKey(b));
@@ -2916,7 +3035,7 @@ function renderProjects(){
   if (cardGroup === 'lost') cardGroup = 'rev'; // 카드 목록에서는 실패·보류 탭 없음 (보드에서만 확인)
   const sel = groups[cardGroup] || grpRev;
 
-  // 설치 일정 기준 날짜: 설치 완료 = 설치(매출)일, 그 외 = 납품기한/계약목표일
+  // 설치 일정 기준 날짜: 설치 완료 = 설치(매출)일, 그 외 = 설치 완료일/설치 시작일
   const sched = d => cardGroup === 'rev' ? revDate(d) : (d.delivery_date || d.close_date || null);
 
   // 년도 선택지
@@ -3022,9 +3141,9 @@ function projectCardHtml(d, seq){
   // 오른쪽: 날짜
   let dtHtml;
   if (lost) dtHtml = `<span>보류된 딜</span>`;
-  else if (d.delivery_date) dtHtml = `<span>📦 납품기한</span><br>${fmtDate(d.delivery_date)}`;
+  else if (d.delivery_date) dtHtml = `<span>📦 설치 완료일</span><br>${fmtDate(d.delivery_date)}`;
   else if (installed) dtHtml = `<span>설치</span> ${fmtDate(rd)}`;
-  else if (d.close_date) dtHtml = `<span>계약목표</span> ${fmtDate(d.close_date)}`;
+  else if (d.close_date) dtHtml = `<span>설치 시작일</span> ${fmtDate(d.close_date)}`;
   else dtHtml = `<span>일정 미정</span>`;
   // 오른쪽: 수금/매출 상태 (시안 B — 색 pill: 완납=초록·부분수금=주황·연체=빨강·미수금=회색)
   let payHtml;
@@ -3219,8 +3338,8 @@ function openDetail(id){
       <div class="meta-item"><span class="meta-label">제품</span><span class="meta-value">${esc(d.prod||'-')}${d.option_items?` <span style="color:#7b3fb5;font-size:13px;">[${esc(d.option_items)}]</span>`:''}</span></div>
       <div class="meta-item"><span class="meta-label">금액 (공급가)</span><span class="meta-value">${d.amount?fmtMoney(d.amount)+'원':'-'}</span></div>
       <div class="meta-item"><span class="meta-label">VAT 포함</span><span class="meta-value">${d.amount?fmtMoney(Math.round(d.amount*1.1))+'원':'-'}</span></div>
-      <div class="meta-item"><span class="meta-label">계약목표일</span><span class="meta-value">${fmtDate(d.close_date)}</span></div>
-      <div class="meta-item"><span class="meta-label">납품기한</span><span class="meta-value">${fmtDate(d.delivery_date)}</span></div>
+      <div class="meta-item"><span class="meta-label">설치 시작일</span><span class="meta-value">${fmtDate(d.close_date)}</span></div>
+      <div class="meta-item"><span class="meta-label">설치 완료일</span><span class="meta-value">${fmtDate(d.delivery_date)}</span></div>
     </div>`;
   renderSettle();
   renderHistory();
@@ -3529,7 +3648,11 @@ function deleteLogNote(k, i){
 
 function renderInfo(){
   const d = deals.find(x=>x.id===currentDealId); if(!d) return;
-  const prods = dealProducts.filter(p=>p.deal_id===d.id);
+  // 제품 구성: 대시보드에서 입력한 항목(dealItems) 우선, 없으면 surepoint deal_products
+  const kvItems = getDealItems(d.id);
+  const prods = kvItems && kvItems.length
+    ? kvItems.map(p=>({prod:p.name, qty:p.qty, unit_price:p.unit, install_fee:p.fee}))
+    : dealProducts.filter(p=>p.deal_id===d.id);
   const prodRows = prods.length ? `
     <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
       <div class="meta-label" style="margin-bottom:10px;">제품 구성</div>
@@ -3579,8 +3702,11 @@ function renderInfo(){
           <div class="di-kv">
             <div class="k">제품</div><div class="v">${esc(d.prod||'-')}</div>
             <div class="k">수량·단가</div><div class="v">${d.qty?esc(d.qty)+'대':'-'}${d.unit_price?' · '+fmtMoney(d.unit_price)+'원':''}</div>
-            <div class="k">계약목표일</div><div class="v">${d.close_date?fmtDate(d.close_date):'-'}</div>
-            <div class="k">📦 납품기한</div><div class="v">${d.delivery_date?fmtDate(d.delivery_date):'-'}</div>
+            ${(()=>{const f=getDealForklift(d.id);return `<div class="k">🚜 지게차 제조사</div><div class="v">${f.maker?esc(f.maker):'-'}</div>
+            <div class="k">지게차 동력</div><div class="v">${f.power?esc(f.power):'-'}</div>
+            <div class="k">지게차 모델명</div><div class="v">${f.model?esc(f.model):'-'}</div>`;})()}
+            <div class="k">설치 시작일</div><div class="v">${d.close_date?fmtDate(d.close_date):'-'}</div>
+            <div class="k">📦 설치 완료일</div><div class="v">${d.delivery_date?fmtDate(d.delivery_date):'-'}</div>
             <div class="k">등록일</div><div class="v">${fmtDate(d.created_at)}</div>
             <div class="k">유입 경로</div><div class="v">${(d.inflow&&INFLOW[d.inflow])?esc(INFLOW[d.inflow].label):'-'}</div>
           </div>
@@ -4368,42 +4494,37 @@ function openCreateModal(){
   $('ncPerson').innerHTML = `<option value="">선택 안 함</option>` +
     Array.from(names).sort().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   $('ncInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k==='direct'?'selected':''}>${v.label}</option>`).join('');
-  ['ncCo','ncSite','ncName','ncProd','ncUnit','ncAmount','ncClose','ncDelivery','ncNote'].forEach(i=>$(i).value='');
-  $('ncQty').value = 1;
+  ['ncCo','ncSite','ncName','ncClose','ncDelivery','ncNote'].forEach(i=>$(i).value='');
   $('ncStage').value = '잠재발굴';
-  $('ncAmountHint').textContent = '';
+  // 제품 구성 초기화 (빈 한 줄)
+  initDealItemRows(null);
+  bindDealItems('ncItemsRows','ncItemsTotal','ncItemsVat');
+  renderDealItems();
   $('createModal').classList.add('active');
 }
 function closeCreateModal(){ $('createModal').classList.remove('active'); }
 function ncAutoName(){
   if (ncNameDirty) return;
-  const co = $('ncCo').value.trim(), prod = $('ncProd').value.trim();
+  const co = $('ncCo').value.trim();
+  const prod = dealItemsProdSummary();
   $('ncName').value = co && prod ? `${co} | ${prod}` : (co || prod || '');
 }
-function calcNcAmount(){
-  const q = parseFloat($('ncQty').value)||0;
-  const u = parseFloat($('ncUnit').value)||0;
-  if (q>0 && u>0) $('ncAmount').value = Math.round(q*u);
-  updateNcAmountHint();
-}
-function updateNcAmountHint(){
-  const a = parseInt($('ncAmount').value)||0;
-  $('ncAmountHint').innerHTML = a ? `<b>${fmtMoney(a)}원</b> · VAT 포함 ${fmtMoney(Math.round(a*1.1))}원` : '';
-}
+function calcNcAmount(){ /* 제품 구성 표로 대체됨 */ }
+function updateNcAmountHint(){ /* 제품 구성 표로 대체됨 */ }
 async function saveCreate(){
   const co = $('ncCo').value.trim();
   if (!co) { toast('고객사를 입력해 주세요', true); return; }
   const btn = $('ncSaveBtn');
   const body = {
-    name: $('ncName').value.trim() || co,
+    name: $('ncName').value.trim() || (dealItemsProdSummary() ? `${co} | ${dealItemsProdSummary()}` : co),
     co,
     site: $('ncSite').value.trim() || null,
     person: $('ncPerson').value || null,
     inflow: $('ncInflow').value || 'direct',
-    prod: $('ncProd').value.trim() || null,
-    qty: parseInt($('ncQty').value) || 1,
-    unit_price: parseInt($('ncUnit').value) || 0,
-    amount: parseInt($('ncAmount').value) || 0,
+    prod: dealItemsProdSummary(),
+    qty: dealItemsQtySum() || 1,
+    unit_price: (cleanDealItemArr(dealItemRows).length===1) ? cleanDealItemArr(dealItemRows)[0].unit : 0,
+    amount: dealItemsTotal(),
     stage: $('ncStage').value,
     close_date: $('ncClose').value || null,
     delivery_date: $('ncDelivery').value || null,
@@ -4415,6 +4536,7 @@ async function saveCreate(){
     const row = await sbPost('deals', body);
     deals.unshift(row);
     setDealNote(row.id, $('ncNote').value); // 특이사항은 이 브라우저에 저장
+    setDealItems(row.id, dealItemRows);     // 제품 구성(여러 제품+설치비) 팀 공유 저장
     closeCreateModal();
     toast('프로젝트가 등록됐어요 ✓ (surepoint에 반영)');
     renderProjects();
@@ -4544,10 +4666,16 @@ function openEditModal(){
   $('edContactName').value = d.contact_name || '';
   $('edContactPhone').value = d.contact_phone || '';
   $('edContactEmail').value = d.contact_email || '';
-  $('edProd').value = d.prod || '';
-  $('edQty').value = d.qty ?? '';
-  $('edUnit').value = d.unit_price ?? '';
-  $('edAmount').value = d.amount ?? '';
+  // 제품 구성 (여러 제품 + 설치비/대)
+  initDealItemRows(d);
+  bindDealItems('edItemsRows','edItemsTotal','edItemsVat');
+  renderDealItems();
+  // 지게차 정보 (제조사·동력·모델명)
+  { const f = getDealForklift(d.id);
+    $('edForkMaker').innerHTML = `<option value="">선택 안 함</option>` + FORK_MAKERS.map(m=>`<option value="${esc(m)}" ${f.maker===m?'selected':''}>${esc(m)}</option>`).join('');
+    $('edForkPower').innerHTML = `<option value="">선택 안 함</option>` + FORK_POWERS.map(p=>`<option value="${esc(p)}" ${f.power===p?'selected':''}>${esc(p)}</option>`).join('');
+    $('edForkModel').value = f.model || '';
+  }
   $('edNote').value = getDealNote(d.id);
   const inst = getDealInstall(d.id);
   $('edInstallTeam').value = inst.team || '';
@@ -4557,8 +4685,6 @@ function openEditModal(){
   Object.values(dealInstall).forEach(v=>{ if(v && v.team) teams.add(v.team); if(v && v.person) ips.add(v.person); });
   $('installTeamList').innerHTML = Array.from(teams).sort().map(t=>`<option value="${esc(t)}">`).join('');
   $('installPersonList').innerHTML = Array.from(ips).sort().map(p=>`<option value="${esc(p)}">`).join('');
-  $('edUnitHint').textContent = d.unit_price ? fmtMoney(d.unit_price)+'원' : '';
-  updateEditAmountHint();
   $('editModal').classList.add('active');
 }
 function closeEditModal(){ $('editModal').classList.remove('active'); }
@@ -4579,17 +4705,8 @@ $('shipImportInput').addEventListener('change', function(){
   this.value = '';
 });
 
-function calcEditAmount(){
-  const q = parseFloat($('edQty').value)||0;
-  const u = parseFloat($('edUnit').value)||0;
-  $('edUnitHint').textContent = u ? fmtMoney(u)+'원' : '';
-  if (q>0 && u>0) $('edAmount').value = Math.round(q*u);
-  updateEditAmountHint();
-}
-function updateEditAmountHint(){
-  const a = parseFloat($('edAmount').value)||0;
-  $('edAmountHint').innerHTML = a ? `<b>${fmtMoney(a)}원</b> · VAT 포함 ${fmtMoney(Math.round(a*1.1))}원` : '';
-}
+function calcEditAmount(){ /* 제품 구성 표로 대체됨 */ }
+function updateEditAmountHint(){ /* 제품 구성 표로 대체됨 */ }
 
 async function saveEdit(){
   const d = deals.find(x=>x.id===currentDealId); if(!d) return;
@@ -4607,18 +4724,20 @@ async function saveEdit(){
   if (cPhone !== (d.contact_phone||'')) patch.contact_phone = cPhone || null;
   const cEmail = $('edContactEmail').value.trim();
   if (cEmail !== (d.contact_email||'')) patch.contact_email = cEmail || null;
-  const prod = $('edProd').value.trim();
-  if (prod !== (d.prod||'')) patch.prod = prod;
-  const qty = parseInt($('edQty').value)||0;
+  // 제품 구성(여러 제품 + 설치비) → 딜 요약 컬럼 자동 계산
+  const _items = cleanDealItemArr(dealItemRows);
+  const prod = dealItemsProdSummary();
+  if ((prod||'') !== (d.prod||'')) patch.prod = prod;
+  const qty = dealItemsQtySum();
   if (qty !== (d.qty||0)) patch.qty = qty;
-  const unit = parseInt($('edUnit').value)||0;
+  const unit = (_items.length===1) ? _items[0].unit : 0;
   if (unit !== (d.unit_price||0)) patch.unit_price = unit;
-  const amount = parseInt($('edAmount').value)||0;
+  const amount = dealItemsTotal();
   if (amount !== (d.amount||0)) patch.amount = amount;
   // 등록일
   const created = $('edCreated').value;
   if (created && created !== (d.created_at||'').slice(0,10)) patch.created_at = created + 'T00:00:00+09:00';
-  // 계약목표일 · 납품기한 (영업툴 연동 컬럼)
+  // 설치 시작일 · 설치 완료일 (영업툴 연동 컬럼)
   const closeD = $('edClose').value;
   if (closeD !== (d.close_date||'').slice(0,10)) patch.close_date = closeD || null;
   const deliv = $('edDelivery').value;
@@ -4653,9 +4772,17 @@ async function saveEdit(){
   const curInst = getDealInstall(d.id);
   const iTeam = $('edInstallTeam').value.trim(), iPerson = $('edInstallPerson').value.trim();
   const instChanged = iTeam !== (curInst.team||'') || iPerson !== (curInst.person||'');
-  if (!Object.keys(patch).length && !noteChanged && !instChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
+  // 지게차 정보 (팀 공유)
+  const curFork = getDealForklift(d.id);
+  const fMaker = $('edForkMaker').value, fPower = $('edForkPower').value, fModel = $('edForkModel').value.trim();
+  const forkChanged = fMaker !== (curFork.maker||'') || fPower !== (curFork.power||'') || fModel !== (curFork.model||'');
+  // 제품 구성 변경 여부
+  const itemsChanged = JSON.stringify(_items) !== JSON.stringify(getDealItems(d.id) || []);
+  if (!Object.keys(patch).length && !noteChanged && !instChanged && !forkChanged && !itemsChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
   if (noteChanged) setDealNote(d.id, $('edNote').value);
   if (instChanged) setDealInstall(d.id, iTeam, iPerson);
+  if (forkChanged) setDealForklift(d.id, fMaker, fPower, fModel);
+  if (itemsChanged) setDealItems(d.id, dealItemRows);
 
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
