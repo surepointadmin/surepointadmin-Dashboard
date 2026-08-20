@@ -404,6 +404,9 @@
         .calw-cell.has-ev:hover { background: var(--bg-main); }
         .cal-band { position: absolute; height: 19px; display: flex; align-items: center; font-size: 10.5px; font-weight: 700; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
         .cal-band:hover { filter: brightness(0.97); }
+        /* 일정 종류 태그 선택 */
+        .ev-tag { font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: #fff; color: var(--text-secondary); cursor: pointer; }
+        .ev-tag.on { color: #fff; }
         .project-info {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
             padding-top: 14px; border-top: 1px solid var(--border);
@@ -500,6 +503,15 @@
         /* 처리 태그 (비용 없이 자체 해결) */
         .tag-self  { background: #e6f5f3; color: #0d9488; }
         .tag-phone { background: #eef1f5; color: #64748b; }
+        /* 지게차 모델 검색 자동완성 드롭다운 */
+        .fork-dd { position: absolute; left: 0; right: 0; top: calc(100% + 3px); background: #fff; border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 8px 24px rgba(0,0,0,.13); z-index: 30; max-height: 220px; overflow-y: auto; display: none; }
+        .fork-dd.on { display: block; }
+        .fork-opt { padding: 8px 11px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid #f2f4f6; }
+        .fork-opt:last-child { border-bottom: none; }
+        .fork-opt:hover { background: #eef6fd; }
+        .fork-mk { font-size: 10.5px; color: var(--text-tertiary); font-weight: 700; background: #f2f4f6; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+        .fork-add { color: var(--primary); font-weight: 700; }
+        .fork-none { padding: 9px 11px; font-size: 12px; color: var(--text-tertiary); }
         .kdeal {
             background: var(--bg-main);
             border: 1px solid var(--border);
@@ -1173,11 +1185,12 @@
 
             <!-- ===== 캘린더 ===== -->
             <div class="page" id="calendarPage">
-                <div class="page-header">
+                <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                     <div>
                         <h1 class="page-title">캘린더</h1>
-                        <p class="page-subtitle">카드 목록의 프로젝트를 날짜별로 확인하세요 · 설치 완료 건은 설치일, 진행 중 건은 설치 완료일·설치 시작일 기준이에요</p>
+                        <p class="page-subtitle">프로젝트 설치 일정 + 직접 등록한 일정을 함께 볼 수 있어요 · 일정은 팀 공유돼요</p>
                     </div>
+                    <button class="btn btn-primary btn-sm" onclick="openEventModal()" style="flex-shrink:0;">＋ 일정 추가</button>
                 </div>
                 <div id="calChips" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;"></div>
                 <div class="section-card" style="padding:18px 20px;">
@@ -1200,6 +1213,57 @@
                         <button class="modal-close" onclick="closeCalDay()">×</button>
                     </div>
                     <div class="modal-body" id="calDayList" style="padding:14px 18px 20px;"></div>
+                </div>
+            </div>
+
+            <!-- 일정 등록/수정 모달 -->
+            <div class="modal-overlay" id="eventModal">
+                <div class="modal" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="eventModalTitle">일정 추가</h2>
+                        <button class="modal-close" onclick="closeEventModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">일정 종류</label>
+                            <div id="evTypeTags" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">일정 내용 <span style="color:var(--status-critical)">*</span></label>
+                            <input type="text" class="form-input" id="evTitle" placeholder="예: LG전자 평택 현장 미팅">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">시작일 <span style="color:var(--status-critical)">*</span></label>
+                                <input type="date" class="form-input" id="evStart" onchange="onEvStart()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">종료일</label>
+                                <input type="date" class="form-input" id="evEnd">
+                                <div class="form-hint">하루 일정이면 시작일과 같게 두거나 비워도 돼요</div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">누구 일정 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(담당)</span></label>
+                                <input type="text" class="form-input" id="evOwner" list="evOwnerList" placeholder="예: 이재훈">
+                                <datalist id="evOwnerList"></datalist>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">참여자</label>
+                                <input type="text" class="form-input" id="evPart" placeholder="예: 김다은, 박영업">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">메모 (선택)</label>
+                            <textarea class="form-input" id="evMemo" rows="2" placeholder="장소·준비물 등"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="evDeleteBtn" style="margin-right:auto;color:var(--status-critical);display:none;" onclick="deleteEvent()">삭제</button>
+                        <button class="btn btn-secondary" onclick="closeEventModal()">취소</button>
+                        <button class="btn btn-primary" onclick="saveEvent()">저장</button>
+                    </div>
                 </div>
             </div>
 
@@ -1520,15 +1584,13 @@
                         <option value="1">✅ 수금 완료</option>
                     </select>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">계산서 발행일 (선택)</label>
-                        <input type="date" class="form-input" id="shInvDate">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">특이사항 (선택)</label>
-                        <input type="text" class="form-input" id="shMemo" placeholder="예: 택배 발송, 송장번호 등">
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">계산서 발행일 (선택)</label>
+                    <input type="date" class="form-input" id="shInvDate" style="max-width:240px;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">특이사항 (선택)</label>
+                    <textarea class="form-input" id="shMemo" rows="3" style="resize:vertical;line-height:1.55;" placeholder="예: 택배 발송 · 송장번호 1234-5678&#10;현장 사전 연락 필수, 지게차 반입 동선 확인"></textarea>
                 </div>
                 <!-- 반품 처리 (시안 A: 토글 → 펼침) -->
                 <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:16px;">
@@ -1796,17 +1858,19 @@
                 <div class="form-group" style="border-top:1px dashed var(--border);padding-top:14px;">
                     <label class="form-label" style="color:var(--primary);">🚜 지게차 정보</label>
                     <div class="form-row-3">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size:12px;">제조사</label>
-                            <select class="form-input" id="edForkMaker"></select>
+                        <div class="form-group" style="position:relative;">
+                            <label class="form-label" style="font-size:12px;">제조사 <span style="color:var(--text-tertiary);font-weight:500;">검색·선택</span></label>
+                            <input type="text" class="form-input" id="edForkMaker" autocomplete="off" placeholder="제조사 검색" oninput="renderMakerDD()" onfocus="renderMakerDD()" onblur="setTimeout(function(){var d=document.getElementById('edForkMakerDD');if(d)d.classList.remove('on');},150)">
+                            <div class="fork-dd" id="edForkMakerDD"></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label" style="font-size:12px;">동력 구분</label>
                             <select class="form-input" id="edForkPower"></select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" style="font-size:12px;">모델명</label>
-                            <input type="text" class="form-input" id="edForkModel" placeholder="예: 8FGL25">
+                        <div class="form-group" style="position:relative;">
+                            <label class="form-label" style="font-size:12px;">모델명 <span style="color:var(--text-tertiary);font-weight:500;">검색·선택</span></label>
+                            <input type="text" class="form-input" id="edForkModel" autocomplete="off" placeholder="모델명 검색 (예: 8F)" oninput="renderForkDD()" onfocus="renderForkDD()" onblur="setTimeout(function(){var d=document.getElementById('edForkDD');if(d)d.classList.remove('on');},150)">
+                            <div class="fork-dd" id="edForkDD"></div>
                         </div>
                     </div>
                 </div>
@@ -1943,6 +2007,8 @@ let cardGroup = 'rev';  // 카드 목록 탭: 'rev'(설치 완료) | 'pre'(설�
 let cardYear = '';      // 카드 목록: 설치 년도 선택
 let cardMonth = '';     // 카드 목록: 설치 월 선택 ('01'~'12')
 let cardStage = '';     // 카드 목록: 단계 칩 선택 (표시 단계명)
+let cardFilterOpen = true; // 카드 목록 필터(단계·년도·월) 펼침 여부
+function toggleCardFilter(){ cardFilterOpen = !cardFilterOpen; renderProjects(); }
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2029,6 +2095,15 @@ async function loadKvRemote(){
     // 딜 제품 구성(여러 제품+설치비)
     if (map.deal_items != null) { dealItems = map.deal_items || {}; try{ localStorage.setItem(DITEMS_LS_KEY, JSON.stringify(dealItems)); }catch(e){} }
     else if (dealItems && Object.keys(dealItems).length) { await sbUpsert(KV_TABLE, [{k:'deal_items', data:dealItems}], 'k'); }
+    // 지게차 모델 카탈로그
+    if (Array.isArray(map.forklift_models)) { forkliftModels = map.forklift_models.length ? map.forklift_models : forkliftModels; try{ localStorage.setItem(FMODELS_LS_KEY, JSON.stringify(forkliftModels)); }catch(e){} }
+    else if (forkliftModels && forkliftModels.length) { await sbUpsert(KV_TABLE, [{k:'forklift_models', data:forkliftModels}], 'k'); }
+    // 지게차 제조사 카탈로그
+    if (Array.isArray(map.forklift_makers)) { forkMakers = map.forklift_makers.length ? map.forklift_makers : forkMakers; try{ localStorage.setItem(FMAKERS_LS_KEY, JSON.stringify(forkMakers)); }catch(e){} }
+    else if (forkMakers && forkMakers.length) { await sbUpsert(KV_TABLE, [{k:'forklift_makers', data:forkMakers}], 'k'); }
+    // 캘린더 단독 일정
+    if (Array.isArray(map.cal_events)) { calEvents = map.cal_events; try{ localStorage.setItem(CALEV_LS_KEY, JSON.stringify(calEvents)); }catch(e){} }
+    else if (calEvents && calEvents.length) { await sbUpsert(KV_TABLE, [{k:'cal_events', data:calEvents}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2117,6 +2192,9 @@ function loadAsLocal(){
   loadDealChat();
   loadDealForklift();
   loadDealItems();
+  loadForkliftModels();
+  loadForkMakers();
+  loadCalEvents();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -2137,6 +2215,62 @@ function loadDealForklift(){ try { dealForklift = JSON.parse(localStorage.getIte
 function saveDealForklift(){ try { localStorage.setItem(DFORK_LS_KEY, JSON.stringify(dealForklift)); } catch(e){} syncKv('deal_forklift', dealForklift); }
 function getDealForklift(id){ return dealForklift[id] || {maker:'',power:'',model:''}; }
 function setDealForklift(id, maker, power, model){ maker=(maker||'').trim(); power=(power||'').trim(); model=(model||'').trim(); if (maker||power||model) dealForklift[id] = {maker, power, model}; else delete dealForklift[id]; saveDealForklift(); }
+/* 지게차 모델 카탈로그(자동완성) — [{maker, model}] · 팀 공유, 입력할수록 커짐 */
+const FMODELS_LS_KEY = 'sp_forklift_models_v1';
+const FORK_SEED = [
+  {maker:'현대',model:'20B-9'},{maker:'현대',model:'25L-9'},{maker:'현대',model:'30D-9'},{maker:'현대',model:'15BT-9U'},
+  {maker:'두산',model:'D30S-7'},{maker:'두산',model:'G25P-5'},{maker:'두산',model:'B20X-7'},
+  {maker:'클라크',model:'GTS25'},{maker:'클라크',model:'EPX25'},
+  {maker:'도요타',model:'8FGL25'},{maker:'도요타',model:'8FBE20'},{maker:'도요타',model:'02-8FD25'},
+  {maker:'BYD',model:'ECB25'},{maker:'항차',model:'CPD25'},{maker:'헬리',model:'CPCD30'},{maker:'니치유',model:'FB25'}
+];
+let forkliftModels = [];
+function loadForkliftModels(){ let v=null; try{ v=JSON.parse(localStorage.getItem(FMODELS_LS_KEY)||'null'); }catch(e){} forkliftModels = (Array.isArray(v)&&v.length) ? v : FORK_SEED.slice(); }
+function saveForkliftModels(){ try{ localStorage.setItem(FMODELS_LS_KEY, JSON.stringify(forkliftModels)); }catch(e){} syncKv('forklift_models', forkliftModels); }
+function addForkliftModel(maker, model){ model=(model||'').trim(); if(!model) return; maker=(maker||'기타').trim()||'기타'; const dup=forkliftModels.some(m=>m.model.toLowerCase()===model.toLowerCase() && m.maker===maker); if(!dup){ forkliftModels.push({maker, model}); saveForkliftModels(); } }
+let _forkCur = [];
+function renderForkDD(){
+  const inp=$('edForkModel'); const dd=$('edForkDD'); if(!inp||!dd) return;
+  const q=inp.value.trim(), ql=q.toLowerCase(), mk=$('edForkMaker').value;
+  _forkCur = forkliftModels.filter(m=> (!mk||m.maker===mk) && (!q||m.model.toLowerCase().includes(ql)))
+    .sort((a,b)=> a.model.localeCompare(b.model));
+  let html='';
+  if(_forkCur.length){
+    html += _forkCur.slice(0,8).map((m,i)=>{
+      const hl = q ? esc(m.model).replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<b style="color:var(--primary)">$1</b>') : esc(m.model);
+      return `<div class="fork-opt" onmousedown="forkPick(${i})"><span>${hl}</span><span class="fork-mk">${esc(m.maker)}</span></div>`;
+    }).join('');
+  } else if(q){ html += `<div class="fork-none">'${esc(q)}' 검색 결과가 없어요</div>`; }
+  const exact = q && forkliftModels.some(m=>m.model.toLowerCase()===ql && (!mk||m.maker===mk));
+  if(q && !exact){ html += `<div class="fork-opt fork-add" onmousedown="forkAddNew()"><span>＋ '${esc(q)}' 새 모델로 추가</span><span class="fork-mk" style="color:var(--primary);background:#eef6fd;">신규</span></div>`; }
+  dd.innerHTML = html; dd.classList.toggle('on', html!=='');
+}
+function forkPick(i){ const m=_forkCur[i]; if(!m) return; $('edForkModel').value=m.model; if(m.maker) $('edForkMaker').value=m.maker; $('edForkDD').classList.remove('on'); }
+function forkAddNew(){ const q=$('edForkModel').value.trim(); if(!q) return; const mk=$('edForkMaker').value||'기타'; addForkliftModel(mk,q); if(!$('edForkMaker').value) $('edForkMaker').value=mk; $('edForkDD').classList.remove('on'); toast('새 지게차 모델을 목록에 추가했어요 ✓'); }
+/* 지게차 제조사 카탈로그(자동완성) — [maker] · 팀 공유, 입력할수록 커짐 */
+const FMAKERS_LS_KEY = 'sp_forklift_makers_v1';
+let forkMakers = [];
+function loadForkMakers(){ let v=null; try{ v=JSON.parse(localStorage.getItem(FMAKERS_LS_KEY)||'null'); }catch(e){} forkMakers = (Array.isArray(v)&&v.length) ? v : FORK_MAKERS.slice(); }
+function saveForkMakers(){ try{ localStorage.setItem(FMAKERS_LS_KEY, JSON.stringify(forkMakers)); }catch(e){} syncKv('forklift_makers', forkMakers); }
+function addForkMaker(name){ name=(name||'').trim(); if(!name) return; if(!forkMakers.some(x=>x.toLowerCase()===name.toLowerCase())){ forkMakers.push(name); saveForkMakers(); } }
+let _makerCur = [];
+function renderMakerDD(){
+  const inp=$('edForkMaker'), dd=$('edForkMakerDD'); if(!inp||!dd) return;
+  const q=inp.value.trim(), ql=q.toLowerCase();
+  _makerCur = forkMakers.filter(m=> !q || m.toLowerCase().includes(ql));
+  let html='';
+  if(_makerCur.length){
+    html += _makerCur.slice(0,10).map((m,i)=>{
+      const hl = q ? esc(m).replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<b style="color:var(--primary)">$1</b>') : esc(m);
+      return `<div class="fork-opt" onmousedown="makerPick(${i})"><span>${hl}</span></div>`;
+    }).join('');
+  } else if(q){ html += `<div class="fork-none">'${esc(q)}' 검색 결과가 없어요</div>`; }
+  const exact = q && forkMakers.some(m=>m.toLowerCase()===ql);
+  if(q && !exact){ html += `<div class="fork-opt fork-add" onmousedown="makerAddNew()"><span>＋ '${esc(q)}' 새 제조사로 추가</span><span class="fork-mk" style="color:var(--primary);background:#eef6fd;">신규</span></div>`; }
+  dd.innerHTML = html; dd.classList.toggle('on', html!=='');
+}
+function makerPick(i){ const m=_makerCur[i]; if(m==null) return; $('edForkMaker').value=m; $('edForkMakerDD').classList.remove('on'); renderForkDD(); }
+function makerAddNew(){ const q=$('edForkMaker').value.trim(); if(!q) return; addForkMaker(q); $('edForkMakerDD').classList.remove('on'); toast('새 제조사를 목록에 추가했어요 ✓'); renderForkDD(); }
 /* 딜 제품 구성(여러 제품 + 설치비/대) — { dealId: [{name, qty, unit, fee}] } · 팀 공유 */
 const DITEMS_LS_KEY = 'sp_deal_items_v1';
 let dealItems = {};
@@ -2214,6 +2348,8 @@ let shipInvF = '';     // '' | 'unissued' | 'issued'
 let shipCollF = '';    // '' | 'uncollected' | 'collected'
 let shipYearF = '';    // 'YYYY'
 let shipMonthF = '';   // '01'~'12'
+let shipFilterOpen = true;  // 출고 필터 칩 펼침 여부
+function toggleShipFilter(){ shipFilterOpen = !shipFilterOpen; renderShip(); }
 function setShipStatusF(v){ shipStatusF = v; renderShip(); }
 function setShipInvF(v){ shipInvF = v; renderShip(); }
 function setShipCollF(v){ shipCollF = v; renderShip(); }
@@ -2487,6 +2623,73 @@ function dealSpan(d){
   const one = (dealCalDate(d)||'').slice(0,10);
   return one ? {start:one, end:one} : null;
 }
+/* ===== 캘린더 단독 일정 (팀 공유) ===== */
+const EVENT_TYPES = [
+  {key:'meeting', label:'미팅',    color:'#006FC4'},
+  {key:'install', label:'설치',    color:'#e07b39'},
+  {key:'contract',label:'계약',    color:'#15803d'},
+  {key:'trip',    label:'출장',    color:'#7c3aed'},
+  {key:'internal',label:'사내 일정', color:'#0891b2'},
+  {key:'etc',     label:'기타',    color:'#64748b'}
+];
+function evType(k){ return EVENT_TYPES.find(t=>t.key===k) || EVENT_TYPES[EVENT_TYPES.length-1]; }
+const CALEV_LS_KEY = 'sp_cal_events_v1';
+let calEvents = [];
+function loadCalEvents(){ try{ const v=JSON.parse(localStorage.getItem(CALEV_LS_KEY)||'[]'); calEvents = Array.isArray(v)?v:[]; }catch(e){ calEvents=[]; } }
+function saveCalEvents(){ try{ localStorage.setItem(CALEV_LS_KEY, JSON.stringify(calEvents)); }catch(e){} syncKv('cal_events', calEvents); }
+let currentEventId = null, _evType = 'meeting';
+function openEventModal(id, presetDate){
+  currentEventId = id || null;
+  const ev = currentEventId ? calEvents.find(x=>x.id===currentEventId) : null;
+  $('eventModalTitle').textContent = ev ? '일정 수정' : '일정 추가';
+  $('evDeleteBtn').style.display = ev ? '' : 'none';
+  _evType = ev ? (ev.type||'meeting') : 'meeting';
+  renderEvTypeTags();
+  $('evTitle').value = ev?.title || '';
+  const today = new Date().toISOString().slice(0,10);
+  $('evStart').value = ev?.start || presetDate || today;
+  $('evEnd').value = ev?.end || '';
+  $('evOwner').value = ev?.owner || '';
+  $('evPart').value = ev?.participants || '';
+  $('evMemo').value = ev?.memo || '';
+  // 담당 자동완성: 딜 담당자 + 기존 일정 작성자
+  const names = new Set(deals.map(d=>d.person).filter(Boolean));
+  calEvents.forEach(e=>{ if(e.owner) names.add(e.owner); });
+  $('evOwnerList').innerHTML = Array.from(names).sort().map(n=>`<option value="${esc(n)}">`).join('');
+  $('eventModal').classList.add('active');
+}
+function closeEventModal(){ $('eventModal').classList.remove('active'); }
+function renderEvTypeTags(){
+  $('evTypeTags').innerHTML = EVENT_TYPES.map(t=>{
+    const on = t.key===_evType;
+    return `<span class="ev-tag ${on?'on':''}" style="${on?`background:${t.color};border-color:${t.color};`:''}" onclick="pickEvType('${t.key}')">${t.label}</span>`;
+  }).join('');
+}
+function pickEvType(k){ _evType = k; renderEvTypeTags(); }
+function onEvStart(){ if($('evEnd').value && $('evEnd').value < $('evStart').value) $('evEnd').value = $('evStart').value; }
+function saveEvent(){
+  const title = $('evTitle').value.trim();
+  const start = $('evStart').value;
+  if (!title){ toast('일정 내용을 입력해 주세요', true); return; }
+  if (!start){ toast('시작일을 입력해 주세요', true); return; }
+  let end = $('evEnd').value || start;
+  if (end < start) end = start;
+  const body = { type:_evType, title, start, end, owner:$('evOwner').value.trim()||null, participants:$('evPart').value.trim()||null, memo:$('evMemo').value.trim()||null, updated_at:new Date().toISOString() };
+  if (currentEventId){ Object.assign(calEvents.find(x=>x.id===currentEventId), body); }
+  else { calEvents.push({ id:'e'+Date.now(), created_at:new Date().toISOString(), ...body }); }
+  saveCalEvents();
+  closeEventModal();
+  toast(currentEventId ? '일정을 수정했어요 ✓' : '일정을 추가했어요 ✓');
+  renderCalendar();
+}
+function deleteEvent(){
+  if (!currentEventId) return;
+  if (!confirm('이 일정을 삭제할까요?')) return;
+  calEvents = calEvents.filter(x=>x.id!==currentEventId);
+  saveCalEvents();
+  closeEventModal();
+  renderCalendar();
+}
 function calShift(delta){
   if (calYear === null){ const t = new Date(); calYear = t.getFullYear(); calMonth = t.getMonth(); }
   calMonth += delta;
@@ -2532,7 +2735,9 @@ function renderCalendar(){
   const dstr = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   // 대상 딜의 설치 기간
   const spans = [];
-  evAll.forEach(d=>{ const sp = dealSpan(d); if (sp) spans.push({d, start:sp.start, end:sp.end}); });
+  evAll.forEach(d=>{ const sp = dealSpan(d); if (sp) spans.push({kind:'deal', ref:d, start:sp.start, end:sp.end}); });
+  // 단독 일정 (그룹 필터와 무관하게 항상 표시)
+  calEvents.forEach(e=>{ if (e.start){ spans.push({kind:'event', ref:e, start:String(e.start).slice(0,10), end:String(e.end||e.start).slice(0,10)}); } });
   let html = '';
   for (let w=0; w<6; w++){
     const wd = [];
@@ -2546,7 +2751,7 @@ function renderCalendar(){
       if (s.start <= weekStart) cs = 0;
       let ce = 6; for (let c=6;c>=0;c--){ if (wd[c].ds <= s.end){ ce=c; break; } }
       if (s.end >= weekEnd) ce = 6;
-      segs.push({ d:s.d, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
+      segs.push({ kind:s.kind, ref:s.ref, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
     });
     // 레인 배정 (겹치면 아래로 쌓기)
     segs.sort((a,b)=> a.cs-b.cs || (b.ce-b.cs)-(a.ce-a.cs));
@@ -2562,17 +2767,27 @@ function renderCalendar(){
         <div class="cal-dnum ${x.dow===0?'sun':(x.dow===6?'sat':'')}">${x.cd.getDate()}</div>
       </div>`;
     });
-    // 설치 기간 밴드
+    // 설치 기간 / 단독 일정 밴드
     let bandsHtml = '';
     segs.forEach(sg=>{
-      const col = isLost(sg.d) ? '#94a3b8' : (STAGE_COLORS[dispStage(sg.d)]||'#9ca3af');
-      const nm = dealTitle(sg.d);
+      let col, nm, click, ttl, icon;
+      if (sg.kind === 'event'){
+        const t = evType(sg.ref.type); col = t.color; nm = sg.ref.title;
+        click = `openEventModal('${sg.ref.id}')`;
+        ttl = `[${t.label}] ${nm}${sg.ref.owner?' · '+sg.ref.owner:''}`;
+        icon = '📌 ';
+      } else {
+        const d = sg.ref; col = isLost(d) ? '#94a3b8' : (STAGE_COLORS[dispStage(d)]||'#9ca3af'); nm = dealTitle(d);
+        click = `openDetail(${d.id})`;
+        ttl = `${nm} · ${String(d.close_date||'').slice(5,10)}~${String(d.delivery_date||'').slice(5,10)}`;
+        icon = sg.multi ? '🔧 ' : '';
+      }
       const left = `calc(${(sg.cs/7*100).toFixed(4)}% + 3px)`;
       const width = `calc(${((sg.ce-sg.cs+1)/7*100).toFixed(4)}% - 6px)`;
       const top = 26 + (sg.lane||0)*22;
       const rl = sg.contL ? '0' : '6px', rr = sg.contR ? '0' : '6px';
-      bandsHtml += `<div class="cal-band" onclick="event.stopPropagation();openDetail(${sg.d.id})" title="${esc(nm)} · ${esc(String(sg.d.close_date||'').slice(5,10))}~${esc(String(sg.d.delivery_date||'').slice(5,10))}"
-        style="left:${left};width:${width};top:${top}px;background:${hexToRgba(col,0.15)};border:1px solid ${hexToRgba(col,0.45)};color:${col};border-radius:${rl} ${rr} ${rr} ${rl};">${sg.multi?'🔧 ':''}${esc(nm)}</div>`;
+      bandsHtml += `<div class="cal-band" onclick="event.stopPropagation();${click}" title="${esc(ttl)}"
+        style="left:${left};width:${width};top:${top}px;background:${hexToRgba(col,0.15)};border:1px solid ${hexToRgba(col,0.45)};color:${col};border-radius:${rl} ${rr} ${rr} ${rl};">${icon}${esc(nm)}</div>`;
     });
     html += `<div class="cal-week">${cellsHtml}${bandsHtml}</div>`;
   }
@@ -2586,20 +2801,32 @@ function hexToRgba(hex, a){
 function openCalDay(ds){
   const inGroup = d => calGroup==='all' ? true : (calGroup==='rev' ? isRevenue(d) : (!isRevenue(d) && !isLost(d)));
   const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
-  if (!evs.length) return;
+  const days = calEvents.filter(e=> e.start && String(e.start).slice(0,10)<=ds && ds<=String(e.end||e.start).slice(0,10));
+  if (!evs.length && !days.length) return;
   const p = ds.split('-');
-  $('calDayTitle').textContent = `${+p[1]}월 ${+p[2]}일 · ${evs.length}건`;
-  $('calDayList').innerHTML = evs.map(d=>{
+  $('calDayTitle').textContent = `${+p[1]}월 ${+p[2]}일 · ${evs.length+days.length}건`;
+  const evHtml = days.map(e=>{
+    const t = evType(e.type);
+    return `<div onclick="closeCalDay();openEventModal('${e.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
+      <span style="width:9px;height:9px;border-radius:50%;background:${t.color};flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:10.5px;font-weight:700;color:${t.color};background:${hexToRgba(t.color,.13)};padding:1px 6px;border-radius:5px;margin-right:5px;">${t.label}</span>${esc(e.title)}</div>
+        <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:600;">${e.owner?esc(e.owner):''}${e.participants?' · 참여 '+esc(e.participants):''}${e.start!==e.end&&e.end?` · ${esc(String(e.start).slice(5))}~${esc(String(e.end).slice(5))}`:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  const dealHtml = evs.map(d=>{
     const col = STAGE_COLORS[dispStage(d)]||'#9ca3af';
     return `<div onclick="closeCalDay();openDetail(${d.id})" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:background .12s;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
       <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0;"></span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dealTitle(d))}</div>
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🔧 ${esc(dealTitle(d))}</div>
         <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:600;">${d.co?esc(d.co)+' · ':''}${esc(dispStage(d))} · ${dealCalDateLabel(d)}</div>
       </div>
       ${d.amount?`<div style="font-size:13px;font-weight:800;flex-shrink:0;">${fmtMoney(d.amount)}</div>`:''}
     </div>`;
-  }).join('') + `<div style="font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:4px;">목록을 누르면 프로젝트 상세로 이동해요</div>`;
+  }).join('');
+  $('calDayList').innerHTML = evHtml + dealHtml + `<div style="font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:4px;">누르면 상세로 이동해요</div>`;
   $('calDayModal').classList.add('active');
 }
 function closeCalDay(){ $('calDayModal').classList.remove('active'); }
@@ -3111,10 +3338,23 @@ function renderProjects(){
       ${cardYear && undated ? `<span style="font-size:12px;color:var(--text-tertiary);font-weight:600;">· 일정 미정 ${undated}건은 년도 선택 중엔 숨겨져요</span>` : ''}
       <span style="flex:1;min-width:40px;height:1px;background:var(--border);"></span>
     </div>`;
+  // ── 필터 접기/펼치기 (시안 A 동작 · B 링크 모양) ──
+  const cardActive = [];
+  if (cardStage) cardActive.push(cardStage);
+  if (cardYear) cardActive.push(cardYear + '년');
+  if (cardMonth) cardActive.push((+cardMonth) + '월');
+  const cardSummary = cardActive.length
+    ? `<span style="color:var(--primary);font-weight:700;">${cardActive.join(' · ')}</span> 적용 중`
+    : '전체 보기 (필터 없음)';
+  const cardToggleBar = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;color:var(--text-tertiary);">${cardFilterOpen ? '' : cardSummary}</span>
+      <span onclick="toggleCardFilter()" style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">${cardFilterOpen ? '필터 숨기기 ▲' : '필터 보기 ▼'}</span>
+    </div>`;
   const ctrl = `
     <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">${tabBtn('rev')}${tabBtn('pre')}</div>
-      ${stageRow}${yearRow}${monthRow}
+      ${cardToggleBar}
+      ${cardFilterOpen ? stageRow + yearRow + monthRow : ''}
     </div>`;
   const cardsHtml = shown.length ? shown.map(d=>projectCardHtml(d)).join('')
     : `<div class="empty-state" style="grid-column:1/-1;padding:30px;"><div class="empty-title" style="font-size:15px;">해당 조건의 프로젝트가 없어요</div><div class="empty-desc">다른 탭이나 년도·월을 선택해 보세요</div></div>`;
@@ -4229,7 +4469,19 @@ function renderShip(){
       ${chip(`💰 수금 전 <span style="opacity:.75;">${nUncoll}</span>`, shipCollF==='uncollected', "setShipCollF('uncollected')", '#d97706')}
       ${chip(`✅ 수금 완료 <span style="opacity:.75;">${nColl}</span>`, shipCollF==='collected', "setShipCollF('collected')", '#16a34a')}
     </div>`;
-  $('shipChips').innerHTML = statusRow + invRow + collRow;
+  // ── 필터 접기/펼치기 (시안 A 동작 · B 링크 모양) ──
+  const shipActive = [];
+  if (shipStatusF==='request') shipActive.push('📦 출고 요청'); else if (shipStatusF==='done') shipActive.push('✅ 출고 완료');
+  if (shipInvF==='unissued') shipActive.push('미발행'); else if (shipInvF==='issued') shipActive.push('발행');
+  if (shipCollF==='uncollected') shipActive.push('💰 수금 전'); else if (shipCollF==='collected') shipActive.push('✅ 수금 완료');
+  const shipSummary = shipActive.length
+    ? `<span style="color:var(--primary);font-weight:700;">${shipActive.join(' · ')}</span> 적용 중`
+    : '전체 보기 (필터 없음)';
+  const shipToggleBar = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;color:var(--text-tertiary);">${shipFilterOpen ? '' : shipSummary}</span>
+      <span onclick="toggleShipFilter()" style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">${shipFilterOpen ? '필터 숨기기 ▲' : '필터 보기 ▼'}</span>
+    </div>`;
+  $('shipChips').innerHTML = shipToggleBar + (shipFilterOpen ? statusRow + invRow + collRow : '');
 
   // KPI
   const now = new Date();
@@ -4672,7 +4924,7 @@ function openEditModal(){
   renderDealItems();
   // 지게차 정보 (제조사·동력·모델명)
   { const f = getDealForklift(d.id);
-    $('edForkMaker').innerHTML = `<option value="">선택 안 함</option>` + FORK_MAKERS.map(m=>`<option value="${esc(m)}" ${f.maker===m?'selected':''}>${esc(m)}</option>`).join('');
+    $('edForkMaker').value = f.maker || '';   // 제조사: 검색 자동완성 입력
     $('edForkPower').innerHTML = `<option value="">선택 안 함</option>` + FORK_POWERS.map(p=>`<option value="${esc(p)}" ${f.power===p?'selected':''}>${esc(p)}</option>`).join('');
     $('edForkModel').value = f.model || '';
   }
@@ -4774,7 +5026,7 @@ async function saveEdit(){
   const instChanged = iTeam !== (curInst.team||'') || iPerson !== (curInst.person||'');
   // 지게차 정보 (팀 공유)
   const curFork = getDealForklift(d.id);
-  const fMaker = $('edForkMaker').value, fPower = $('edForkPower').value, fModel = $('edForkModel').value.trim();
+  const fMaker = $('edForkMaker').value.trim(), fPower = $('edForkPower').value, fModel = $('edForkModel').value.trim();
   const forkChanged = fMaker !== (curFork.maker||'') || fPower !== (curFork.power||'') || fModel !== (curFork.model||'');
   // 제품 구성 변경 여부
   const itemsChanged = JSON.stringify(_items) !== JSON.stringify(getDealItems(d.id) || []);
@@ -4782,6 +5034,8 @@ async function saveEdit(){
   if (noteChanged) setDealNote(d.id, $('edNote').value);
   if (instChanged) setDealInstall(d.id, iTeam, iPerson);
   if (forkChanged) setDealForklift(d.id, fMaker, fPower, fModel);
+  if (fMaker) addForkMaker(fMaker);               // 저장한 제조사도 카탈로그에 자동 등록
+  if (fModel) addForkliftModel(fMaker, fModel);   // 저장한 모델은 카탈로그에 자동 등록(자동완성용)
   if (itemsChanged) setDealItems(d.id, dealItemRows);
 
   btn.disabled = true; btn.textContent = '저장 중...';
