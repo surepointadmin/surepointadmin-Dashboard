@@ -485,6 +485,9 @@
         .bear-team  { background: #fef7cd; color: #a16207; }
         .bear-unset { background: #f2f4f6; color: #6b7684; }
         .badge-warranty { background: #eef1f4; color: #6b7684; }
+        /* 처리 태그 (비용 없이 자체 해결) */
+        .tag-self  { background: #e6f5f3; color: #0d9488; }
+        .tag-phone { background: #eef1f5; color: #64748b; }
         .kdeal {
             background: var(--bg-main);
             border: 1px solid var(--border);
@@ -694,6 +697,20 @@
         }
         .visit-memo { font-size: 14px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; }
         .visit-by { font-size: 12px; color: var(--text-tertiary); margin-top: 8px; }
+        /* 💬 메모 탭 (시안 A — 오른쪽 파란 버블 통일) */
+        .chat-scroll { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; max-height: 460px; overflow-y: auto; background: #f7f9fb; }
+        .chat-msg { align-self: flex-start; max-width: 78%; text-align: left; }
+        .chat-bubble { display: inline-block; text-align: left; background: var(--primary); color: #fff; padding: 9px 13px; border-radius: 14px; border-bottom-left-radius: 4px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .chat-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+        .chat-meta .who { font-weight: 700; color: var(--text-secondary); }
+        .chat-meta .act { color: var(--primary); cursor: pointer; margin-left: 7px; font-weight: 600; }
+        .chat-empty { align-self: center; color: var(--text-tertiary); font-size: 13px; padding: 30px 0; }
+        .chat-edit { width: 100%; border: 1px solid var(--primary); border-radius: 10px; padding: 8px 11px; font-size: 13.5px; font-family: inherit; resize: vertical; outline: none; }
+        .chat-inputbar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); background: #fff; }
+        .chat-inputbar input { flex: 1; border: 1px solid var(--border); border-radius: 22px; padding: 10px 16px; font-size: 13.5px; outline: none; }
+        .chat-inputbar input:focus { border-color: var(--primary); }
+        .chat-send { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--primary); color: #fff; font-size: 15px; cursor: pointer; }
+        .chat-send:hover { filter: brightness(1.05); }
         /* 진행 기록 항목별 메모 (시안 B — 답글 스레드) */
         .log-thread { margin-top: 11px; padding-left: 11px; border-left: 2px solid #d9ead0; display: flex; flex-direction: column; gap: 7px; }
         .log-note { position: relative; background: #f2f7ee; border: 1px solid #d9ead0; border-radius: 8px; padding: 8px 11px; }
@@ -1230,6 +1247,20 @@
                     <div class="tab-item active" data-tab="info" onclick="switchTab('info')">딜 정보</div>
                     <div class="tab-item" data-tab="settle" onclick="switchTab('settle')">정산 현황</div>
                     <div class="tab-item" data-tab="history" onclick="switchTab('history')">진행 기록</div>
+                    <div class="tab-item" data-tab="chat" onclick="switchTab('chat')">💬 메모</div>
+                </div>
+                <div class="tab-content" id="chatTab">
+                    <div class="section-card" style="padding:0;overflow:hidden;">
+                        <div class="section-header" style="padding:18px 20px 0;">
+                            <div class="section-title">💬 메모</div>
+                        </div>
+                        <div class="section-desc" style="padding:0 20px;">메모를 남기면 작성 시간이 기록돼요 · 수정·삭제 가능 · 팀 공유</div>
+                        <div class="chat-scroll" id="chatScroll"></div>
+                        <div class="chat-inputbar">
+                            <input type="text" id="chatInput" placeholder="메모 입력…" onkeydown="if(event.key==='Enter'){addDealChat();}">
+                            <button class="chat-send" onclick="addDealChat()" title="메모 추가">➤</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="tab-content" id="settleTab">
                     <div class="section-card">
@@ -1358,12 +1389,21 @@
                     </div>
                 </div>
                 <div class="form-group" id="asFreeCauseWrap">
-                    <label class="form-label">무상 원인 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(비용 부담 주체가 자동 결정돼요)</span></label>
+                    <label class="form-label">무상 비용 부담 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(누가 부담하는지 선택)</span></label>
                     <select class="form-input" id="asFreeCause" onchange="onAsFreeCauseChange()">
-                        <option value="product">제품 하자 (보증) → 🏢 슈어포인트 부담</option>
-                        <option value="install">설치 문제 → 🛠️ 설치팀 부담</option>
+                        <option value="product">🏢 슈어포인트 부담</option>
+                        <option value="install">🛠️ 설치팀 부담 (설치 문제)</option>
                     </select>
                     <div class="form-hint" id="asBearerHint"></div>
+                </div>
+                <div class="form-group" id="asHandleTagWrap">
+                    <label class="form-label">처리 태그 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(비용 없이 자체 해결한 경우 · 선택)</span></label>
+                    <select class="form-input" id="asHandleTag" onchange="onAsHandleTagChange()">
+                        <option value="">태그 없음</option>
+                        <option value="self">🙋 자체 처리 (직접 방문·수리)</option>
+                        <option value="phone">📞 전화·원격 응대</option>
+                    </select>
+                    <div class="form-hint" id="asHandleTagHint"></div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">메모</label>
@@ -1840,7 +1880,7 @@ const AS_COLORS = {'접수':'#f59e0b','방문 예정':'#3b82f6','조치 중':'#a
 const AS_BADGE = {'접수':'badge-partial','방문 예정':'badge-contract','조치 중':'badge-verbal','완료':'badge-paid','세금계산서 발행 완료':'badge-contract','보류':'badge-none'};
 function asCollected(c){ return !!c.collected; } // true=수금 완료, false=수금 전
 function asDone(c){ return c.status==='완료' || c.status===AS_TAX; } // A/S 작업 완료(진행 아님)
-/* 비용 부담 주체: 유상=고객(cust) · 무상+제품하자=슈어(sure) · 무상+설치문제=설치팀(team) · 무상 원인 미지정=unset */
+/* 비용 부담 주체: 유상=고객(cust) · 무상+슈어포인트 부담=슈어(sure) · 무상+설치문제=설치팀(team) · 무상 부담 미지정=unset */
 function asBearer(c){
   if (c.paid) return 'cust';
   if (c.free_cause === 'product') return 'sure';
@@ -1852,6 +1892,11 @@ const BEARER_META = {
   sure:  {cls:'bear-sure',  border:'#dc2626', label:'#dc2626', grp:'🏢 슈어 부담',    pill:'🏢 슈어 부담'},
   team:  {cls:'bear-team',  border:'#eab308', label:'#a16207', grp:'🛠️ 설치팀 부담',  pill:'🛠️ 설치팀 부담'},
   unset: {cls:'bear-unset', border:'#cbd5e1', label:'#6b7684', grp:'🆓 무상 · 원인 미지정', pill:'무상 · 원인 미지정'}
+};
+/* 처리 태그 — 비용 없이 자체 해결(직접 방문 / 전화·원격) */
+const HANDLE_META = {
+  self:  {cls:'tag-self',  label:'🙋 자체 처리'},
+  phone: {cls:'tag-phone', label:'📞 전화'}
 };
 let asView = 'board';
 let currentAsId = null;
@@ -1949,6 +1994,9 @@ async function loadKvRemote(){
     // 진행 기록 항목별 메모
     if (map.log_notes != null) { logNotes = map.log_notes || {}; try{ localStorage.setItem(LOGNOTE_LS_KEY, JSON.stringify(logNotes)); }catch(e){} }
     else if (logNotes && Object.keys(logNotes).length) { await sbUpsert(KV_TABLE, [{k:'log_notes', data:logNotes}], 'k'); }
+    // 딜 메모(채팅)
+    if (map.deal_chat != null) { dealChat = map.deal_chat || {}; try{ localStorage.setItem(DCHAT_LS_KEY, JSON.stringify(dealChat)); }catch(e){} }
+    else if (dealChat && Object.keys(dealChat).length) { await sbUpsert(KV_TABLE, [{k:'deal_chat', data:dealChat}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2034,12 +2082,18 @@ function loadAsLocal(){
   loadLogNotes();
   loadDealPayments();
   loadDealInstall();
+  loadDealChat();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
 let dealNotes = {};
 function loadDealNotes(){ try { dealNotes = JSON.parse(localStorage.getItem(DNOTE_LS_KEY) || '{}') || {}; } catch(e){ dealNotes = {}; } }
 function saveDealNotes(){ try { localStorage.setItem(DNOTE_LS_KEY, JSON.stringify(dealNotes)); } catch(e){} syncKv('deal_notes', dealNotes); }
+/* 딜 메모(채팅형) — { dealId: [{id, text, by, at}] } · 팀 공유 */
+const DCHAT_LS_KEY = 'sp_deal_chat_v1';
+let dealChat = {};
+function loadDealChat(){ try { dealChat = JSON.parse(localStorage.getItem(DCHAT_LS_KEY) || '{}') || {}; } catch(e){ dealChat = {}; } }
+function saveDealChat(){ try { localStorage.setItem(DCHAT_LS_KEY, JSON.stringify(dealChat)); } catch(e){} syncKv('deal_chat', dealChat); }
 /* 진행 기록 항목별 메모 — 로그별 메모 배열 { logKey: [{text, at}] } · 팀 공유 */
 const LOGNOTE_LS_KEY = 'sp_log_notes_v1';
 let logNotes = {};
@@ -3171,6 +3225,7 @@ function openDetail(id){
   renderSettle();
   renderHistory();
   renderInfo();
+  renderChat();
   switchTab('info');
 }
 
@@ -3178,6 +3233,77 @@ function switchTab(name){
   document.querySelectorAll('.tab-item').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   $(name+'Tab').classList.add('active');
+  if (name === 'chat') { renderChat(); const s=$('chatScroll'); if(s) s.scrollTop=s.scrollHeight; setTimeout(()=>{const i=$('chatInput'); if(i) i.focus();},50); }
+}
+
+/* ===== 💬 메모(채팅형) — 시안 A: 오른쪽 파란 버블 통일 ===== */
+function chatMe(){
+  let me = '';
+  try { me = localStorage.getItem('sp_me') || ''; } catch(e){}
+  if (!me) {
+    me = (prompt('메모에 표시할 작성자 이름을 입력하세요 (이 브라우저에 저장돼요)') || '').trim();
+    if (me) { try { localStorage.setItem('sp_me', me); } catch(e){} }
+  }
+  return me || 'surepoint';
+}
+function fmtChatAt(iso){
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function renderChat(){
+  const el = $('chatScroll'); if(!el) return;
+  const d = deals.find(x=>x.id===currentDealId); if(!d){ el.innerHTML=''; return; }
+  const list = (dealChat[d.id] || []);
+  if (!list.length) { el.innerHTML = `<div class="chat-empty">아직 메모가 없어요. 아래에 첫 메모를 남겨보세요.</div>`; return; }
+  el.innerHTML = list.map(m=>`
+    <div class="chat-msg" data-mid="${m.id}">
+      <div class="chat-bubble">${esc(m.text)}</div>
+      <div class="chat-meta"><span class="who">${esc(m.by||'')}</span> · ${fmtChatAt(m.at)}${m.edited?' · 수정됨':''}
+        <span class="act" onclick="editDealChat('${m.id}')">수정</span><span class="act" onclick="deleteDealChat('${m.id}')">삭제</span>
+      </div>
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+function addDealChat(){
+  const d = deals.find(x=>x.id===currentDealId); if(!d) return;
+  const inp = $('chatInput'); const txt = (inp.value||'').trim();
+  if (!txt) { inp.focus(); return; }
+  if (!dealChat[d.id]) dealChat[d.id] = [];
+  const id = 'c' + Date.now() + Math.floor((''+Date.now()).slice(-4));
+  dealChat[d.id].push({ id, text: txt, by: chatMe(), at: new Date().toISOString() });
+  saveDealChat();
+  inp.value = '';
+  renderChat();
+  const s=$('chatScroll'); if(s) s.scrollTop=s.scrollHeight;
+}
+function editDealChat(mid){
+  const d = deals.find(x=>x.id===currentDealId); if(!d) return;
+  const arr = dealChat[d.id] || []; const m = arr.find(x=>x.id===mid); if(!m) return;
+  const row = document.querySelector(`.chat-msg[data-mid="${mid}"]`); if(!row) return;
+  row.innerHTML = `<textarea class="chat-edit" rows="2">${esc(m.text)}</textarea>
+    <div class="chat-meta"><span class="act" onclick="saveDealChatEdit('${mid}', this)">저장</span><span class="act" onclick="renderChat()">취소</span></div>`;
+  const ta = row.querySelector('textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+function saveDealChatEdit(mid, btn){
+  const d = deals.find(x=>x.id===currentDealId); if(!d) return;
+  const arr = dealChat[d.id] || []; const m = arr.find(x=>x.id===mid); if(!m) return;
+  const row = btn.closest('.chat-msg'); const ta = row && row.querySelector('textarea');
+  const val = ta ? ta.value.trim() : '';
+  if (!val) { toast('내용을 입력해 주세요', true); return; }
+  m.text = val; m.edited = true; m.edited_at = new Date().toISOString();
+  saveDealChat();
+  renderChat();
+  toast('메모를 수정했어요 ✓');
+}
+function deleteDealChat(mid){
+  const d = deals.find(x=>x.id===currentDealId); if(!d) return;
+  if (!confirm('이 메모를 삭제할까요?')) return;
+  dealChat[d.id] = (dealChat[d.id] || []).filter(x=>x.id!==mid);
+  if (!dealChat[d.id].length) delete dealChat[d.id];
+  saveDealChat();
+  renderChat();
 }
 
 function renderSettle(){
@@ -3714,6 +3840,7 @@ function asCardHtml(c){
   const asFootBadges = [];
   if (c.priority==='긴급') asFootBadges.push('<span class="status-badge badge-unpaid">긴급</span>');
   { const m = BEARER_META[asBearer(c)]; asFootBadges.push(`<span class="status-badge ${m.cls}">${m.pill}${c.cost?' '+fmtWon(c.cost)+'원':''}</span>`); }
+  if (c.handle_tag && HANDLE_META[c.handle_tag]) { const h = HANDLE_META[c.handle_tag]; asFootBadges.push(`<span class="status-badge ${h.cls}">${h.label}</span>`); }
   if (c.deal_id) { const w = warrantyBadgeAs(c.deal_id); if (w) asFootBadges.push(w); }
   if (c.visit_date && !asDone(c)) asFootBadges.push(`<span class="kdeal-date">방문 ${String(c.visit_date).slice(5,10).replace('-','/')}</span>`);
   return `<div class="kdeal" onclick="openAsModal(${c.id})">
@@ -3775,6 +3902,7 @@ function openAsModal(id, prefillDealId){
   $('asCost').value = c?.cost || '';
   $('asCostHint').textContent = c?.cost ? fmtWon(c.cost)+'원' : '';
   $('asFreeCause').value = (c?.free_cause === 'install') ? 'install' : 'product';
+  $('asHandleTag').value = c?.handle_tag || '';
   $('asMemo').value = c?.memo || '';
   onAsPaidChange();
   if (!c && prefillDealId) asDealAutofill();
@@ -3787,8 +3915,24 @@ function onAsStatusChange(){
 function onAsPaidChange(){
   const paid = $('asPaid').value === 'true';
   $('asFreeCauseWrap').style.display = paid ? 'none' : '';
+  $('asHandleTagWrap').style.display = paid ? 'none' : '';  // 처리 태그는 무상에서만
   $('asCostLabel').textContent = paid ? '비용 (원) · 고객 청구' : '공임 비용 (원) · 내부 부담';
   onAsFreeCauseChange();
+  onAsHandleTagChange();
+}
+function onAsHandleTagChange(){
+  const tag = $('asHandleTag').value;
+  const hint = $('asHandleTagHint');
+  if (tag) {
+    // 자체 해결 = 비용 없음: 비용 0으로 고정
+    $('asCost').value = '';
+    $('asCost').disabled = true; $('asCost').style.opacity = '.5';
+    $('asCostHint').textContent = '';
+    if (hint) hint.innerHTML = '→ <b style="color:#0d9488">비용 없이 자체 해결</b> · 비용 0원으로 저장돼요';
+  } else {
+    $('asCost').disabled = false; $('asCost').style.opacity = '';
+    if (hint) hint.textContent = '';
+  }
 }
 function onAsFreeCauseChange(){
   const paid = $('asPaid').value === 'true';
@@ -3796,7 +3940,7 @@ function onAsFreeCauseChange(){
   if (paid) { hint.textContent = ''; return; }
   hint.innerHTML = $('asFreeCause').value === 'install'
     ? '→ <b style="color:#a16207">🛠️ 설치팀이 100% 부담</b> (설치 과실)'
-    : '→ <b style="color:#dc2626">🏢 슈어포인트가 100% 부담</b> (제품 하자·보증)';
+    : '→ <b style="color:#dc2626">🏢 슈어포인트가 100% 부담</b>';
 }
 function closeAsModal(){ $('asModal').classList.remove('active'); }
 function updateAsProjBar(){
@@ -3854,9 +3998,12 @@ async function saveAs(){
     completed_date: $('asCompleted').value || null,
     action_taken: $('asAction').value.trim() || null,
     paid: $('asPaid').value === 'true',
-    cost: parseInt($('asCost').value) || 0,
-    // 무상일 때만 원인 저장(제품 하자=슈어 부담 / 설치 문제=설치팀 부담). 유상이면 원인 없음.
+    // 처리 태그(자체 처리/전화)가 있으면 비용 없이 자체 해결 → 0원
+    cost: ($('asPaid').value !== 'true' && $('asHandleTag').value) ? 0 : (parseInt($('asCost').value) || 0),
+    // 무상일 때만 부담 주체 저장(슈어포인트 부담 / 설치팀 부담). 유상이면 없음.
     free_cause: $('asPaid').value === 'true' ? null : $('asFreeCause').value,
+    // 처리 태그: 무상에서 비용 없이 자체 해결한 경우 (self=직접 방문 / phone=전화·원격)
+    handle_tag: $('asPaid').value === 'true' ? null : ($('asHandleTag').value || null),
     memo: $('asMemo').value.trim() || null,
     updated_at: new Date().toISOString()
   };
