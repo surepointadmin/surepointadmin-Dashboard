@@ -1709,6 +1709,26 @@
         </div>
     </div>
 
+    <!-- 오래된 프로젝트 자동 보류 알림 모달 -->
+    <div class="modal-overlay" id="autoHoldModal">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h2 class="modal-title">⏸️ 오래된 프로젝트 자동 보류</h2>
+                <button class="modal-close" onclick="closeAutoHoldModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">
+                    잠재발굴·미팅접촉 단계에서 <b>최초 등록 후 2달이 지난</b> 프로젝트 <b style="color:#ef4444;"><span id="autoHoldCount">0</span>건</b>을 <b>실패·보류</b> 단계로 옮겼어요.<br>
+                    <span style="color:var(--text-tertiary);font-size:12px;">다시 진행할 건이면 각 프로젝트의 <b>정보 수정</b>에서 단계를 되돌릴 수 있어요.</span>
+                </div>
+                <div id="autoHoldList" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeAutoHoldModal()">확인</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 추가 주문 등록 모달 -->
     <div class="modal-overlay" id="newOrderModal">
         <div class="modal">
@@ -2419,6 +2439,7 @@ async function loadAll() {
     loadedAt = new Date();
     $('syncChip').innerHTML = `<b>실시간 연동됨</b><br>딜 ${deals.length}건 · 수금 ${recvList.length}건<br>${loadedAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 기준`;
     initAfterLoad();
+    await autoHoldStale();  // 잠재발굴·미팅접촉 2달 경과 건 자동 보류 + 팝업 알림
   } catch (err) {
     $('errorBanner').innerHTML = `<b>surepoint(프로젝트·매출) 데이터를 불러오지 못했어요.</b><br>` +
       `네트워크 연결을 확인한 뒤 새로고침해 주세요. <b>출고·납품 관리 탭은 운영툴 연동과 무관하게 계속 사용할 수 있어요.</b><br>` +
@@ -2431,6 +2452,55 @@ async function loadAll() {
     $('loadingOverlay').style.display = 'none';
   }
 }
+/* ── 오래된 프로젝트 자동 보류 ──
+   잠재발굴·미팅접촉 단계에서 최초 등록(created_at) 후 2달 지난 건을 실패·보류로 이동.
+   실제로 옮긴 건이 있을 때만 팝업으로 한 번 알림 (이미 옮긴 건은 다음 로드에서 재대상 아님). */
+async function autoHoldStale(){
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 2);   // 2달 전 시점
+  const targets = deals.filter(d=>{
+    const st = canonStage(d);
+    if (st !== '잠재발굴' && st !== '미팅접촉') return false;
+    if (!d.created_at) return false;          // 등록일 없으면 판정 불가 → 건너뜀
+    const c = new Date(d.created_at);
+    if (isNaN(c.getTime())) return false;
+    return c <= cutoff;
+  });
+  if (!targets.length) return;
+  const moved = [];
+  for (const d of targets){
+    try {
+      await sbPatch('deals', d.id, { stage: LOST, updated_at: new Date().toISOString() });
+      const from = canonStage(d);
+      d.stage = LOST;
+      moved.push({
+        name: dealTitle(d) || d.name || '(이름 없음)',
+        co: d.co || '',
+        from,
+        created: String(d.created_at||'').slice(0,10),
+        days: Math.floor((Date.now() - new Date(d.created_at).getTime())/86400000)
+      });
+    } catch(e){ /* 개별 실패는 조용히 건너뜀 (다음 로드에서 재시도) */ }
+  }
+  if (!moved.length) return;
+  try { renderDashboard(); } catch(e){}
+  try { renderProjects(); } catch(e){}
+  showAutoHoldPopup(moved);
+}
+function showAutoHoldPopup(moved){
+  const rows = moved.map(m=>`
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;">
+      <div style="min-width:0;">
+        <div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.name)}</div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">${esc(m.co||'-')} · ${esc(m.from)} · 등록 ${m.created} (${m.days}일 경과)</div>
+      </div>
+      <span style="flex-shrink:0;font-size:12px;font-weight:800;color:#ef4444;">→ 보류</span>
+    </div>`).join('');
+  $('autoHoldCount').textContent = moved.length;
+  $('autoHoldList').innerHTML = rows;
+  $('autoHoldModal').classList.add('active');
+}
+function closeAutoHoldModal(){ $('autoHoldModal').classList.remove('active'); }
 function reload(){ loadAll(); }
 
 /* ---- 유틸 ---- */
