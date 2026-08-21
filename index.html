@@ -1634,7 +1634,7 @@
     <div class="modal-overlay" id="createModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">새 프로젝트(딜) 등록</h2>
+                <h2 class="modal-title" id="createTitle">새 프로젝트(딜) 등록</h2>
                 <button class="modal-close" onclick="closeCreateModal()">×</button>
             </div>
             <div class="modal-body">
@@ -3567,6 +3567,10 @@ function openDetail(id){
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           정보 수정
         </button>
+        <button class="btn btn-secondary btn-sm" onclick="duplicateDeal()" title="이 프로젝트의 내용을 그대로 복사해 새 프로젝트로 등록">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+          복제
+        </button>
         ${isRevenue(d)?`<button class="btn btn-secondary btn-sm" style="color:#4338ca;border-color:#c7d2fe;" onclick="openNewOrderModal()">🔁 추가 주문 등록</button>`:''}
         ${asEligible(d)?`<button class="btn btn-secondary btn-sm" style="color:#c2410c;border-color:#fed7aa;" onclick="openAsModal(undefined, ${d.id})">🔧 A/S 등록</button>`:''}
       </div>
@@ -4739,7 +4743,10 @@ function importShip(file){
 
 /* ---- 새 프로젝트(딜) 등록 ---- */
 let ncNameDirty = false;
+let dupSourceId = null;  // 복제 원본 딜 id (등록 시 지게차 등 부가정보 복사용)
 function openCreateModal(){
+  dupSourceId = null;
+  $('createTitle').textContent = '새 프로젝트(딜) 등록';
   ncNameDirty = false;
   const names = new Set(usersList.map(u=>u.name).filter(Boolean));
   deals.forEach(x=>{ if(x.person) names.add(x.person); });
@@ -4754,7 +4761,30 @@ function openCreateModal(){
   renderDealItems();
   $('createModal').classList.add('active');
 }
-function closeCreateModal(){ $('createModal').classList.remove('active'); }
+function closeCreateModal(){ dupSourceId = null; $('createModal').classList.remove('active'); }
+/* 프로젝트 복제 — 현재 딜 내용을 등록 폼에 그대로 채워 새 프로젝트로 */
+function duplicateDeal(){
+  const d = deals.find(x=>x.id===currentDealId);
+  if (!d) { toast('복제할 프로젝트를 찾지 못했어요', true); return; }
+  openCreateModal();            // 폼 초기화 + 제품표 바인딩
+  dupSourceId = d.id;           // openCreateModal 이 null 로 만든 뒤에 지정
+  $('createTitle').textContent = '📄 프로젝트 복제 — 새로 등록';
+  // 기본 정보
+  $('ncCo').value = d.co || '';
+  $('ncSite').value = d.site || '';
+  ncNameDirty = true;
+  $('ncName').value = (dealTitle(d) || d.name || '') + ' (복사)';
+  $('ncPerson').value = d.person || '';
+  $('ncInflow').value = d.inflow || 'direct';
+  $('ncStage').value = canonStage(d);
+  $('ncClose').value = d.close_date || '';
+  $('ncDelivery').value = d.delivery_date || '';
+  $('ncNote').value = getDealNote(d.id) || '';
+  // 제품 구성(여러 제품·설치비) 그대로
+  initDealItemRows(d);
+  renderDealItems();
+  toast('내용을 복사해왔어요 · 바꿀 부분만 수정하고 등록하세요');
+}
 function ncAutoName(){
   if (ncNameDirty) return;
   const co = $('ncCo').value.trim();
@@ -4789,8 +4819,14 @@ async function saveCreate(){
     deals.unshift(row);
     setDealNote(row.id, $('ncNote').value); // 특이사항은 이 브라우저에 저장
     setDealItems(row.id, dealItemRows);     // 제품 구성(여러 제품+설치비) 팀 공유 저장
+    // 복제 등록이면 지게차 정보도 원본에서 복사
+    if (dupSourceId != null) {
+      const f = getDealForklift(dupSourceId);
+      if (f && (f.maker || f.power || f.model)) setDealForklift(row.id, f.maker, f.power, f.model);
+    }
+    const wasDup = dupSourceId != null;
     closeCreateModal();
-    toast('프로젝트가 등록됐어요 ✓ (surepoint에 반영)');
+    toast(wasDup ? '복제한 프로젝트가 등록됐어요 ✓ (surepoint에 반영)' : '프로젝트가 등록됐어요 ✓ (surepoint에 반영)');
     renderProjects();
     openDetail(row.id);
   } catch(err){ toast(err.message, true); }
