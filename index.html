@@ -1299,6 +1299,7 @@
                         <input type="file" id="shipImportInput" hidden accept=".json">
                     </div>
                 </div>
+                <div id="shipGovTabs" style="margin:2px 0 18px;"></div>
                 <div class="stats-grid" id="shipStats"></div>
                 <div class="filter-bar">
                     <div class="search-box">
@@ -1502,9 +1503,14 @@
                 <button class="modal-close" onclick="closeShipModal()">×</button>
             </div>
             <div class="modal-body">
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:11px 15px;margin-bottom:18px;font-size:13px;color:#1d4ed8;line-height:1.6;">
+                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:11px 15px;margin-bottom:14px;font-size:13px;color:#1d4ed8;line-height:1.6;">
                     설치 없이 출고만 되는 건이에요. <b>출고일 기준으로 매출 대시보드에만 반영</b>되고, 프로젝트·A/S 목록에는 나타나지 않아요.
                 </div>
+                <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;background:#eef2ff;border:1px solid #c7d2fe;border-radius:var(--radius-md);padding:10px 14px;margin-bottom:18px;">
+                    <input type="checkbox" id="shGov" style="width:16px;height:16px;accent-color:#4338ca;cursor:pointer;">
+                    <span style="font-size:13.5px;font-weight:700;color:#4338ca;">🏛️ 정부지원으로 들어온 출고</span>
+                    <span style="font-size:11.5px;color:#6b74c9;margin-left:auto;">체크하면 정부지원 출고로 따로 볼 수 있어요</span>
+                </label>
                 <div class="form-group">
                     <label class="form-label">건명 (품목·거래 이름)</label>
                     <input type="text" class="form-input" id="shName" placeholder="예: 삼성전자 부품 납품 3월분">
@@ -2369,7 +2375,9 @@ let shipCollF = '';    // '' | 'uncollected' | 'collected'
 let shipYearF = '';    // 'YYYY'
 let shipMonthF = '';   // '01'~'12'
 let shipFilterOpen = true;  // 출고 필터 칩 펼침 여부
+let shipGovF = '';     // '' 전체 | 'normal' 일반 | 'gov' 정부지원
 function toggleShipFilter(){ shipFilterOpen = !shipFilterOpen; renderShip(); }
+function setShipGovF(v){ shipGovF = v; renderShip(); }
 function setShipStatusF(v){ shipStatusF = v; renderShip(); }
 function setShipInvF(v){ shipInvF = v; renderShip(); }
 function setShipCollF(v){ shipCollF = v; renderShip(); }
@@ -4494,8 +4502,22 @@ function shipStepper(s){
 }
 function renderShip(){
   const q = ($('shipSearch').value||'').toLowerCase();
+  // ── 일반 / 정부지원 전환 탭 (디자인 2: 언더라인) ──
+  const gtab = (label, val) => {
+    const on = shipGovF === val;
+    return `<button onclick="setShipGovF('${val}')" style="padding:9px 2px 12px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:${on?800:600};color:${on?'var(--primary)':'var(--text-tertiary)'};cursor:pointer;position:relative;">${label}${on?'<span style="position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:3px;background:var(--primary);"></span>':''}</button>`;
+  };
+  $('shipGovTabs').innerHTML = `<div style="display:inline-flex;gap:24px;border-bottom:1px solid var(--border);padding:0 2px;width:100%;">
+      ${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원 출고','gov')}
+    </div>`;
+  // 전환 탭 적용 범위 (KPI·칩·목록 모두 이 범위 기준)
+  const shipScope = shipments.filter(s=>{
+    if (shipGovF === 'gov') return !!s.gov_support;
+    if (shipGovF === 'normal') return !s.gov_support;
+    return true;
+  });
   // 검색어만 적용한 기준 목록 (칩 건수 계산용)
-  const base = shipments.filter(s=>{
+  const base = shipScope.filter(s=>{
     if (q) { const pn = Array.isArray(s.products)?s.products.map(p=>p.name||'').join(' '):''; const hay = `${s.name||''} ${s.co||''} ${s.prod||''} ${pn} ${s.person||''}`.toLowerCase(); if (!hay.includes(q)) return false; }
     return true;
   });
@@ -4561,17 +4583,17 @@ function renderShip(){
   const now = new Date();
   const thisMonth = now.toISOString().slice(0,7);
   const thisYear = String(now.getFullYear());
-  const monthAmt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).reduce((a,s)=>a+shipNet(s),0);
-  const monthCnt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).length;
-  const yearAmt = shipRevYear(thisYear);
-  const yearCnt = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisYear)).length;
-  const reqCnt = shipments.filter(s=>!shipDone(s)).length;
-  const reqAmt = shipments.filter(s=>!shipDone(s)).reduce((a,s)=>a+(s.amount||0),0);
+  const monthAmt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).reduce((a,s)=>a+shipNet(s),0);
+  const monthCnt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).length;
+  const yearAmt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisYear)).reduce((a,s)=>a+shipNet(s),0);
+  const yearCnt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisYear)).length;
+  const reqCnt = shipScope.filter(s=>!shipDone(s)).length;
+  const reqAmt = shipScope.filter(s=>!shipDone(s)).reduce((a,s)=>a+(s.amount||0),0);
   $('shipStats').innerHTML = `
     <div class="stat-card"><div class="stat-label">이번 달 출고 매출 (완료)</div><div class="stat-value">${fmtWon(monthAmt)}원</div><div class="stat-sub">출고 완료 ${monthCnt}건 · ${thisMonth.replace('-','.')}</div></div>
     <div class="stat-card"><div class="stat-label">${thisYear}년 누적 출고 매출 (완료)</div><div class="stat-value">${fmtWon(yearAmt)}원</div><div class="stat-sub">출고 완료 ${yearCnt}건 · 매출 대시보드에 반영됨</div></div>
     <div class="stat-card"><div class="stat-label">출고 요청 대기</div><div class="stat-value" style="color:${reqCnt?'#b45309':'inherit'}">${reqCnt}<span class="unit">건</span></div><div class="stat-sub">${fmtWon(reqAmt)}원 · 완료로 바꿔야 매출 반영</div></div>
-    <div class="stat-card"><div class="stat-label">세금계산서 미발행</div><div class="stat-value" style="color:${shipments.filter(s=>!s.tax_invoice_issued).length?'var(--status-critical)':'inherit'}">${shipments.filter(s=>!s.tax_invoice_issued).length}<span class="unit">건</span></div><div class="stat-sub">전체 ${shipments.length}건 중 · 발행 ${shipments.filter(s=>s.tax_invoice_issued).length}건</div></div>`;
+    <div class="stat-card"><div class="stat-label">세금계산서 미발행</div><div class="stat-value" style="color:${shipScope.filter(s=>!s.tax_invoice_issued).length?'var(--status-critical)':'inherit'}">${shipScope.filter(s=>!s.tax_invoice_issued).length}<span class="unit">건</span></div><div class="stat-sub">전체 ${shipScope.length}건 중 · 발행 ${shipScope.filter(s=>s.tax_invoice_issued).length}건</div></div>`;
 
   $('shipTable').innerHTML = `
     <thead><tr><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
@@ -4642,6 +4664,7 @@ function openShipModal(id){
   $('shCollected').value = s?.collected ? '1' : '0';
   $('shInvDate').value = (s?.tax_invoice_date || '').slice(0,10);
   $('shMemo').value = s?.memo || '';
+  $('shGov').checked = !!s?.gov_support;
   // 반품 처리 (시안 A)
   $('shReturned').checked = !!s?.returned;
   $('shReturnDate').value = (s?.return_date || '').slice(0,10);
@@ -4751,6 +4774,7 @@ function saveShip(){
     tax_invoice_date: ($('shStatus').value === 'done' && $('shInv').value === '1') ? ($('shInvDate').value || shipDate) : null,
     collected: $('shCollected').value === '1',
     memo: $('shMemo').value.trim() || null,
+    gov_support: $('shGov').checked,
     // 반품 처리 (시안 A) — 净 매출 = 출고금액 − 반품금액
     returned: $('shReturned').checked,
     return_date: $('shReturned').checked ? ($('shReturnDate').value || null) : null,
@@ -5188,7 +5212,7 @@ function initAfterLoad(){
 }
 /* ===== 접근 비밀번호 게이트 ===== */
 /* ▼▼ 팀에게 공유할 비밀번호를 여기서 바꾸세요 ▼▼ */
-const APP_PASSWORD = '1234';
+const APP_PASSWORD = 'sp03322';
 /* ▲▲ (주의: 공개 저장소에 올리면 소스에서 이 값이 보여요 — 캐주얼 접근 차단용) ▲▲ */
 function checkGate(){
   if ($('gatePw').value === APP_PASSWORD){
