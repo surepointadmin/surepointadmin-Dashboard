@@ -942,6 +942,8 @@
         /* ===== 수금·재무 ===== */
         .fin-term { display:inline-block; font-size:11.5px; font-weight:700; color:#4338ca; background:#eef2ff; border:1px solid #d5dbf7; border-radius:6px; padding:3px 9px; }
         .fin-edit { font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; white-space:nowrap; }
+        .fin-del { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:10px; border-radius:6px; color:var(--text-tertiary); font-size:16px; font-weight:800; cursor:pointer; vertical-align:middle; }
+        .fin-del:hover { color:var(--status-critical); background:#fdecec; }
         .fin-up { display:flex; align-items:center; gap:12px; padding:10px; border-radius:9px; }
         .fin-up:nth-child(even){ background:var(--bg-main); }
         .fin-up-date { font-size:12.5px; font-weight:800; color:var(--primary); width:56px; flex-shrink:0; }
@@ -1344,6 +1346,7 @@
                     <div style="overflow-x:auto;">
                         <table class="data-table" id="finTermsTable"></table>
                     </div>
+                    <div id="finHiddenNote"></div>
                 </div>
                 <div class="section-card">
                     <div class="section-title" style="margin-bottom:4px;">📅 다가오는 입금 예정</div>
@@ -2249,6 +2252,9 @@ async function loadKvRemote(){
     // 거래처 결제 조건
     if (map.customer_terms != null) { customerTerms = map.customer_terms || {}; try{ localStorage.setItem(CTERMS_LS_KEY, JSON.stringify(customerTerms)); }catch(e){} }
     else if (customerTerms && Object.keys(customerTerms).length) { await sbUpsert(KV_TABLE, [{k:'customer_terms', data:customerTerms}], 'k'); }
+    // 수금·재무 숨긴 거래처
+    if (Array.isArray(map.finance_hidden)) { financeHidden = map.finance_hidden; try{ localStorage.setItem(FINHIDE_LS_KEY, JSON.stringify(financeHidden)); }catch(e){} }
+    else if (financeHidden && financeHidden.length) { await sbUpsert(KV_TABLE, [{k:'finance_hidden', data:financeHidden}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2341,6 +2347,7 @@ function loadAsLocal(){
   loadForkMakers();
   loadCalEvents();
   loadCustomerTerms();
+  loadFinanceHidden();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -2790,12 +2797,13 @@ function totalUnpaid(){ // 누적 미수금(원) — 소스별 내역 포함
 
 /* ===== 수금·재무 (거래처 결제 관리) ===== */
 // 프로젝트(딜)+출고건 고객사 자동 수집 (중복 제거)
-function financeCompanies(){
+function financeCompaniesAll(){
   const set = new Set();
   deals.forEach(d=>{ const c=(d.co||'').trim(); if(c) set.add(c); });
   shipments.forEach(s=>{ const c=(s.co||'').trim(); if(c) set.add(c); });
   return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
 }
+function financeCompanies(){ return financeCompaniesAll().filter(c=>!isFinanceHidden(c)); }
 // 업체별 현재 미수금(원): 딜 미수금 + 딜 미연결 수금건(미수) + 미수금 출고건
 function companyUnpaidWon(co){
   let sum = 0;
@@ -2837,6 +2845,7 @@ function financeUpcoming(coFilter){
   const rows = [];
   const push = (co, invDate, amt, kind) => {
     co = (co||'').trim(); if (!co || amt<=0 || !invDate) return;
+    if (isFinanceHidden(co)) return;
     if (coFilter && co!==coFilter) return;
     const nd = coNetDays(co);
     const date = (nd!=null) ? addDays(invDate, nd) : '';
@@ -2891,12 +2900,20 @@ function renderFinance(){
       <td>${lbl ? `<span class="fin-term">${esc(lbl)}</span>` : `<span style="color:var(--text-tertiary);font-size:12px;">미등록</span>`}</td>
       <td style="color:var(--text-secondary);font-weight:600;">${note ? esc(note) : '<span style="color:var(--text-tertiary);">—</span>'}</td>
       <td style="text-align:right;font-weight:800;${unpaid>0?'':'color:var(--text-tertiary);font-weight:600;'}">${unpaid>0?fmtWon(unpaid)+'원':'0원'}</td>
-      <td style="text-align:right;"><span class="fin-edit" onclick="openTermsModal('${esc(co).replace(/'/g,"\\'")}')">${(lbl||note)?'수정':'수금 기준 입력'}</span></td>
+      <td style="text-align:right;white-space:nowrap;"><span class="fin-edit" onclick="openTermsModal('${esc(co).replace(/'/g,"\\'")}')">${(lbl||note)?'수정':'수금 기준 입력'}</span><span class="fin-del" title="목록에서 삭제" onclick="deleteFinanceCo('${esc(co).replace(/'/g,"\\'")}')">×</span></td>
     </tr>`;
   }).join('');
   $('finTermsTable').innerHTML = `
     <thead><tr><th>업체명</th><th>수금 기준</th><th>비고</th><th style="text-align:right;">현재 미수금</th><th></th></tr></thead>
-    <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px;">프로젝트·출고건에 등록된 고객사가 아직 없어요</td></tr>`}</tbody>`;
+    <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px;">표시할 거래처가 없어요</td></tr>`}</tbody>`;
+  // 숨긴 거래처 복원 안내
+  const hiddenExist = financeHidden.filter(c=>financeCompaniesAll().indexOf(c)!==-1);
+  $('finHiddenNote').innerHTML = hiddenExist.length
+    ? `<div style="margin-top:12px;font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+         <span>🗑️ 숨긴 거래처 ${hiddenExist.length}곳: ${hiddenExist.map(esc).join(', ')}</span>
+         <span class="fin-edit" onclick="restoreFinanceHidden()">전체 복원</span>
+       </div>`
+    : '';
   // 다가오는 입금 예정 — 계산서 발행일 + 수금 기준으로 자동 계산
   const up = financeUpcoming();
   $('finUpcoming').innerHTML = up.length ? up.slice(0,40).map(r=>`
@@ -2940,6 +2957,24 @@ function updateTermsPreview(){
   }
 }
 function closeTermsModal(){ $('termsModal').classList.remove('active'); }
+function deleteFinanceCo(co){
+  co = (co||'').trim(); if(!co) return;
+  const unpaid = companyUnpaidWon(co);
+  const warn = unpaid>0 ? `\n\n※ 현재 미수금 ${fmtWon(unpaid)}원도 이 목록에서 함께 숨겨져요.` : '';
+  if (!confirm(`"${co}"를 수금·재무 목록에서 삭제할까요?${warn}\n\n프로젝트·출고 데이터는 그대로 남고, 이 목록에서만 숨겨져요. 나중에 복원할 수 있어요.`)) return;
+  if (!isFinanceHidden(co)) financeHidden.push(co);
+  delete customerTerms[co];          // 결제 조건도 함께 정리
+  saveFinanceHidden(); saveCustomerTerms();
+  toast(`"${co}"를 목록에서 삭제했어요`);
+  renderFinance();
+}
+function restoreFinanceHidden(){
+  if (!financeHidden.length) return;
+  financeHidden = [];
+  saveFinanceHidden();
+  toast('숨긴 거래처를 모두 복원했어요 ✓');
+  renderFinance();
+}
 function saveTerms(){
   const co = termsEditCo || $('termsCoSel').value;
   if (!co){ toast('거래처를 선택해 주세요', true); return; }
@@ -3057,6 +3092,12 @@ const CTERMS_LS_KEY = 'sp_customer_terms_v1';
 let customerTerms = {};
 function loadCustomerTerms(){ try{ customerTerms = JSON.parse(localStorage.getItem(CTERMS_LS_KEY)||'{}') || {}; }catch(e){ customerTerms = {}; } }
 function saveCustomerTerms(){ try{ localStorage.setItem(CTERMS_LS_KEY, JSON.stringify(customerTerms)); }catch(e){} syncKv('customer_terms', customerTerms); }
+/* 수금·재무 목록에서 숨긴 거래처 (원본 딜·출고는 그대로) · 팀 공유 */
+const FINHIDE_LS_KEY = 'sp_finance_hidden_v1';
+let financeHidden = [];
+function loadFinanceHidden(){ try{ const v=JSON.parse(localStorage.getItem(FINHIDE_LS_KEY)||'[]'); financeHidden = Array.isArray(v)?v:[]; }catch(e){ financeHidden=[]; } }
+function saveFinanceHidden(){ try{ localStorage.setItem(FINHIDE_LS_KEY, JSON.stringify(financeHidden)); }catch(e){} syncKv('finance_hidden', financeHidden); }
+function isFinanceHidden(co){ return financeHidden.indexOf((co||'').trim()) !== -1; }
 let currentEventId = null, _evType = 'meeting';
 function openEventModal(id, presetDate){
   currentEventId = id || null;
