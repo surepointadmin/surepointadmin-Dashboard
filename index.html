@@ -1396,6 +1396,24 @@
                 </div>
             </div>
 
+            <!-- 숨긴 거래처 관리 모달 -->
+            <div class="modal-overlay" id="hiddenModal">
+                <div class="modal" style="max-width:420px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">🗑️ 숨긴 거래처 관리</h2>
+                        <button class="modal-close" onclick="closeHiddenModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">복원하면 수금·재무 목록에 다시 나타나요. 프로젝트·출고 데이터는 그대로예요.</div>
+                        <div id="hiddenList" style="max-height:340px;overflow-y:auto;"></div>
+                    </div>
+                    <div class="modal-footer" style="justify-content:space-between;">
+                        <button class="btn btn-secondary btn-sm" onclick="restoreFinanceHidden()">전체 복원</button>
+                        <button class="btn btn-primary" onclick="closeHiddenModal()">닫기</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- 업체명 클릭 수금정보 팝업 -->
             <div id="coFinPop"></div>
             <!-- 캘린더 일정 클릭 팝업 -->
@@ -2906,13 +2924,9 @@ function renderFinance(){
   $('finTermsTable').innerHTML = `
     <thead><tr><th>업체명</th><th>수금 기준</th><th>비고</th><th style="text-align:right;">현재 미수금</th><th></th></tr></thead>
     <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px;">표시할 거래처가 없어요</td></tr>`}</tbody>`;
-  // 숨긴 거래처 복원 안내
-  const hiddenExist = financeHidden.filter(c=>financeCompaniesAll().indexOf(c)!==-1);
-  $('finHiddenNote').innerHTML = hiddenExist.length
-    ? `<div style="margin-top:12px;font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-         <span>🗑️ 숨긴 거래처 ${hiddenExist.length}곳: ${hiddenExist.map(esc).join(', ')}</span>
-         <span class="fin-edit" onclick="restoreFinanceHidden()">전체 복원</span>
-       </div>`
+  // 숨긴 거래처 관리 버튼
+  $('finHiddenNote').innerHTML = financeHidden.length
+    ? `<div style="margin-top:14px;"><button class="btn btn-secondary btn-sm" onclick="openHiddenModal()">🗑️ 숨긴 거래처 ${financeHidden.length}곳 관리</button></div>`
     : '';
   // 다가오는 입금 예정 — 계산서 발행일 + 수금 기준으로 자동 계산
   const up = financeUpcoming();
@@ -2968,11 +2982,36 @@ function deleteFinanceCo(co){
   toast(`"${co}"를 목록에서 삭제했어요`);
   renderFinance();
 }
+function openHiddenModal(){ renderHiddenList(); $('hiddenModal').classList.add('active'); }
+function closeHiddenModal(){ $('hiddenModal').classList.remove('active'); }
+function renderHiddenList(){
+  const all = financeCompaniesAll();
+  if (!financeHidden.length){ closeHiddenModal(); return; }
+  $('hiddenList').innerHTML = financeHidden.map(co=>{
+    const gone = all.indexOf(co)===-1;   // 원본 딜·출고에서 사라진 거래처
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;">${esc(co)}</div>
+        ${gone?'<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">현재 프로젝트·출고에 없는 거래처예요</div>':''}
+      </div>
+      <button class="btn btn-secondary btn-sm" style="color:var(--primary);border-color:#bcdcf5;" onclick="restoreFinanceCo('${esc(co).replace(/'/g,"\\'")}')">↩ 복원</button>
+    </div>`;
+  }).join('');
+}
+function restoreFinanceCo(co){
+  co = (co||'').trim();
+  financeHidden = financeHidden.filter(x=>x!==co);
+  saveFinanceHidden();
+  toast(`"${co}"를 목록에 다시 표시했어요 ✓`);
+  renderFinance();
+  if (financeHidden.length) renderHiddenList(); else closeHiddenModal();
+}
 function restoreFinanceHidden(){
   if (!financeHidden.length) return;
   financeHidden = [];
   saveFinanceHidden();
   toast('숨긴 거래처를 모두 복원했어요 ✓');
+  closeHiddenModal();
   renderFinance();
 }
 function saveTerms(){
