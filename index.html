@@ -938,6 +938,43 @@
         ::-webkit-scrollbar-track { background: var(--bg-main); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+        /* ===== 수금·재무 ===== */
+        .fin-term { display:inline-block; font-size:11.5px; font-weight:700; color:#4338ca; background:#eef2ff; border:1px solid #d5dbf7; border-radius:6px; padding:3px 9px; }
+        .fin-edit { font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; white-space:nowrap; }
+        .fin-up { display:flex; align-items:center; gap:12px; padding:10px; border-radius:9px; }
+        .fin-up:nth-child(even){ background:var(--bg-main); }
+        .fin-up-date { font-size:12.5px; font-weight:800; color:var(--primary); width:56px; flex-shrink:0; }
+        .fin-up-date.od { color:var(--status-critical); }
+        .fin-up-co { font-size:12.8px; font-weight:700; flex:1; }
+        .fin-up-amt { font-size:13px; font-weight:800; white-space:nowrap; }
+        .fin-up-tag { font-size:10.5px; font-weight:700; color:var(--text-tertiary); background:#eef1f4; border-radius:5px; padding:1px 7px; }
+        .fin-up-tag.od { color:var(--status-critical); background:#fdecec; }
+        /* 클릭 가능한 업체명 */
+        .co-fin { cursor:pointer; }
+        .co-fin::after { content:'💰'; font-size:.82em; margin-left:2px; }
+        /* 수금정보 팝업 */
+        #coFinPop { display:none; position:fixed; z-index:1200; width:268px; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 14px 34px rgba(20,30,50,.22); overflow:hidden; }
+        #coFinPop .cfp-head { background:linear-gradient(135deg,#006FC4,#0a5ea3); color:#fff; padding:11px 14px; font-size:13px; font-weight:800; }
+        #coFinPop .cfp-head.none { background:#64748b; }
+        #coFinPop .cfp-body { padding:11px 14px 13px; }
+        #coFinPop .cfp-row { display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px; }
+        #coFinPop .cfp-row .k { color:var(--text-tertiary); font-weight:600; flex-shrink:0; }
+        #coFinPop .cfp-row .v { color:var(--text-primary); font-weight:700; text-align:right; }
+        #coFinPop .cfp-row .v.red { color:var(--status-critical); }
+        #coFinPop .cfp-hand { font-size:10.5px; font-weight:700; color:#b45309; background:#fef3e2; border:1px solid #f5d9ad; border-radius:5px; padding:1px 6px; }
+        #coFinPop .cfp-div { height:1px; background:var(--border); margin:8px 0; }
+        #coFinPop .cfp-empty { font-size:12.5px; color:var(--text-secondary); text-align:center; padding:8px 0 6px; line-height:1.6; }
+        #coFinPop .cfp-cta { display:block; text-align:center; font-size:12px; font-weight:800; color:var(--primary); background:#eef6fc; border:1px solid #cfe3f6; border-radius:8px; padding:9px; cursor:pointer; margin-top:6px; }
+        /* 캘린더 일정 클릭 팝업 */
+        #calItemPop { display:none; position:fixed; z-index:1200; width:268px; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 14px 34px rgba(20,30,50,.22); overflow:hidden; }
+        #calItemPop .cip-head { background:linear-gradient(135deg,#006FC4,#0a5ea3); color:#fff; padding:11px 14px; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        #calItemPop .cip-head.tax { background:linear-gradient(135deg,#7c3aed,#5b21b6); }
+        #calItemPop .cip-body { padding:11px 14px 13px; }
+        #calItemPop .cip-row { display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px; }
+        #calItemPop .cip-row .k { color:var(--text-tertiary); font-weight:600; flex-shrink:0; }
+        #calItemPop .cip-row .v { color:var(--text-primary); font-weight:700; text-align:right; }
+        #calItemPop .cip-cta { display:block; text-align:center; font-size:12px; font-weight:800; color:var(--primary); background:#eef6fc; border:1px solid #cfe3f6; border-radius:8px; padding:9px; cursor:pointer; margin-top:8px; }
     </style>
 </head>
 <body>
@@ -988,6 +1025,10 @@
                 <div class="nav-item" id="navCalendar" onclick="showPage('calendar')">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     캘린더
+                </div>
+                <div class="nav-item" id="navFinance" onclick="showPage('finance')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-6 4h6m-7 8h8a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    수금·재무
                 </div>
                 <div class="nav-divider"></div>
                 <div class="nav-label">바로가기</div>
@@ -1281,6 +1322,81 @@
                     <div class="modal-body" id="unpaidList" style="padding:14px 22px 22px;max-height:66vh;overflow-y:auto;"></div>
                 </div>
             </div>
+
+            <!-- ===== 수금·재무 관리 ===== -->
+            <div class="page" id="financePage">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">수금·재무 관리</h1>
+                        <p class="page-subtitle">업체별 결제 조건과 들어올 돈만 모아 보는 재무 전용 화면 · 거래처는 프로젝트·출고건에서 자동 수집돼요</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="openTermsModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                            거래처 결제 조건 추가
+                        </button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="finKpis"></div>
+                <div class="section-card" style="margin-bottom:18px;">
+                    <div class="section-title" style="margin-bottom:4px;">🏢 거래처별 결제 조건</div>
+                    <div class="section-desc" style="margin-bottom:12px;">업체마다 다른 지급 기준·정기 결제일을 수기로 관리해요 · 미수금은 자동 계산</div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table" id="finTermsTable"></table>
+                    </div>
+                </div>
+                <div class="section-card">
+                    <div class="section-title" style="margin-bottom:4px;">📅 다가오는 입금 예정</div>
+                    <div class="section-desc" style="margin-bottom:12px;">수금 예정일 기준 · 연체 건은 맨 위에 표시돼요</div>
+                    <div id="finUpcoming"></div>
+                </div>
+            </div>
+
+            <!-- 거래처 결제 조건 입력 모달 -->
+            <div class="modal-overlay" id="termsModal">
+                <div class="modal" style="max-width:440px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">거래처 결제 조건</h2>
+                        <button class="modal-close" onclick="closeTermsModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group" id="termsCoRow">
+                            <label class="form-label">거래처 <span style="color:var(--status-critical)">*</span></label>
+                            <select class="form-input" id="termsCoSel"></select>
+                            <div class="form-hint">프로젝트·출고건에 등록된 고객사에서 선택해요</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">거래처</label>
+                            <div id="termsCoFixed" style="font-size:15px;font-weight:800;padding:2px 0 2px;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">수금 기준 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(세금계산서 발행일 기준 자동 계산)</span></label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:13.5px;font-weight:700;color:var(--text-secondary);white-space:nowrap;">🧾 세금계산서 발행 후</span>
+                                <input type="number" min="0" class="form-input" id="termsNetDays" style="max-width:90px;text-align:center;" placeholder="30" oninput="updateTermsPreview()">
+                                <span style="font-size:13.5px;font-weight:700;color:var(--text-secondary);white-space:nowrap;">일 뒤 입금</span>
+                            </div>
+                            <div class="form-hint" id="termsPreview" style="margin-top:8px;">숫자를 입력하면 예상 입금일이 자동으로 계산돼요</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">비고 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(선택)</span></label>
+                            <input type="text" class="form-input" id="termsBasis" placeholder="예: 매월 25일 마감 / 선금 50%·잔금 50% / 어음 60일 등 특이사항">
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="justify-content:space-between;">
+                        <button class="btn btn-secondary btn-sm" id="termsDeleteBtn" style="color:var(--status-critical);border-color:#f3c0c0;" onclick="deleteTerms()">삭제</button>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-secondary" onclick="closeTermsModal()">취소</button>
+                            <button class="btn btn-primary" onclick="saveTerms()">저장</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 업체명 클릭 수금정보 팝업 -->
+            <div id="coFinPop"></div>
+            <!-- 캘린더 일정 클릭 팝업 -->
+            <div id="calItemPop"></div>
 
             <!-- ===== 출고·납품 관리 ===== -->
             <div class="page" id="shipPage">
@@ -2130,6 +2246,9 @@ async function loadKvRemote(){
     // 캘린더 단독 일정
     if (Array.isArray(map.cal_events)) { calEvents = map.cal_events; try{ localStorage.setItem(CALEV_LS_KEY, JSON.stringify(calEvents)); }catch(e){} }
     else if (calEvents && calEvents.length) { await sbUpsert(KV_TABLE, [{k:'cal_events', data:calEvents}], 'k'); }
+    // 거래처 결제 조건
+    if (map.customer_terms != null) { customerTerms = map.customer_terms || {}; try{ localStorage.setItem(CTERMS_LS_KEY, JSON.stringify(customerTerms)); }catch(e){} }
+    else if (customerTerms && Object.keys(customerTerms).length) { await sbUpsert(KV_TABLE, [{k:'customer_terms', data:customerTerms}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2221,6 +2340,7 @@ function loadAsLocal(){
   loadForkliftModels();
   loadForkMakers();
   loadCalEvents();
+  loadCustomerTerms();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -2668,11 +2788,228 @@ function totalUnpaid(){ // 누적 미수금(원) — 소스별 내역 포함
   return {sum, cnt, dealSum, dealCnt, recvSum, recvCnt, psSum, psCnt};
 }
 
+/* ===== 수금·재무 (거래처 결제 관리) ===== */
+// 프로젝트(딜)+출고건 고객사 자동 수집 (중복 제거)
+function financeCompanies(){
+  const set = new Set();
+  deals.forEach(d=>{ const c=(d.co||'').trim(); if(c) set.add(c); });
+  shipments.forEach(s=>{ const c=(s.co||'').trim(); if(c) set.add(c); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
+}
+// 업체별 현재 미수금(원): 딜 미수금 + 딜 미연결 수금건(미수) + 미수금 출고건
+function companyUnpaidWon(co){
+  let sum = 0;
+  deals.forEach(d=>{ if((d.co||'').trim()===co) sum += dealUnpaid(d); });
+  recvList.forEach(r=>{ if(!r.deal_id && r.status!=='received' && (r.company_name||'').trim()===co) sum += manToWon(r.amount); });
+  shipments.forEach(s=>{ if(shipDone(s) && !s.collected && (s.co||'').trim()===co) sum += shipNet(s); });
+  return sum;
+}
+// 업체별 연체(원)
+function companyOverdueWon(co){
+  let sum = 0;
+  recvList.forEach(r=>{ if(r.status==='overdue' && !r.deal_id && (r.company_name||'').trim()===co) sum += manToWon(r.amount); });
+  deals.forEach(d=>{ if((d.co||'').trim()===co && dealRecvState(d)==='overdue') sum += dealUnpaid(d); });
+  return sum;
+}
+// 날짜 + N일
+function addDays(dateStr, n){
+  const d = new Date(String(dateStr).slice(0,10)+'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + (parseInt(n,10)||0));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// 거래처 수금 기준: 세금계산서 발행 후 N일 (숫자). 없으면 null
+function coNetDays(co){
+  const tm = customerTerms[co] || {};
+  if (tm.net_days!=null && tm.net_days!=='' && !isNaN(parseInt(tm.net_days,10))) return parseInt(tm.net_days,10);
+  return null;
+}
+function termLabel(tm){
+  if (!tm) return '';
+  if (tm.net_days!=null && tm.net_days!=='' && !isNaN(parseInt(tm.net_days,10))) return `계산서 발행 후 ${parseInt(tm.net_days,10)}일`;
+  return (tm.basis||'').trim();   // 레거시 텍스트
+}
+function termNote(tm){ if(!tm) return ''; return (tm.note!=null ? tm.note : (tm.payday||'')).toString().trim(); }
+function hasTerm(tm){ return !!(tm && (termLabel(tm) || termNote(tm))); }
+// 다가오는 입금 예정 — 세금계산서 발행일 + 수금 기준(발행 후 N일)으로 자동 계산
+function financeUpcoming(coFilter){
+  const today = new Date().toISOString().slice(0,10);
+  const rows = [];
+  const push = (co, invDate, amt, kind) => {
+    co = (co||'').trim(); if (!co || amt<=0 || !invDate) return;
+    if (coFilter && co!==coFilter) return;
+    const nd = coNetDays(co);
+    const date = (nd!=null) ? addDays(invDate, nd) : '';
+    rows.push({ co, amt, invDate:String(invDate).slice(0,10), date, noBasis:(nd==null), overdue:!!(date && date<today), kind });
+  };
+  // 계산서 발행된 딜 미수 건
+  deals.forEach(d=>{ if (d.tax_invoice_issued && d.tax_invoice_date) push(d.co, d.tax_invoice_date, dealUnpaid(d), '딜'); });
+  // 계산서 발행된 출고 미수 건 (수금 전만)
+  shipments.forEach(s=>{ if (s.tax_invoice_issued && s.tax_invoice_date && !s.collected) push(s.co, s.tax_invoice_date, shipNet(s), '출고'); });
+  rows.sort((a,b)=>{
+    if (a.noBasis!==b.noBasis) return a.noBasis?1:-1;   // 기준 미입력 건은 뒤로
+    if (a.overdue!==b.overdue) return a.overdue?-1:1;
+    return String(a.date||'9999-99').localeCompare(String(b.date||'9999-99'));
+  });
+  return rows;
+}
+function financeTotals(){
+  const cos = financeCompanies();
+  let unpaid=0, overdue=0;
+  cos.forEach(co=>{ unpaid += companyUnpaidWon(co); overdue += companyOverdueWon(co); });
+  const today = new Date();
+  const ym = today.toISOString().slice(0,7);
+  const dow = (today.getDay()+6)%7; // 월=0
+  const monday = new Date(today); monday.setHours(0,0,0,0); monday.setDate(today.getDate()-dow);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+  const ws = monday.toISOString().slice(0,10), we = sunday.toISOString().slice(0,10);
+  let weekAmt=0, weekCnt=0, monthAmt=0, monthCnt=0;
+  financeUpcoming().forEach(r=>{
+    if (!r.date) return;
+    if (r.date>=ws && r.date<=we){ weekAmt+=r.amt; weekCnt++; }
+    if (r.date.startsWith(ym)){ monthAmt+=r.amt; monthCnt++; }
+  });
+  const termCount = cos.filter(co=>hasTerm(customerTerms[co])).length;
+  return {unpaid, overdue, weekAmt, weekCnt, monthAmt, monthCnt, coCount:cos.length, termCount};
+}
+function renderFinance(){
+  const cos = financeCompanies();
+  const t = financeTotals();
+  $('finKpis').innerHTML = `
+    <div class="stat-card"><div class="stat-label">이번 달 입금 예정</div><div class="stat-value">${fmtWon(t.monthAmt)}원</div><div class="stat-sub">${t.monthCnt}건 · 수금 예정일 기준</div></div>
+    <div class="stat-card"><div class="stat-label">이번 주 입금 예정</div><div class="stat-value" style="color:#15803d;">${fmtWon(t.weekAmt)}원</div><div class="stat-sub">${t.weekCnt}건</div></div>
+    <div class="stat-card"><div class="stat-label">연체 (기일 초과)</div><div class="stat-value" style="color:${t.overdue>0?'var(--status-critical)':'inherit'}">${fmtWon(t.overdue)}원</div><div class="stat-sub">확인 필요</div></div>
+    <div class="stat-card"><div class="stat-label">미수금 총액</div><div class="stat-value">${fmtWon(t.unpaid)}원</div><div class="stat-sub">거래처 ${t.coCount}곳 · 조건 등록 ${t.termCount}곳</div></div>`;
+  // 거래처 결제 조건 표
+  const rows = cos.map(co=>{
+    const tm = customerTerms[co] || {};
+    const unpaid = companyUnpaidWon(co);
+    const lbl = termLabel(tm);
+    const note = termNote(tm);
+    return `<tr>
+      <td style="font-weight:800;">${esc(co)}</td>
+      <td>${lbl ? `<span class="fin-term">${esc(lbl)}</span>` : `<span style="color:var(--text-tertiary);font-size:12px;">미등록</span>`}</td>
+      <td style="color:var(--text-secondary);font-weight:600;">${note ? esc(note) : '<span style="color:var(--text-tertiary);">—</span>'}</td>
+      <td style="text-align:right;font-weight:800;${unpaid>0?'':'color:var(--text-tertiary);font-weight:600;'}">${unpaid>0?fmtWon(unpaid)+'원':'0원'}</td>
+      <td style="text-align:right;"><span class="fin-edit" onclick="openTermsModal('${esc(co).replace(/'/g,"\\'")}')">${(lbl||note)?'수정':'수금 기준 입력'}</span></td>
+    </tr>`;
+  }).join('');
+  $('finTermsTable').innerHTML = `
+    <thead><tr><th>업체명</th><th>수금 기준</th><th>비고</th><th style="text-align:right;">현재 미수금</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px;">프로젝트·출고건에 등록된 고객사가 아직 없어요</td></tr>`}</tbody>`;
+  // 다가오는 입금 예정 — 계산서 발행일 + 수금 기준으로 자동 계산
+  const up = financeUpcoming();
+  $('finUpcoming').innerHTML = up.length ? up.slice(0,40).map(r=>`
+    <div class="fin-up">
+      <span class="fin-up-date${r.overdue?' od':''}" style="${r.noBasis?'color:var(--text-tertiary);':''}">${r.noBasis?'기준필요':(r.overdue?'연체':(r.date?r.date.slice(5).replace('-','.'):'미정'))}</span>
+      <span class="fin-up-co">${esc(r.co)} <span class="fin-up-tag">🧾 ${r.invDate.slice(5).replace('-','.')} 발행</span>${r.overdue?' <span class="fin-up-tag od">기일 초과</span>':''}${r.noBasis?' <span class="fin-up-tag od">수금 기준 미입력</span>':''}</span>
+      <span class="fin-up-amt"${r.overdue?' style="color:var(--status-critical);"':''}>${fmtWon(r.amt)}원</span>
+    </div>`).join('') : `<div style="color:var(--text-tertiary);font-size:12.5px;padding:14px 4px;">세금계산서가 발행된 미수 건이 없어요</div>`;
+}
+/* 결제 조건 입력 모달 */
+let termsEditCo = null;
+function openTermsModal(co){
+  const cos = financeCompanies();
+  termsEditCo = co || null;
+  if (termsEditCo){
+    $('termsCoRow').style.display = 'none';
+    $('termsCoFixed').style.display = '';
+    $('termsCoFixed').textContent = termsEditCo;
+  } else {
+    $('termsCoRow').style.display = '';
+    $('termsCoFixed').style.display = 'none';
+    $('termsCoSel').innerHTML = `<option value="">거래처 선택</option>` + cos.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    $('termsCoSel').value = '';
+  }
+  const tm = (termsEditCo && customerTerms[termsEditCo]) || {};
+  $('termsNetDays').value = (tm.net_days!=null && tm.net_days!=='') ? tm.net_days : '';
+  // 비고: 신규 note, 없으면 레거시(basis·payday) 합쳐서 채움
+  $('termsBasis').value = (tm.note!=null) ? tm.note : [tm.basis, tm.payday].filter(Boolean).join(' · ');
+  $('termsDeleteBtn').style.display = (termsEditCo && hasTerm(tm)) ? '' : 'none';
+  updateTermsPreview();
+  $('termsModal').classList.add('active');
+}
+function updateTermsPreview(){
+  const nd = parseInt($('termsNetDays').value,10);
+  const el = $('termsPreview'); if(!el) return;
+  if (!isNaN(nd) && nd>=0){
+    const today = new Date().toISOString().slice(0,10);
+    el.innerHTML = `예: 계산서를 <b>오늘(${fmtDate(today)})</b> 발행하면 → 입금 예정일 <b style="color:var(--primary);">${fmtDate(addDays(today, nd))}</b>`;
+  } else {
+    el.innerHTML = '숫자를 입력하면 예상 입금일이 자동으로 계산돼요';
+  }
+}
+function closeTermsModal(){ $('termsModal').classList.remove('active'); }
+function saveTerms(){
+  const co = termsEditCo || $('termsCoSel').value;
+  if (!co){ toast('거래처를 선택해 주세요', true); return; }
+  const ndRaw = $('termsNetDays').value.trim();
+  const nd = ndRaw==='' ? null : parseInt(ndRaw,10);
+  if (ndRaw!=='' && (isNaN(nd) || nd<0)){ toast('수금 기준 일수는 0 이상 숫자로 입력해 주세요', true); return; }
+  const note = $('termsBasis').value.trim();
+  if (nd==null && !note){ delete customerTerms[co]; }
+  else { customerTerms[co] = { net_days: nd, note }; }
+  saveCustomerTerms();
+  closeTermsModal();
+  toast('수금 기준을 저장했어요 ✓ (팀 공유)');
+  if ($('financePage') && $('financePage').classList.contains('active')) renderFinance();
+}
+function deleteTerms(){
+  if (!termsEditCo) return;
+  delete customerTerms[termsEditCo];
+  saveCustomerTerms();
+  closeTermsModal();
+  toast('결제 조건을 삭제했어요');
+  if ($('financePage') && $('financePage').classList.contains('active')) renderFinance();
+}
+/* 업체명 클릭 → 수금정보 팝업 */
+function openCoFinPop(co, ev){
+  co = (co||'').trim(); if(!co) return;
+  const tm = customerTerms[co] || {};
+  const lbl = termLabel(tm), note = termNote(tm);
+  const unpaid = companyUnpaidWon(co);
+  const up = financeUpcoming(co);
+  const next = up.find(r=>!r.noBasis) || up[0];
+  const has = hasTerm(tm);
+  const nextTxt = next
+    ? (next.noBasis ? '수금 기준 입력 필요'
+        : (next.overdue?'연체 · ':(next.date?next.date.slice(5).replace('-','.')+' · ':'')) + fmtWon(next.amt)+'원')
+    : '<span style="color:var(--text-tertiary);">없음</span>';
+  const body = has ? `
+    <div class="cfp-row"><span class="k">수금 기준</span><span class="v">${lbl?`<span class="fin-term">${esc(lbl)}</span>`:'<span style="color:var(--text-tertiary);">—</span>'}</span></div>
+    ${note?`<div class="cfp-row"><span class="k">비고</span><span class="v" style="font-weight:600;">${esc(note)}</span></div>`:''}
+    <div class="cfp-div"></div>
+    <div class="cfp-row"><span class="k">현재 미수금</span><span class="v ${unpaid>0?'red':''}">${unpaid>0?fmtWon(unpaid)+'원':'0원'}</span></div>
+    <div class="cfp-row"><span class="k">예상 입금일</span><span class="v">${nextTxt}</span></div>
+    <span class="cfp-cta" onclick="closeCoFinPop();showPage('finance');">수금·재무 페이지에서 보기 ›</span>`
+  : `
+    <div class="cfp-empty">아직 수금 기준이 없어요.${unpaid>0?`<br><span style="color:var(--text-tertiary);font-size:11.5px;">현재 미수금 ${fmtWon(unpaid)}원</span>`:''}</div>
+    <span class="cfp-cta" onclick="closeCoFinPop();openTermsModal('${esc(co).replace(/'/g,"\\'")}');">＋ 수금 기준 등록하기</span>`;
+  const pop = $('coFinPop');
+  pop.innerHTML = `<div class="cfp-head ${has?'':'none'}">💰 ${esc(co)} · 수금 정보</div><div class="cfp-body">${body}</div>`;
+  pop.style.display = 'block';
+  // 위치: 클릭 지점 기준, 화면 밖으로 안 나가게
+  const pw = 268, ph = pop.offsetHeight || 200;
+  let x = (ev && ev.clientX!=null) ? ev.clientX + 10 : 100;
+  let y = (ev && ev.clientY!=null) ? ev.clientY + 12 : 100;
+  if (x + pw > window.innerWidth - 8) x = window.innerWidth - pw - 8;
+  if (y + ph > window.innerHeight - 8) y = Math.max(8, (ev?ev.clientY:100) - ph - 12);
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+}
+function closeCoFinPop(){ const p=$('coFinPop'); if(p) p.style.display='none'; }
+document.addEventListener('click', function(e){
+  const p = $('coFinPop'); if(!p || p.style.display==='none') return;
+  if (e.target.closest('#coFinPop') || e.target.closest('.co-fin')) return;
+  closeCoFinPop();
+});
+
 /* ---- 페이지 전환 ---- */
 function showPage(name){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
-  ['navDashboard','navProjects','navShip','navAs','navCalendar'].forEach(id=>$(id).classList.remove('active'));
-  if (name === 'dashboard') { $('dashboardPage').classList.add('active'); $('navDashboard').classList.add('active'); renderDashboard(); }
+  ['navDashboard','navProjects','navShip','navAs','navCalendar','navFinance'].forEach(id=>{ const el=$(id); if(el) el.classList.remove('active'); });
+  if (name === 'finance') { $('financePage').classList.add('active'); $('navFinance').classList.add('active'); renderFinance(); }
+  else if (name === 'dashboard') { $('dashboardPage').classList.add('active'); $('navDashboard').classList.add('active'); renderDashboard(); }
   else if (name === 'projects') { $('projectsPage').classList.add('active'); $('navProjects').classList.add('active'); renderProjects(); }
   else if (name === 'ship') { $('shipPage').classList.add('active'); $('navShip').classList.add('active'); renderShip(); }
   else if (name === 'as') { $('asPage').classList.add('active'); $('navAs').classList.add('active'); renderAs(); }
@@ -2715,6 +3052,11 @@ const CALEV_LS_KEY = 'sp_cal_events_v1';
 let calEvents = [];
 function loadCalEvents(){ try{ const v=JSON.parse(localStorage.getItem(CALEV_LS_KEY)||'[]'); calEvents = Array.isArray(v)?v:[]; }catch(e){ calEvents=[]; } }
 function saveCalEvents(){ try{ localStorage.setItem(CALEV_LS_KEY, JSON.stringify(calEvents)); }catch(e){} syncKv('cal_events', calEvents); }
+/* 거래처 결제 조건 — { 업체명: {basis(지급 기준), payday(정기 결제일)} } · 팀 공유 (수기 입력) */
+const CTERMS_LS_KEY = 'sp_customer_terms_v1';
+let customerTerms = {};
+function loadCustomerTerms(){ try{ customerTerms = JSON.parse(localStorage.getItem(CTERMS_LS_KEY)||'{}') || {}; }catch(e){ customerTerms = {}; } }
+function saveCustomerTerms(){ try{ localStorage.setItem(CTERMS_LS_KEY, JSON.stringify(customerTerms)); }catch(e){} syncKv('customer_terms', customerTerms); }
 let currentEventId = null, _evType = 'meeting';
 function openEventModal(id, presetDate){
   currentEventId = id || null;
@@ -2816,6 +3158,9 @@ function renderCalendar(){
   evAll.forEach(d=>{ const sp = dealSpan(d); if (sp) spans.push({kind:'deal', ref:d, start:sp.start, end:sp.end}); });
   // 단독 일정 (그룹 필터와 무관하게 항상 표시)
   calEvents.forEach(e=>{ if (e.start){ spans.push({kind:'event', ref:e, start:String(e.start).slice(0,10), end:String(e.end||e.start).slice(0,10)}); } });
+  // 세금계산서 발행일 (딜·출고 · 항상 표시) — 발행일 하루짜리 표식
+  deals.forEach(d=>{ if (d.tax_invoice_issued && d.tax_invoice_date){ const ds=String(d.tax_invoice_date).slice(0,10); spans.push({kind:'tax', ref:d, refType:'deal', start:ds, end:ds}); } });
+  shipments.forEach(s=>{ if (s.tax_invoice_issued && s.tax_invoice_date){ const ds=String(s.tax_invoice_date).slice(0,10); spans.push({kind:'tax', ref:s, refType:'ship', start:ds, end:ds}); } });
   let html = '';
   for (let w=0; w<6; w++){
     const wd = [];
@@ -2829,7 +3174,7 @@ function renderCalendar(){
       if (s.start <= weekStart) cs = 0;
       let ce = 6; for (let c=6;c>=0;c--){ if (wd[c].ds <= s.end){ ce=c; break; } }
       if (s.end >= weekEnd) ce = 6;
-      segs.push({ kind:s.kind, ref:s.ref, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
+      segs.push({ kind:s.kind, ref:s.ref, refType:s.refType, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
     });
     // 레인 배정 (겹치면 아래로 쌓기)
     segs.sort((a,b)=> a.cs-b.cs || (b.ce-b.cs)-(a.ce-a.cs));
@@ -2854,9 +3199,15 @@ function renderCalendar(){
         click = `openEventModal('${sg.ref.id}')`;
         ttl = `[${t.label}] ${nm}${sg.ref.owner?' · '+sg.ref.owner:''}`;
         icon = '📌 ';
+      } else if (sg.kind === 'tax'){
+        col = '#7c3aed';
+        nm = (sg.refType==='ship') ? (sg.ref.name||sg.ref.co||'출고') : dealTitle(sg.ref);
+        click = `openCalPop('${sg.refType==='ship'?'taxship':'taxdeal'}', ${sg.ref.id}, event)`;
+        ttl = `세금계산서 발행 · ${nm}`;
+        icon = '🧾 ';
       } else {
         const d = sg.ref; col = isLost(d) ? '#94a3b8' : (STAGE_COLORS[dispStage(d)]||'#9ca3af'); nm = dealTitle(d);
-        click = `openDetail(${d.id})`;
+        click = `openCalPop('deal', ${d.id}, event)`;
         ttl = `${nm} · ${String(d.close_date||'').slice(5,10)}~${String(d.delivery_date||'').slice(5,10)}`;
         icon = sg.multi ? '🔧 ' : '';
       }
@@ -2880,9 +3231,25 @@ function openCalDay(ds){
   const inGroup = d => calGroup==='all' ? true : (calGroup==='rev' ? isRevenue(d) : (!isRevenue(d) && !isLost(d)));
   const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
   const days = calEvents.filter(e=> e.start && String(e.start).slice(0,10)<=ds && ds<=String(e.end||e.start).slice(0,10));
-  if (!evs.length && !days.length) return;
+  const taxItems = [];
+  deals.forEach(d=>{ if(d.tax_invoice_issued && String(d.tax_invoice_date||'').slice(0,10)===ds) taxItems.push({t:'deal', ref:d}); });
+  shipments.forEach(s=>{ if(s.tax_invoice_issued && String(s.tax_invoice_date||'').slice(0,10)===ds) taxItems.push({t:'ship', ref:s}); });
+  if (!evs.length && !days.length && !taxItems.length) return;
   const p = ds.split('-');
-  $('calDayTitle').textContent = `${+p[1]}월 ${+p[2]}일 · ${evs.length+days.length}건`;
+  $('calDayTitle').textContent = `${+p[1]}월 ${+p[2]}일 · ${evs.length+days.length+taxItems.length}건`;
+  const taxHtml = taxItems.map(it=>{
+    const isShip = it.t==='ship'; const r = it.ref;
+    const nm = isShip ? (r.name||r.co||'출고') : dealTitle(r);
+    const amt = isShip ? (r.amount||0) : (r.amount||0);
+    return `<div onclick="closeCalDay();openCalPop('${isShip?'taxship':'taxdeal'}',${r.id})" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
+      <span style="width:9px;height:9px;border-radius:50%;background:#7c3aed;flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:10.5px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.13);padding:1px 6px;border-radius:5px;margin-right:5px;">🧾 세금계산서</span>${esc(nm)}</div>
+        <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:600;">${r.co?esc(r.co)+' · ':''}발행일 ${fmtDate(r.tax_invoice_date)}</div>
+      </div>
+      ${amt?`<div style="font-size:13px;font-weight:800;flex-shrink:0;">${fmtMoney(amt)}</div>`:''}
+    </div>`;
+  }).join('');
   const evHtml = days.map(e=>{
     const t = evType(e.type);
     return `<div onclick="closeCalDay();openEventModal('${e.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
@@ -2895,7 +3262,7 @@ function openCalDay(ds){
   }).join('');
   const dealHtml = evs.map(d=>{
     const col = STAGE_COLORS[dispStage(d)]||'#9ca3af';
-    return `<div onclick="closeCalDay();openDetail(${d.id})" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:background .12s;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
+    return `<div onclick="closeCalDay();openCalPop('deal',${d.id})" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:background .12s;" onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
       <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0;"></span>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🔧 ${esc(dealTitle(d))}</div>
@@ -2904,10 +3271,50 @@ function openCalDay(ds){
       ${d.amount?`<div style="font-size:13px;font-weight:800;flex-shrink:0;">${fmtMoney(d.amount)}</div>`:''}
     </div>`;
   }).join('');
-  $('calDayList').innerHTML = evHtml + dealHtml + `<div style="font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:4px;">누르면 상세로 이동해요</div>`;
+  $('calDayList').innerHTML = evHtml + taxHtml + dealHtml + `<div style="font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:4px;">누르면 상세 정보가 떠요</div>`;
   $('calDayModal').classList.add('active');
 }
 function closeCalDay(){ $('calDayModal').classList.remove('active'); }
+/* 캘린더 일정 클릭 → 팝업 (바로 이동하지 않고 정보 먼저) */
+function cipRow(k,v){ return `<div class="cip-row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
+function openCalPop(kind, id, ev){
+  let head='', rows='', cta='', tax=false;
+  if (kind==='deal'){
+    const d = deals.find(x=>x.id===id); if(!d) return;
+    const sp = dealSpan(d);
+    const period = sp ? (sp.start.slice(5).replace('-','.') + (sp.end!==sp.start ? ' ~ '+sp.end.slice(5).replace('-','.') : '')) : '-';
+    head = '🔧 '+esc(dealTitle(d));
+    rows = cipRow('고객사', esc(d.co||'-')) + cipRow('단계', esc(dispStage(d))) + cipRow('설치 기간', period) + (d.amount?cipRow('금액', fmtMoney(d.amount)+'원'):'');
+    cta = `<span class="cip-cta" onclick="closeCalPop();openDetail(${d.id});">딜 상세 열기 →</span>`;
+  } else if (kind==='taxdeal'){
+    const d = deals.find(x=>x.id===id); if(!d) return; tax=true;
+    head = '🧾 세금계산서 발행';
+    rows = cipRow('건명', esc(dealTitle(d))) + cipRow('고객사', esc(d.co||'-')) + cipRow('발행일', d.tax_invoice_date?fmtDate(d.tax_invoice_date):'-') + (d.amount?cipRow('금액', fmtMoney(d.amount)+'원'):'');
+    cta = `<span class="cip-cta" onclick="closeCalPop();openDetail(${d.id});">딜 상세 열기 →</span>`;
+  } else if (kind==='taxship'){
+    const s = shipments.find(x=>x.id===id); if(!s) return; tax=true;
+    head = '🧾 세금계산서 발행 · 출고';
+    rows = cipRow('건명', esc(s.name||'-')) + cipRow('고객사', esc(s.co||'-')) + cipRow('발행일', s.tax_invoice_date?fmtDate(s.tax_invoice_date):'-') + (s.amount?cipRow('금액', fmtWon(s.amount)+'원'):'');
+    cta = `<span class="cip-cta" onclick="closeCalPop();showPage('ship');setTimeout(function(){openShipModal(${s.id});},60);">출고 상세 열기 →</span>`;
+  } else return;
+  const pop = $('calItemPop');
+  pop.innerHTML = `<div class="cip-head${tax?' tax':''}">${head}</div><div class="cip-body">${rows}${cta}</div>`;
+  pop.style.display = 'block';
+  const pw = 268, ph = pop.offsetHeight || 200;
+  let x, y;
+  if (ev && ev.clientX!=null){ x = ev.clientX + 10; y = ev.clientY + 12; }
+  else { x = (window.innerWidth-pw)/2; y = Math.max(60, window.innerHeight*0.28); }
+  if (x + pw > window.innerWidth - 8) x = window.innerWidth - pw - 8;
+  if (y + ph > window.innerHeight - 8) y = Math.max(8, (ev&&ev.clientY!=null?ev.clientY:y) - ph - 12);
+  pop.style.left = Math.max(8,x) + 'px';
+  pop.style.top = Math.max(8,y) + 'px';
+}
+function closeCalPop(){ const p=$('calItemPop'); if(p) p.style.display='none'; }
+document.addEventListener('click', function(e){
+  const p = $('calItemPop'); if(!p || p.style.display==='none') return;
+  if (e.target.closest('#calItemPop') || e.target.closest('.cal-band')) return;
+  closeCalPop();
+});
 
 /* ---- 대시보드 ---- */
 function renderYearSelector(){
@@ -3508,7 +3915,7 @@ function projectCardHtml(d, seq){
     <div class="pc-wrap">
       <div class="pc-left">
         <div class="pc-name">${seqChip?seqChip+' ':''}${esc(dealTitle(d))}</div>
-        <div class="pc-co"><span>🏢 ${esc(d.co||'-')} · ${esc(d.person||'-')}</span>${asBadge(d)||''}${repeatBadge(d)||''}</div>
+        <div class="pc-co"><span>🏢 ${d.co?`<span class="co-fin" data-co="${esc(d.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(d.co)}</span>`:'-'} · ${esc(d.person||'-')}</span>${asBadge(d)||''}${repeatBadge(d)||''}</div>
         ${d.site?`<div class="pc-site"><span class="pin">📍</span>${esc(d.site)}</div>`:''}
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
@@ -4601,17 +5008,22 @@ function renderShip(){
       const inv = s.tax_invoice_issued
         ? `<span class="status-badge badge-paid" style="font-size:11px;padding:3px 9px;">발행 ${s.tax_invoice_date?fmtDate(s.tax_invoice_date):''}</span>`
         : `<span class="status-badge badge-unpaid" style="font-size:11px;padding:3px 9px;">미발행</span>`;
-      const shipDone = s.ship_status === 'done';
+      const stState = shipReturned(s) ? 'returned' : (s.ship_status === 'done' ? 'done' : 'request');
+      const stStyle = stState==='returned'
+        ? 'border:1px solid #dc2626;color:#b91c1c;background:#fdecec;'
+        : (stState==='done' ? 'border:1px solid #16a34a;color:#15803d;background:#dcfce7;'
+                            : 'border:1px solid #d97706;color:#b45309;background:#fff7ed;');
       const shipStage = `<select onclick="event.stopPropagation();" onchange="event.stopPropagation();setShipStatus(${s.id}, this.value)"
-        style="font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:8px;cursor:pointer;border:1px solid ${shipDone?'#16a34a':'#d97706'};color:${shipDone?'#15803d':'#b45309'};background:${shipDone?'#dcfce7':'#fff7ed'};">
-        <option value="request" ${shipDone?'':'selected'}>📦 출고 요청</option>
-        <option value="done" ${shipDone?'selected':''}>✅ 출고 완료</option>
+        style="font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:8px;cursor:pointer;${stStyle}">
+        <option value="request" ${stState==='request'?'selected':''}>📦 출고 요청</option>
+        <option value="done" ${stState==='done'?'selected':''}>✅ 출고 완료</option>
+        <option value="returned" ${stState==='returned'?'selected':''} style="color:#dc2626;">🔄 반품 완료</option>
       </select>`;
       return `
       <tr style="cursor:pointer" onclick="openShipModal(${s.id})">
         <td class="td-num" style="font-weight:700;">${fmtDate(s.ship_date)}</td>
         <td style="font-weight:600">${esc(s.name||'-')}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}</td>
-        <td>${esc(s.co||'-')}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
+        <td>${s.co?`<span class="co-fin" data-co="${esc(s.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(s.co)}</span>`:'-'}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
         <td>${esc(s.prod||'-')}${(Array.isArray(s.products)&&s.products.length>1)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">${s.products.map(p=>esc(p.name||'제품')+(p.qty?` ×${p.qty}`:'')).join(', ')}</div>`:''}</td>
         <td class="td-num">${s.qty||0}</td>
         <td class="td-num" style="font-weight:700;">${shipReturned(s)?`<span style="color:var(--status-critical);">${fmtWon(shipNet(s))}</span><div style="font-size:11px;color:var(--text-tertiary);font-weight:600;text-decoration:line-through;">${fmtWon(s.amount||0)}</div>`:fmtWon(s.amount||0)}</td>
@@ -4624,15 +5036,26 @@ function renderShip(){
 function onShipYear(){ renderShip(); }
 function setShipStatus(id, val){
   const s = shipments.find(x=>x.id===id); if(!s) return;
-  if (s.ship_status === val) return;
-  s.ship_status = val;
-  // 출고 요청으로 되돌리면 세금계산서 발행 상태는 해제 (완료 건만 발행 가능)
-  let cleared = false;
-  if (val !== 'done' && s.tax_invoice_issued) { s.tax_invoice_issued = false; s.tax_invoice_date = null; cleared = true; }
+  const cur = shipReturned(s) ? 'returned' : (s.ship_status==='done' ? 'done' : 'request');
+  if (cur === val) return;
+  let cleared = false, msg = '';
+  if (val === 'returned') {
+    s.ship_status = 'done';           // 출고는 됐고, 그 뒤 반품
+    s.returned = true;
+    if (!(Number(s.return_amount) > 0)) s.return_amount = s.amount || 0;   // 금액 미입력 시 전량 반품(净 매출 0)
+    if (!s.return_date) s.return_date = new Date().toISOString().slice(0,10);
+    msg = '반품 완료로 변경했어요 ✓ (전량 반품 기준 · 세부 금액은 클릭해서 수정)';
+  } else {
+    s.returned = false;               // 반품 해제
+    s.ship_status = val;              // 'done' | 'request'
+    if (val !== 'done' && s.tax_invoice_issued) { s.tax_invoice_issued = false; s.tax_invoice_date = null; cleared = true; }
+    msg = (val==='done' ? '출고 완료로 변경했어요 ✓' : ('출고 요청으로 변경했어요 ✓' + (cleared ? ' (계산서 발행 해제됨)' : '')));
+  }
   s.updated_at = new Date().toISOString();
   saveShipLocal();
-  toast(val==='done' ? '출고 완료로 변경했어요 ✓' : ('출고 요청으로 변경했어요 ✓' + (cleared ? ' (계산서 발행 해제됨)' : '')));
+  toast(msg);
   renderShip();
+  if ($('dashboardPage').classList.contains('active')) renderDashboard();
 }
 function openShipModal(id){
   currentShipId = (typeof id === 'number') ? id : null;
