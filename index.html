@@ -512,6 +512,19 @@
         .fork-mk { font-size: 10.5px; color: var(--text-tertiary); font-weight: 700; background: #f2f4f6; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
         .fork-add { color: var(--primary); font-weight: 700; }
         .fork-none { padding: 9px 11px; font-size: 12px; color: var(--text-tertiary); }
+        /* 고객사 드롭다운 삭제/관리 */
+        .co-x { color: var(--text-tertiary); font-weight: 800; font-size: 15px; padding: 0 4px; border-radius: 5px; }
+        .fork-opt:hover .co-x { color: var(--status-critical); }
+        .co-x:hover { background: #fdecec; }
+        .co-manage { padding: 9px 11px; font-size: 12px; font-weight: 700; color: var(--text-secondary); background: #fafbfc; cursor: pointer; text-align: center; border-top: 1px solid #f2f4f6; position: sticky; bottom: 0; }
+        .co-manage:hover { background: #eef6fd; color: var(--primary); }
+        /* 거래처 목록 관리 행 */
+        .cm-row { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+        .cm-row .cm-nm { font-size: 13px; font-weight: 800; }
+        .cm-row .cm-use { font-size: 11px; color: var(--text-tertiary); font-weight: 600; margin-left: auto; }
+        .cm-row .cm-use.warn { color: var(--status-critical); }
+        .cm-row .cm-rm { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border); color: var(--text-tertiary); font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        .cm-row .cm-rm:hover { color: var(--status-critical); background: #fdecec; border-color: #f3c0c0; }
         .kdeal {
             background: var(--bg-main);
             border: 1px solid var(--border);
@@ -1419,6 +1432,27 @@
             <!-- 캘린더 일정 클릭 팝업 -->
             <div id="calItemPop"></div>
 
+            <!-- 거래처 목록 관리 모달 -->
+            <div class="modal-overlay" id="companyManageModal">
+                <div class="modal" style="max-width:440px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">⚙️ 거래처 목록 관리</h2>
+                        <button class="modal-close" onclick="closeCompanyManage()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="font-size:12.3px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">프로젝트·출고 등록에서 고르는 거래처 목록이에요. 삭제해도 기존 기록은 그대로예요.</div>
+                        <div style="display:flex;gap:8px;margin-bottom:14px;">
+                            <input type="text" class="form-input" id="cmNewName" placeholder="새 거래처 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();cmAddNew();}">
+                            <button class="btn btn-primary" style="white-space:nowrap;" onclick="cmAddNew()">＋ 추가</button>
+                        </div>
+                        <div id="cmList" style="max-height:320px;overflow-y:auto;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="closeCompanyManage()">닫기</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ===== 출고·납품 관리 ===== -->
             <div class="page" id="shipPage">
                 <div class="page-header">
@@ -1655,7 +1689,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">고객사</label>
-                        <input type="text" class="form-input" id="shCo" placeholder="예: 삼성전자">
+                        <div style="position:relative;">
+                            <input type="text" class="form-input" id="shCo" placeholder="거래처 선택·검색" autocomplete="off" oninput="renderCoDD('shCo','shCoDD')" onfocus="renderCoDD('shCo','shCoDD')" onblur="setTimeout(function(){coHide('shCoDD')},180)">
+                            <div class="fork-dd" id="shCoDD"></div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">담당자</label>
@@ -1784,7 +1821,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">고객사 <span style="color:var(--status-critical)">*</span></label>
-                        <input type="text" class="form-input" id="ncCo" placeholder="예: 현대중공업" oninput="ncAutoName()">
+                        <div style="position:relative;">
+                            <input type="text" class="form-input" id="ncCo" placeholder="거래처 선택·검색" autocomplete="off" oninput="ncAutoName();renderCoDD('ncCo','ncCoDD')" onfocus="renderCoDD('ncCo','ncCoDD')" onblur="setTimeout(function(){coHide('ncCoDD')},180)">
+                            <div class="fork-dd" id="ncCoDD"></div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">도입현장</label>
@@ -1956,7 +1996,10 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">고객사</label>
-                        <input type="text" class="form-input" id="edCo" placeholder="예: 현대중공업">
+                        <div style="position:relative;">
+                            <input type="text" class="form-input" id="edCo" placeholder="거래처 선택·검색" autocomplete="off" oninput="renderCoDD('edCo','edCoDD')" onfocus="renderCoDD('edCo','edCoDD')" onblur="setTimeout(function(){coHide('edCoDD')},180)">
+                            <div class="fork-dd" id="edCoDD"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -2273,6 +2316,11 @@ async function loadKvRemote(){
     // 수금·재무 숨긴 거래처
     if (Array.isArray(map.finance_hidden)) { financeHidden = map.finance_hidden; try{ localStorage.setItem(FINHIDE_LS_KEY, JSON.stringify(financeHidden)); }catch(e){} }
     else if (financeHidden && financeHidden.length) { await sbUpsert(KV_TABLE, [{k:'finance_hidden', data:financeHidden}], 'k'); }
+    // 거래처 카탈로그
+    if (Array.isArray(map.company_catalog)) { companyCatalog = map.company_catalog; try{ localStorage.setItem(CCAT_LS_KEY, JSON.stringify(companyCatalog)); }catch(e){} }
+    else if (companyCatalog && companyCatalog.length) { await sbUpsert(KV_TABLE, [{k:'company_catalog', data:companyCatalog}], 'k'); }
+    if (Array.isArray(map.company_hidden)) { companyHidden = map.company_hidden; try{ localStorage.setItem(CHIDE_LS_KEY, JSON.stringify(companyHidden)); }catch(e){} }
+    else if (companyHidden && companyHidden.length) { await sbUpsert(KV_TABLE, [{k:'company_hidden', data:companyHidden}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2366,6 +2414,8 @@ function loadAsLocal(){
   loadCalEvents();
   loadCustomerTerms();
   loadFinanceHidden();
+  loadCompanyCatalog();
+  loadCompanyHidden();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
 const DNOTE_LS_KEY = 'sp_deal_notes_v1';
@@ -3137,6 +3187,104 @@ let financeHidden = [];
 function loadFinanceHidden(){ try{ const v=JSON.parse(localStorage.getItem(FINHIDE_LS_KEY)||'[]'); financeHidden = Array.isArray(v)?v:[]; }catch(e){ financeHidden=[]; } }
 function saveFinanceHidden(){ try{ localStorage.setItem(FINHIDE_LS_KEY, JSON.stringify(financeHidden)); }catch(e){} syncKv('finance_hidden', financeHidden); }
 function isFinanceHidden(co){ return financeHidden.indexOf((co||'').trim()) !== -1; }
+/* 거래처(고객사) 카탈로그 — 프로젝트·출고 고객사 선택 목록 · 팀 공유 */
+const CCAT_LS_KEY = 'sp_company_catalog_v1';
+let companyCatalog = [];
+function loadCompanyCatalog(){ try{ const v=JSON.parse(localStorage.getItem(CCAT_LS_KEY)||'[]'); companyCatalog = Array.isArray(v)?v:[]; }catch(e){ companyCatalog=[]; } }
+function saveCompanyCatalog(){ try{ localStorage.setItem(CCAT_LS_KEY, JSON.stringify(companyCatalog)); }catch(e){} syncKv('company_catalog', companyCatalog); }
+const CHIDE_LS_KEY = 'sp_company_hidden_v1';
+let companyHidden = [];
+function loadCompanyHidden(){ try{ const v=JSON.parse(localStorage.getItem(CHIDE_LS_KEY)||'[]'); companyHidden = Array.isArray(v)?v:[]; }catch(e){ companyHidden=[]; } }
+function saveCompanyHidden(){ try{ localStorage.setItem(CHIDE_LS_KEY, JSON.stringify(companyHidden)); }catch(e){} syncKv('company_hidden', companyHidden); }
+function isCompanyHidden(n){ return companyHidden.indexOf((n||'').trim()) !== -1; }
+// 카탈로그에 추가(+ 숨김 해제). 저장 시에도 호출해 목록을 계속 키움
+function addCompany(name){
+  name=(name||'').trim(); if(!name) return;
+  let ch=false;
+  if (companyHidden.indexOf(name)!==-1){ companyHidden=companyHidden.filter(x=>x!==name); saveCompanyHidden(); }
+  if (!companyCatalog.some(x=>x.toLowerCase()===name.toLowerCase())){ companyCatalog.push(name); ch=true; }
+  if (ch) saveCompanyCatalog();
+}
+// 선택 가능한 거래처 목록 = 카탈로그 ∪ 실제 사용 고객사 − 숨김
+function companyList(){
+  const set=new Set();
+  companyCatalog.forEach(c=>{ c=(c||'').trim(); if(c) set.add(c); });
+  deals.forEach(d=>{ const c=(d.co||'').trim(); if(c) set.add(c); });
+  shipments.forEach(s=>{ const c=(s.co||'').trim(); if(c) set.add(c); });
+  return Array.from(set).filter(c=>!isCompanyHidden(c)).sort((a,b)=>a.localeCompare(b,'ko'));
+}
+function companyUsageCount(name){
+  name=(name||'').trim(); let n=0;
+  deals.forEach(d=>{ if((d.co||'').trim()===name) n++; });
+  shipments.forEach(s=>{ if((s.co||'').trim()===name) n++; });
+  return n;
+}
+/* 고객사 선택 드롭다운 (프로젝트·출고 공용) */
+function renderCoDD(inputId, ddId){
+  const inp=$(inputId), dd=$(ddId); if(!inp||!dd) return;
+  const raw=(inp.value||'').trim(), q=raw.toLowerCase();
+  const all=companyList();
+  const matches = q ? all.filter(c=>c.toLowerCase().includes(q)) : all;
+  let html = matches.slice(0,12).map(c=>{
+    const hl = q ? esc(c).replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<b style="color:var(--primary)">$1</b>') : esc(c);
+    return `<div class="fork-opt" data-co="${esc(c)}" onmousedown="event.preventDefault();coPick('${inputId}','${ddId}',this.dataset.co)"><span>${hl}</span><span class="co-x" title="목록에서 삭제" onmousedown="event.preventDefault();event.stopPropagation();coDelete(this.parentNode.dataset.co,'${inputId}','${ddId}')">×</span></div>`;
+  }).join('');
+  const exact = raw && all.some(c=>c.toLowerCase()===q);
+  if (raw && !exact){ html += `<div class="fork-opt fork-add" onmousedown="event.preventDefault();coAddNew('${inputId}','${ddId}')"><span>＋ '${esc(raw)}' 새 거래처로 추가</span><span class="fork-mk" style="color:var(--primary);background:#eef6fd;">신규</span></div>`; }
+  if (!matches.length && !raw){ html += `<div class="fork-none">거래처를 입력하거나 아래에서 관리하세요</div>`; }
+  html += `<div class="co-manage" onmousedown="event.preventDefault();coHide('${ddId}');openCompanyManage()">⚙️ 거래처 목록 관리</div>`;
+  dd.innerHTML=html; dd.classList.add('on');
+}
+function coHide(ddId){ const dd=$(ddId); if(dd) dd.classList.remove('on'); }
+function coPick(inputId, ddId, name){ $(inputId).value=name; coHide(ddId); if(inputId==='ncCo' && typeof ncAutoName==='function') ncAutoName(); }
+function coAddNew(inputId, ddId){
+  const q=($(inputId).value||'').trim(); if(!q) return;
+  addCompany(q); coPick(inputId,ddId,q); toast('새 거래처를 목록에 추가했어요 ✓');
+}
+function coDelete(name, inputId, ddId){
+  name=(name||'').trim(); if(!name) return;
+  const used=companyUsageCount(name);
+  const warn = used>0 ? `\n\n※ 이미 ${used}건에서 사용 중이에요. 지워도 그 기록은 그대로 남고, 앞으로 선택 목록에만 안 보여요.` : '';
+  if (!confirm(`"${name}"를 거래처 목록에서 삭제할까요?${warn}`)) return;
+  if (companyHidden.indexOf(name)===-1) companyHidden.push(name);
+  companyCatalog = companyCatalog.filter(x=>x!==name);
+  saveCompanyHidden(); saveCompanyCatalog();
+  toast(`"${name}"를 목록에서 삭제했어요`);
+  renderCoDD(inputId, ddId);
+  if ($('companyManageModal') && $('companyManageModal').classList.contains('active')) renderCompanyManageList();
+}
+/* 거래처 목록 관리 모달 */
+function openCompanyManage(){ renderCompanyManageList(); $('cmNewName').value=''; $('companyManageModal').classList.add('active'); }
+function closeCompanyManage(){ $('companyManageModal').classList.remove('active'); }
+function renderCompanyManageList(){
+  const list=companyList();
+  $('cmList').innerHTML = list.length ? list.map(c=>{
+    const used=companyUsageCount(c);
+    return `<div class="cm-row">
+      <span class="cm-nm">${esc(c)}</span>
+      <span class="cm-use${used>0?'':' warn'}">${used>0?('프로젝트·출고 '+used+'건'):'미사용'}</span>
+      <span class="cm-rm" title="삭제" onclick="cmDelete('${esc(c).replace(/'/g,"\\'")}')">×</span>
+    </div>`;
+  }).join('') : `<div style="font-size:12.5px;color:var(--text-tertiary);text-align:center;padding:20px;">등록된 거래처가 없어요</div>`;
+}
+function cmAddNew(){
+  const name=($('cmNewName').value||'').trim();
+  if(!name){ toast('거래처 이름을 입력해 주세요', true); return; }
+  addCompany(name); $('cmNewName').value='';
+  toast(`"${name}"를 추가했어요 ✓`);
+  renderCompanyManageList();
+}
+function cmDelete(name){
+  name=(name||'').trim(); if(!name) return;
+  const used=companyUsageCount(name);
+  const warn = used>0 ? `\n\n※ 이미 ${used}건에서 사용 중이에요. 지워도 그 기록은 그대로 남고, 앞으로 선택 목록에만 안 보여요.` : '';
+  if (!confirm(`"${name}"를 거래처 목록에서 삭제할까요?${warn}`)) return;
+  if (companyHidden.indexOf(name)===-1) companyHidden.push(name);
+  companyCatalog = companyCatalog.filter(x=>x!==name);
+  saveCompanyHidden(); saveCompanyCatalog();
+  toast(`"${name}"를 삭제했어요`);
+  renderCompanyManageList();
+}
 let currentEventId = null, _evType = 'meeting';
 function openEventModal(id, presetDate){
   currentEventId = id || null;
@@ -5248,6 +5396,7 @@ function saveShip(){
   const shipDate = $('shDate').value;
   if (!name && !$('shCo').value.trim()) { toast('건명이나 고객사를 입력해 주세요', true); return; }
   if (!shipDate) { toast('출고일을 입력해 주세요 (매출 반영 기준이에요)', true); return; }
+  if ($('shCo').value.trim()) addCompany($('shCo').value.trim());   // 거래처 목록에 자동 등록
   // 제품 구성 정리: 이름이 있거나 금액이 있는 행만 반영
   const products = shipProducts
     .map(p=>({ name:(p.name||'').trim(), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0 }))
@@ -5393,6 +5542,7 @@ function updateNcAmountHint(){ /* 제품 구성 표로 대체됨 */ }
 async function saveCreate(){
   const co = $('ncCo').value.trim();
   if (!co) { toast('고객사를 입력해 주세요', true); return; }
+  addCompany(co);   // 거래처 목록에 자동 등록(다음부터 선택 가능)
   const btn = $('ncSaveBtn');
   const body = {
     name: $('ncName').value.trim() || (dealItemsProdSummary() ? `${co} | ${dealItemsProdSummary()}` : co),
@@ -5600,6 +5750,7 @@ async function saveEdit(){
   const person = $('edPerson').value;
   if (person !== (d.person||'')) patch.person = person || null;
   const co = $('edCo').value.trim();
+  if (co) addCompany(co);   // 거래처 목록에 자동 등록
   if (co !== (d.co||'')) patch.co = co;
   const site = $('edSite').value.trim();
   if (site !== (d.site||'')) patch.site = site || null;
