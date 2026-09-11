@@ -17,6 +17,10 @@
             --danger: #ff3b30;
             --bg-main: #f7f8fa;
             --bg-card: #ffffff;
+            --bg-subtle: #fbfcfe;   /* 옅은 패널·줄무늬 */
+            --bg-inset: #f4f7fb;    /* 합계/총합 행 */
+            --seg-track: #e9ebf0;   /* 세그먼트/토글 트랙 (또렷한 회색) */
+            --seg-active: #ffffff;  /* 선택된 알약 */
             --text-primary: #191f28;
             --text-secondary: #6b7684;
             --text-tertiary: #8b95a1;
@@ -36,7 +40,37 @@
             --status-critical: #d03b3b;
             --grid-hairline: #e9ebee;
             --axis-ink: #8b95a1;
+            color-scheme: light;
         }
+
+        /* ===== 다크 모드 토큰 (라이트가 기본) ===== */
+        :root[data-theme="dark"] {
+            --primary: #0a84ff;
+            --primary-light: #409cff;
+            --primary-dark: #0060df;
+            --bg-main: #1c1c1e;
+            --bg-card: #2c2c2e;
+            --bg-subtle: #3a3a3c;
+            --bg-inset: #464648;
+            --text-primary: #f5f5f7;
+            --text-secondary: #aeaeb2;
+            --text-tertiary: #98989d;
+            --border: #48484a;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.35);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.45);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.55);
+            --series-1-track: #17385f;
+            --grid-hairline: #3a3a3c;
+            --seg-track: #2c2c2e;
+            --seg-active: #4a4a4d;
+            --axis-ink: #8a8a8f;
+            color-scheme: dark;
+        }
+        html { transition: background-color .2s ease; }
+        body { transition: background-color .2s ease, color .2s ease; }
+        .theme-toggle { display: inline-flex; background: var(--seg-track); border: 1px solid var(--border); border-radius: 980px; padding: 3px; gap: 2px; }
+        .theme-toggle .tt-opt { font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); background: transparent; border: none; border-radius: 980px; padding: 6px 13px; cursor: pointer; white-space: nowrap; transition: color .15s ease; }
+        .theme-toggle .tt-opt.on { background: var(--seg-active); color: var(--primary); box-shadow: var(--shadow-sm); }
 
         body {
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -1021,6 +1055,8 @@
     </style>
 </head>
 <body>
+    <script>/* 다크/라이트 모드 조기 적용 (깜빡임 방지) · 기본 라이트 */
+      (function(){ try{ var m=localStorage.getItem('sp_theme'); if(m==='dark') document.documentElement.setAttribute('data-theme','dark'); }catch(e){} })();</script>
     <!-- 접근 비밀번호 게이트 -->
     <div id="gateOverlay">
         <div class="gate-card">
@@ -1106,6 +1142,10 @@
                         <p class="page-subtitle">surepoint 운영툴 데이터를 실시간으로 집계해요 (공급가 기준, VAT 별도)</p>
                     </div>
                     <div class="header-actions">
+                        <div class="theme-toggle" id="themeToggle">
+                            <button class="tt-opt" data-mode="light" onclick="setTheme('light')">라이트모드</button>
+                            <button class="tt-opt" data-mode="dark" onclick="setTheme('dark')">다크모드</button>
+                        </div>
                         <div class="year-selector" id="yearSelector"></div>
                         <button class="btn btn-secondary btn-sm" onclick="reload()" title="새로고침">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1549,7 +1589,6 @@
                         <input type="file" id="shipImportInput" hidden accept=".json">
                     </div>
                 </div>
-                <div id="shipGovTabs" style="margin:2px 0 18px;"></div>
                 <div class="stats-grid" id="shipStats"></div>
                 <div class="filter-bar">
                     <div class="search-box">
@@ -1557,6 +1596,7 @@
                         <input type="text" placeholder="건명, 고객사, 제품 검색..." id="shipSearch" oninput="renderShip()">
                     </div>
                 </div>
+                <div id="shipGovTabs" style="margin:4px 0 14px;"></div>
                 <div id="shipChips" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
                 <div style="overflow-x:auto;" class="section-card">
                     <table class="data-table" id="shipTable"></table>
@@ -2318,6 +2358,15 @@ let cardFilterOpen = true; // 카드 목록 필터(단계·년도·월) 펼침 �
 function toggleCardFilter(){ cardFilterOpen = !cardFilterOpen; renderProjects(); }
 
 const $ = id => document.getElementById(id);
+/* ===== 다크/라이트 모드 ===== */
+function setTheme(m){
+  m = (m==='dark') ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', m);
+  try { localStorage.setItem('sp_theme', m); } catch(e){}
+  document.querySelectorAll('#themeToggle .tt-opt').forEach(b=> b.classList.toggle('on', b.dataset.mode===m));
+  if (typeof renderDashboard === 'function' && $('dashboardPage') && $('dashboardPage').classList.contains('active')) { try { renderDashboard(); } catch(e){} }
+}
+function initTheme(){ let m='light'; try { m = localStorage.getItem('sp_theme') || 'light'; } catch(e){} setTheme(m); }
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ---- Supabase REST ---- */
@@ -3834,9 +3883,9 @@ function renderDashboard(){
 function renderDashSubTabs(){
   const tab = (label, val) => {
     const on = dashSubTab === val;
-    return `<button onclick="switchDashSubTab('${val}')" style="padding:9px 2px 12px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:${on?800:600};color:${on?'var(--primary)':'var(--text-tertiary)'};cursor:pointer;position:relative;">${label}${on?'<span style="position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:3px;background:var(--primary);"></span>':''}</button>`;
+    return `<button onclick="switchDashSubTab('${val}')" style="padding:4px 2px;border:none;background:transparent;font-family:inherit;font-size:15px;letter-spacing:-.01em;font-weight:${on?800:500};color:${on?'var(--text-primary)':'var(--text-tertiary)'};cursor:pointer;transition:color .15s;">${label}</button>`;
   };
-  $('dashSubTabs').innerHTML = `<div style="display:inline-flex;gap:26px;border-bottom:1px solid var(--border);padding:0 2px;width:100%;">
+  $('dashSubTabs').innerHTML = `<div style="display:inline-flex;gap:22px;align-items:center;width:100%;">
       ${tab('📊 매출 요약','sales')}${tab('📦 제품 통계','product')}
     </div>`;
 }
@@ -3934,15 +3983,15 @@ function renderProductStats(){
   // 컨트롤 바
   const srcSeg = ['all','deal','ship','gov'].map(s=>{
     const on = psSource===s; const m = PS_SRC_META[s];
-    return `<span onclick="setPsSource('${s}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 12px;border-radius:7px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${s==='gov'?'🏛️ ':''}${m.label}</span>`;
+    return `<span onclick="setPsSource('${s}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 12px;border-radius:7px;${on?'background:var(--seg-active);box-shadow:var(--shadow-sm);':''}">${s==='gov'?'🏛️ ':''}${m.label}</span>`;
   }).join('');
   const metSeg = [['qty','수량'],['amt','금액']].map(([v,l])=>{
     const on = psMetric===v;
-    return `<span onclick="setPsMetric('${v}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 13px;border-radius:7px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${l}</span>`;
+    return `<span onclick="setPsMetric('${v}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 13px;border-radius:7px;${on?'background:var(--seg-active);box-shadow:var(--shadow-sm);':''}">${l}</span>`;
   }).join('');
   const ctrl = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-    <div style="display:inline-flex;background:#eef1f4;border-radius:9px;padding:3px;gap:2px;">${srcSeg}</div>
-    <div style="display:inline-flex;background:#eef1f4;border-radius:9px;padding:3px;gap:2px;">${metSeg}</div>
+    <div style="display:inline-flex;background:var(--seg-track);border-radius:9px;padding:3px;gap:2px;">${srcSeg}</div>
+    <div style="display:inline-flex;background:var(--seg-track);border-radius:9px;padding:3px;gap:2px;">${metSeg}</div>
     <button class="btn btn-secondary btn-sm" style="margin-left:auto;color:#15803d;border-color:#c6e6d3;" onclick="exportProductStats()">⬇ 엑셀(CSV) 내보내기</button>
   </div>`;
 
@@ -3975,7 +4024,7 @@ function renderProductStats(){
   const grandSum = curTotal;
   const sortSeg = [['qty','출고량순'],['pct','비율순'],['name','이름순']].map(([v,l])=>{
     const on = psSort===v;
-    return `<span onclick="setPsSort('${v}')" style="cursor:pointer;font-size:11.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:5px 11px;border-radius:6px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${l}</span>`;
+    return `<span onclick="setPsSort('${v}')" style="cursor:pointer;font-size:11.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:5px 11px;border-radius:6px;${on?'background:var(--seg-active);box-shadow:var(--shadow-sm);':''}">${l}</span>`;
   }).join('');
   // 합계 탭이면 4개 소스 비교 표, 특정 소스 탭이면 그 소스 단일 표
   const pctOf = (o) => curTotal>0 ? Math.round(curCol(o)/curTotal*1000)/10 : 0;
@@ -4002,14 +4051,14 @@ function renderProductStats(){
   }
   const breakdown = `<div class="section-card" style="margin-bottom:18px;">
     <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;"><div class="section-title">🧾 제품별 집계 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">${bdTitleSub}</span></div>
-      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;"><span style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">정렬</span><div style="display:inline-flex;background:#eef1f4;border-radius:8px;padding:3px;gap:2px;">${sortSeg}</div></div>
+      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;"><span style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">정렬</span><div style="display:inline-flex;background:var(--seg-track);border-radius:8px;padding:3px;gap:2px;">${sortSeg}</div></div>
     </div>
     <div class="section-desc">${bdDesc}</div>
     <div style="overflow-x:auto;"><table class="data-table" style="min-width:${psSource==='all'?'640px':'360px'};">
       <thead><tr>${tableHead}</tr></thead>
       <tbody>
         ${tableBody}
-        <tr style="background:#f7f9fc;font-weight:800;border-top:1.5px solid var(--border);">${tableFoot}</tr>
+        <tr style="background:var(--bg-subtle);font-weight:800;border-top:1.5px solid var(--border);">${tableFoot}</tr>
       </tbody>
     </table></div>
   </div>`;
@@ -4070,24 +4119,24 @@ function renderProductStats(){
       <thead><tr>
         <th style="${stickyName}text-align:left;font-size:11.5px;color:var(--text-secondary);font-weight:800;padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">제품</th>
         ${Array.from({length:12},(_,i)=>`<th style="text-align:right;font-size:11.5px;color:var(--text-tertiary);font-weight:700;padding:10px 10px;border-bottom:2px solid var(--border);white-space:nowrap;">${i+1}월</th>`).join('')}
-        <th style="text-align:right;font-size:11.5px;color:var(--ink);font-weight:800;padding:10px 12px;border-bottom:2px solid var(--border);background:#fbfcfe;">합계</th>
+        <th style="text-align:right;font-size:11.5px;color:var(--ink);font-weight:800;padding:10px 12px;border-bottom:2px solid var(--border);background:var(--bg-subtle);">합계</th>
       </tr></thead>
       <tbody>
-        ${pRows.map((r,ri)=>`<tr style="background:${ri%2?'#fcfdfe':'#fff'};">
-          <td style="position:sticky;left:0;background:${ri%2?'#fcfdfe':'#fff'};z-index:1;box-shadow:1px 0 0 var(--border);font-weight:700;font-size:13px;padding:10px 12px;white-space:nowrap;">${esc(r.n)}</td>
-          ${r.m.map(v=>`<td style="text-align:right;padding:9px 10px;font-size:13px;font-weight:${v?700:400};color:${v?'var(--ink)':'#d3d9df'};${heat(v)}">${v? fmtV(v) : '·'}</td>`).join('')}
-          <td style="text-align:right;padding:9px 12px;font-size:13px;font-weight:800;background:#fbfcfe;">${fmtV(r.tot)}</td>
+        ${pRows.map((r,ri)=>`<tr style="background:${ri%2?'var(--bg-subtle)':'var(--bg-card)'};">
+          <td style="position:sticky;left:0;background:${ri%2?'var(--bg-subtle)':'var(--bg-card)'};z-index:1;box-shadow:1px 0 0 var(--border);font-weight:700;font-size:13px;padding:10px 12px;white-space:nowrap;">${esc(r.n)}</td>
+          ${r.m.map(v=>`<td style="text-align:right;padding:9px 10px;font-size:13px;font-weight:${v?700:400};color:${v?'var(--text-primary)':'var(--text-tertiary)'};${heat(v)}">${v? fmtV(v) : '·'}</td>`).join('')}
+          <td style="text-align:right;padding:9px 12px;font-size:13px;font-weight:800;background:var(--bg-subtle);">${fmtV(r.tot)}</td>
         </tr>`).join('')}
         <tr style="border-top:2px solid var(--border);">
-          <td style="position:sticky;left:0;background:#f4f7fb;z-index:1;box-shadow:1px 0 0 var(--border);font-weight:800;font-size:12.5px;padding:11px 12px;">월 합계</td>
-          ${colTot.map(v=>`<td style="text-align:right;padding:11px 10px;font-size:12.5px;font-weight:800;background:#f4f7fb;">${v?fmtV(v):'·'}</td>`).join('')}
-          <td style="text-align:right;padding:11px 12px;font-size:12.5px;font-weight:800;background:#eef3f9;">${fmtV(colTot.reduce((a,b)=>a+b,0))}</td>
+          <td style="position:sticky;left:0;background:var(--bg-inset);z-index:1;box-shadow:1px 0 0 var(--border);font-weight:800;font-size:12.5px;padding:11px 12px;">월 합계</td>
+          ${colTot.map(v=>`<td style="text-align:right;padding:11px 10px;font-size:12.5px;font-weight:800;background:var(--bg-inset);">${v?fmtV(v):'·'}</td>`).join('')}
+          <td style="text-align:right;padding:11px 12px;font-size:12.5px;font-weight:800;background:var(--bg-inset);">${fmtV(colTot.reduce((a,b)=>a+b,0))}</td>
         </tr>
       </tbody>
     </table></div>
   </div>`;
 
-  const note = `<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;margin-top:16px;background:#fbfcfe;border:1px solid var(--border);border-radius:11px;padding:13px 16px;">
+  const note = `<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;margin-top:16px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:11px;padding:13px 16px;">
     · <b>설치비는 같은 프로젝트/출고건의 제품 가격에 합산</b>해요. 제품 행의 "설치비/대"와, 별도로 들어간 <b>「설치비」 항목</b>은 그 기록의 제품들에 (금액 비례로) 얹어서 집계돼요. 수량은 실제 제품 대수만 세고, 설치비는 대수로 세지 않아요.<br>
     · <b>프로젝트(설치건)</b>는 설치·납품 완료 기준(설치완료일), <b>출고건</b>은 출고 완료 기준(출고일, 일반출고). <b>합계 = 프로젝트 + 출고건 + 정부지원</b> 세 채널 전부예요. 프로젝트·출고건 탭은 각 채널만, 정부지원 탭은 정부지원만 봐요.<br>
     · 같은 <b>제품명끼리 자동 합산</b>해요(띄어쓰기·표기가 다르면 다른 제품으로 잡혀요).<br>
@@ -4276,7 +4325,7 @@ function renderMonthlyChart(year){
     g += `<rect class="bar-hit" data-i="${i}" x="${padL+slot*i}" y="${padT}" width="${slot}" height="${ch}"/>`;
     g += `<text x="${padL+slot*i+slot/2}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--axis-ink)">${i+1}월</text>`;
   });
-  g += `<line x1="${padL}" y1="${padT+ch}" x2="${W-padR}" y2="${padT+ch}" stroke="#c9ced4" stroke-width="1"/>`;
+  g += `<line x1="${padL}" y1="${padT+ch}" x2="${W-padR}" y2="${padT+ch}" stroke="var(--border)" stroke-width="1"/>`;
 
   $('monthlyChart').innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${year}년 월별 매출 막대 차트">${g}</svg>
@@ -4329,7 +4378,7 @@ function renderYearlyChart(){
     }
     g += `<text x="${padL+slot*i+slot/2}" y="${H-10}" text-anchor="middle" font-size="11.5" font-weight="${d.y===selectedYear?'700':'400'}" fill="${d.y===selectedYear?'var(--text-primary)':'var(--axis-ink)'}">${d.y}년</text>`;
   });
-  g += `<line x1="${padL}" y1="${padT+ch}" x2="${W-padR}" y2="${padT+ch}" stroke="#c9ced4" stroke-width="1"/>`;
+  g += `<line x1="${padL}" y1="${padT+ch}" x2="${W-padR}" y2="${padT+ch}" stroke="var(--border)" stroke-width="1"/>`;
   $('yearlyChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="년도별 매출 막대 차트">${g}</svg>`;
 }
 
@@ -5819,12 +5868,12 @@ function shipStepper(s){
 }
 function renderShip(){
   const q = ($('shipSearch').value||'').toLowerCase();
-  // ── 일반 / 정부지원 전환 탭 (디자인 2: 언더라인) ──
+  // ── 일반 / 정부지원 전환 탭 (미니멀 텍스트) ──
   const gtab = (label, val) => {
     const on = shipGovF === val;
-    return `<button onclick="setShipGovF('${val}')" style="padding:9px 2px 12px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:${on?800:600};color:${on?'var(--primary)':'var(--text-tertiary)'};cursor:pointer;position:relative;">${label}${on?'<span style="position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:3px;background:var(--primary);"></span>':''}</button>`;
+    return `<button onclick="setShipGovF('${val}')" style="padding:4px 2px;border:none;background:transparent;font-family:inherit;font-size:15px;letter-spacing:-.01em;font-weight:${on?800:500};color:${on?'var(--text-primary)':'var(--text-tertiary)'};cursor:pointer;transition:color .15s;">${label}</button>`;
   };
-  $('shipGovTabs').innerHTML = `<div style="display:inline-flex;gap:24px;border-bottom:1px solid var(--border);padding:0 2px;width:100%;">
+  $('shipGovTabs').innerHTML = `<div style="display:inline-flex;gap:22px;align-items:center;width:100%;">
       ${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원 출고','gov')}
     </div>`;
   // 전환 탭 적용 범위 (KPI·칩·목록 모두 이 범위 기준)
@@ -6580,6 +6629,7 @@ function initGate(){
   if (ok) { $('gateOverlay').style.display = 'none'; }
   else { $('gateOverlay').style.display = 'flex'; setTimeout(()=>{ try{ $('gatePw').value=''; $('gatePw').focus(); }catch(e){} }, 120); }
 }
+initTheme();
 initGate();
 loadAll();
 </script>
