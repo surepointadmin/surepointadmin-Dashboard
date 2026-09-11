@@ -1051,7 +1051,7 @@
                 <div class="nav-label">메인</div>
                 <div class="nav-item active" id="navDashboard" onclick="showPage('dashboard')">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    매출 대시보드
+                    실적 현황
                 </div>
                 <div class="nav-item" id="navProjects" onclick="showPage('projects')">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
@@ -1102,7 +1102,7 @@
             <div class="page active" id="dashboardPage">
                 <div class="page-header">
                     <div>
-                        <h1 class="page-title">매출 대시보드</h1>
+                        <h1 class="page-title">실적 현황</h1>
                         <p class="page-subtitle">surepoint 운영툴 데이터를 실시간으로 집계해요 (공급가 기준, VAT 별도)</p>
                     </div>
                     <div class="header-actions">
@@ -1114,43 +1114,52 @@
                     </div>
                 </div>
 
-                <div id="dashHero"></div>
-                <div class="stats-grid" id="dashStats"></div>
+                <!-- 매출 요약 / 제품 통계 전환 탭 -->
+                <div id="dashSubTabs" style="margin-bottom:18px;"></div>
 
-                <div class="dash-grid-2">
-                    <div>
-                        <div class="section-card">
-                            <div class="section-header">
-                                <div class="section-title" id="monthlyChartTitle">월별 매출</div>
+                <!-- 탭 1: 매출 요약 -->
+                <div id="dashSalesTab">
+                    <div id="dashHero"></div>
+                    <div class="stats-grid" id="dashStats"></div>
+
+                    <div class="dash-grid-2">
+                        <div>
+                            <div class="section-card">
+                                <div class="section-header">
+                                    <div class="section-title" id="monthlyChartTitle">월별 매출</div>
+                                </div>
+                                <div class="section-desc">설치중 이후 딜 + 출고·납품을 설치일(없으면 설치 시작일)·출고일 월로 집계해요</div>
+                                <div class="chart-wrap" id="monthlyChart"></div>
                             </div>
-                            <div class="section-desc">설치중 이후 딜 + 출고·납품을 설치일(없으면 설치 시작일)·출고일 월로 집계해요</div>
-                            <div class="chart-wrap" id="monthlyChart"></div>
+                            <div class="section-card">
+                                <div class="section-header">
+                                    <div class="section-title">년도별 매출</div>
+                                </div>
+                                <div class="section-desc">설치중 이후 딜 + 출고·납품 기준 연간 합계</div>
+                                <div class="chart-wrap" id="yearlyChart"></div>
+                            </div>
                         </div>
-                        <div class="section-card">
-                            <div class="section-header">
-                                <div class="section-title">년도별 매출</div>
+                        <div>
+                            <div class="section-card">
+                                <div class="section-header">
+                                    <div class="section-title">단계별 파이프라인</div>
+                                </div>
+                                <div class="section-desc">전체 딜의 현재 단계 분포 · 행을 누르면 목록으로 이동해요</div>
+                                <div class="stage-board" id="stageBoard"></div>
                             </div>
-                            <div class="section-desc">설치중 이후 딜 + 출고·납품 기준 연간 합계</div>
-                            <div class="chart-wrap" id="yearlyChart"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="section-card">
-                            <div class="section-header">
-                                <div class="section-title">단계별 파이프라인</div>
+                            <div class="section-card">
+                                <div class="section-header">
+                                    <div class="section-title">확인이 필요해요</div>
+                                </div>
+                                <div class="section-desc">연체·미수금·세금계산서 미발행 건</div>
+                                <div id="attentionList"></div>
                             </div>
-                            <div class="section-desc">전체 딜의 현재 단계 분포 · 행을 누르면 목록으로 이동해요</div>
-                            <div class="stage-board" id="stageBoard"></div>
-                        </div>
-                        <div class="section-card">
-                            <div class="section-header">
-                                <div class="section-title">확인이 필요해요</div>
-                            </div>
-                            <div class="section-desc">연체·미수금·세금계산서 미발행 건</div>
-                            <div id="attentionList"></div>
                         </div>
                     </div>
                 </div>
+
+                <!-- 탭 2: 제품 통계 -->
+                <div id="dashProductTab" style="display:none;"></div>
             </div>
 
             <!-- ===== 프로젝트(딜) 관리 ===== -->
@@ -2293,6 +2302,11 @@ let shipments = [];
 let currentShipId = null;
 let shipProducts = []; // 모달에서 편집 중인 제품 목록 [{name, qty, unit}]
 let selectedYear = new Date().getFullYear();
+let dashSubTab = 'sales';        // 'sales' 매출 요약 | 'product' 제품 통계
+let psSource = 'all';            // 'all' 합계(프로젝트+출고건) | 'deal' 프로젝트 | 'ship' 출고건 | 'gov' 정부지원
+let psMetric = 'qty';            // 'qty' 수량 | 'amt' 금액
+let psSort   = 'qty';            // 'qty' 출고량순 | 'pct' 비율순 | 'name' 이름순
+let psBarData = [];              // 월별 추이 툴팁용 (12개월 × 제품 내역)
 let currentDealId = null;
 let loadedAt = null;
 let viewMode = 'cards'; // 'cards'(카드 목록, 기본) | 'board'(단계별)
@@ -3726,6 +3740,15 @@ function selectYear(y){ selectedYear = y; renderDashboard(); }
 
 function renderDashboard(){
   renderYearSelector();
+  renderDashSubTabs();
+  if (dashSubTab === 'product'){
+    $('dashSalesTab').style.display = 'none';
+    $('dashProductTab').style.display = '';
+    renderProductStats();
+    return;
+  }
+  $('dashSalesTab').style.display = '';
+  $('dashProductTab').style.display = 'none';
   const y = selectedYear;
   const NOW = new Date();
   const thisYearRev = revenueOfYear(y);
@@ -3805,6 +3828,337 @@ function renderDashboard(){
   renderYearlyChart();
   renderStageBoard();
   renderAttention();
+}
+
+/* ===================== 제품 통계 ===================== */
+function renderDashSubTabs(){
+  const tab = (label, val) => {
+    const on = dashSubTab === val;
+    return `<button onclick="switchDashSubTab('${val}')" style="padding:9px 2px 12px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:${on?800:600};color:${on?'var(--primary)':'var(--text-tertiary)'};cursor:pointer;position:relative;">${label}${on?'<span style="position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:3px;background:var(--primary);"></span>':''}</button>`;
+  };
+  $('dashSubTabs').innerHTML = `<div style="display:inline-flex;gap:26px;border-bottom:1px solid var(--border);padding:0 2px;width:100%;">
+      ${tab('📊 매출 요약','sales')}${tab('📦 제품 통계','product')}
+    </div>`;
+}
+function switchDashSubTab(v){ dashSubTab = v; renderDashboard(); }
+function setPsSource(v){ psSource = v; renderProductStats(); }
+function setPsMetric(v){ psMetric = v; renderProductStats(); }
+
+// 제품명 정규화 — AI-S0~AI-S3 계열은 세부 사양(80V·전동지게차 등)과 무관하게 모델명 하나로 묶어요
+function normProdName(name){
+  const s = (name||'').trim();
+  if (!s) return '(제품명 미입력)';
+  const m = s.match(/AI[\s\-_]*S\s*([0-3])(?!\d)/i);   // AI-S3, AIS3, ai s 3 … → AI-S3 (S30 등은 제외)
+  if (m) return 'AI-S' + m[1];
+  return s;
+}
+// 제품값만(설치비 제외) 기준 집계 · 딜(설치·납품) / 일반출고 / 정부지원출고 소스 분리
+function collectProductStats(year){
+  const map = {}; let dealNoItem = 0;
+  const ensure = (name) => map[name] || (map[name] = {
+    deal:{q:0,a:0}, ship:{q:0,a:0}, gov:{q:0,a:0},
+    m:{deal:Array(12).fill(0), ship:Array(12).fill(0), gov:Array(12).fill(0)},      // 월별 수량
+    mA:{deal:Array(12).fill(0), ship:Array(12).fill(0), gov:Array(12).fill(0)}      // 월별 금액
+  });
+  const add = (name, src, mi, qty, amt) => {
+    const o = ensure(name);
+    o[src].q += qty; o[src].a += amt;
+    if (mi>=0 && mi<12){ o.m[src][mi] += qty; o.mA[src][mi] += amt; }
+  };
+  // "설치비 항목" 판별 · 한 기록의 설치비(행의 fee + 설치비 항목)를 같은 기록 제품 금액에 합산
+  const isFeeItem = (n) => /설치\s*비용?|시공비/.test(n||'');
+  const lineAmt = (it) => Math.round((it.qty||0) * ((it.unit||0) + (it.fee||0)));  // 행 금액(제품값 + 그 행의 설치비/대)
+  const addRecordItems = (items, src, mi) => {
+    const prods = items.filter(it=> !isFeeItem(it.name));      // 실제 제품 행
+    const feeRows = items.filter(it=>  isFeeItem(it.name));    // 별도 "설치비" 항목 행
+    const extra = feeRows.reduce((s,it)=> s + lineAmt(it), 0); // 별도 설치비 총액
+    if (!prods.length){
+      // 제품 없이 설치비만 있는 기록: 금액 유실 방지 위해 '설치비'로 집계(수량 0)
+      if (extra) add('설치비', src, mi, 0, extra);
+      return;
+    }
+    const baseTotal = prods.reduce((s,it)=> s + lineAmt(it), 0); // 제품 행 금액 합(설치비/대 포함)
+    prods.forEach(it=>{
+      const base = lineAmt(it);
+      const share = baseTotal>0 ? extra*(base/baseTotal) : extra/prods.length; // 별도 설치비를 제품에 비례 배분
+      add(it.name, src, mi, it.qty, Math.round(base + share));
+    });
+  };
+  // 프로젝트(설치·납품 완료 이후) — 제품값 + 설치비 합산, 설치완료(매출)일 기준
+  deals.forEach(d=>{
+    if (!isRevenue(d)) return;
+    const rd = revDate(d); if (!rd || !rd.startsWith(String(year))) return;
+    const mi = parseInt(rd.slice(5,7),10) - 1;
+    const kv = getDealItems(d.id);
+    let items;
+    if (kv && kv.length) items = kv.map(p=>({ name:normProdName(p.name), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0, fee:parseFloat(p.fee)||0 }));
+    else items = dealProducts.filter(p=>p.deal_id===d.id).map(p=>({ name:normProdName(p.prod), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit_price)||0, fee:parseFloat(p.install_fee)||0 }));
+    if (!items.length){ dealNoItem++; return; }
+    addRecordItems(items, 'deal', mi);
+  });
+  // 출고건(출고 완료) — 제품값 + 설치비 항목 합산, 출고일 기준 · 정부지원은 gov 소스로 분리
+  shipments.forEach(s=>{
+    if (!shipDone(s)) return;
+    const sd = s.ship_date; if (!sd || !sd.startsWith(String(year))) return;
+    const mi = parseInt(sd.slice(5,7),10) - 1;
+    const src = s.gov_support ? 'gov' : 'ship';
+    let prods = (Array.isArray(s.products) && s.products.length)
+      ? s.products.map(p=>({ name:normProdName(p.name), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0, fee:0 }))
+      : [];
+    if (!prods.length && (s.prod || s.amount)) prods = [{ name:normProdName(s.prod), qty:parseFloat(s.qty)||1, unit:parseFloat(s.unit_price)|| (s.qty?Math.round((s.amount||0)/s.qty):(s.amount||0)), fee:0 }];
+    if (prods.length) addRecordItems(prods, src, mi);
+  });
+  return { map, dealNoItem };
+}
+// Apple 시스템 컬러 팔레트
+const PS_SRC_META = { all:{label:'합계', color:'#0A84FF'}, deal:{label:'프로젝트', color:'#0A84FF'}, ship:{label:'출고건', color:'#34C759'}, gov:{label:'정부지원', color:'#5E5CE6'} };
+function hexToRgb(h){ const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h); return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[10,132,255]; }
+function setPsSort(v){ psSort = v; renderProductStats(); }
+function renderProductStats(){
+  const y = selectedYear;
+  const { map, dealNoItem } = collectProductStats(y);
+  const names = Object.keys(map);
+  const qtyMode = psMetric === 'qty';
+  const val  = (o,src) => qtyMode ? o[src].q : o[src].a;                 // 소스별 값
+  const cq   = (o) => psSource==='all' ? o.deal.q + o.ship.q + o.gov.q : o[psSource].q;   // 현재 소스 수량 (합계=3채널 전부)
+  const ca   = (o) => psSource==='all' ? o.deal.a + o.ship.a + o.gov.a : o[psSource].a;   // 현재 소스 금액
+  const cv   = (o) => qtyMode ? cq(o) : ca(o);                          // 현재 소스 값(선택 지표)
+  const curMonthly = (o) => {
+    const key = qtyMode ? 'm' : 'mA';
+    if (psSource==='all') return Array.from({length:12},(_,i)=> o[key].deal[i] + o[key].ship[i] + o[key].gov[i]);
+    return o[key][psSource].slice();
+  };
+  const cell = (v) => qtyMode ? (v ? v.toLocaleString() : '<span style="color:#c4ccd4">—</span>') : (v ? fmtMoney(v) : '<span style="color:#c4ccd4">—</span>');
+  const unit = qtyMode ? '수량' : '금액';
+
+  // 컨트롤 바
+  const srcSeg = ['all','deal','ship','gov'].map(s=>{
+    const on = psSource===s; const m = PS_SRC_META[s];
+    return `<span onclick="setPsSource('${s}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 12px;border-radius:7px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${s==='gov'?'🏛️ ':''}${m.label}</span>`;
+  }).join('');
+  const metSeg = [['qty','수량'],['amt','금액']].map(([v,l])=>{
+    const on = psMetric===v;
+    return `<span onclick="setPsMetric('${v}')" style="cursor:pointer;font-size:12.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:6px 13px;border-radius:7px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${l}</span>`;
+  }).join('');
+  const ctrl = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+    <div style="display:inline-flex;background:#eef1f4;border-radius:9px;padding:3px;gap:2px;">${srcSeg}</div>
+    <div style="display:inline-flex;background:#eef1f4;border-radius:9px;padding:3px;gap:2px;">${metSeg}</div>
+    <button class="btn btn-secondary btn-sm" style="margin-left:auto;color:#15803d;border-color:#c6e6d3;" onclick="exportProductStats()">⬇ 엑셀(CSV) 내보내기</button>
+  </div>`;
+
+  if (!names.length){
+    $('dashProductTab').innerHTML = ctrl + `<div class="section-card"><div class="empty-state" style="padding:40px 20px;text-align:center;"><div class="empty-desc">${y}년에 집계할 제품이 없어요 · 프로젝트 제품 구성 또는 출고건 제품이 입력되면 여기 모여요</div></div></div>`;
+    return;
+  }
+
+  // KPI (현재 소스 기준)
+  let totQ=0, totA=0, kinds=0, topName='-', topV=-1;
+  names.forEach(n=>{ const o=map[n]; const q=cq(o), a=ca(o), v=cv(o); totQ+=q; totA+=a; if(v>0)kinds++; if(v>topV){topV=v; topName=n;} });
+  const kpi = `<div class="stats-grid" style="margin-bottom:18px;">
+    <div class="stat-card"><div class="stat-label">총 수량 · ${PS_SRC_META[psSource].label}</div><div class="stat-value">${totQ.toLocaleString()}<span class="unit">대·개</span></div><div class="stat-sub">${y}년</div></div>
+    <div class="stat-card"><div class="stat-label">총 금액 (공급가)</div><div class="stat-value">${fmtMoney(totA)}</div><div class="stat-sub">제품값+설치비 · VAT 별도</div></div>
+    <div class="stat-card"><div class="stat-label">제품 종류</div><div class="stat-value">${kinds}<span class="unit">종</span></div><div class="stat-sub">이름 기준 자동 집계</div></div>
+    <div class="stat-card"><div class="stat-label">최다 ${unit} 제품</div><div class="stat-value" style="font-size:18px;">${esc(topName)}</div><div class="stat-sub">${qtyMode?topV.toLocaleString()+' 대·개':fmtMoney(topV)}</div></div>
+  </div>`;
+
+  // 제품별 집계 표 — 선택한 소스 탭에 "실제로 나간" 제품만 표시
+  const srcHas = (o) => psSource==='all' ? ((o.deal.q+o.ship.q+o.gov.q)>0 || (o.deal.a+o.ship.a+o.gov.a)>0) : (o[psSource].q>0 || o[psSource].a>0);
+  const curCol = (o) => psSource==='all' ? (val(o,'deal')+val(o,'ship')+val(o,'gov')) : val(o,psSource);   // 선택 소스 값(합계=3채널)
+  let bRows = names.map(n=>({ n, o:map[n],
+      qtySum: (psSource==='all' ? map[n].deal.q + map[n].ship.q + map[n].gov.q : map[n][psSource].q),        // 선택 소스 수량(출고량순)
+      valSum: curCol(map[n]) }))                                                              // 선택 소스 값(비율순)
+    .filter(r=> srcHas(r.o));
+  if (psSort==='name')      bRows.sort((a,b)=> a.n.localeCompare(b.n,'ko'));
+  else if (psSort==='pct')  bRows.sort((a,b)=> b.valSum - a.valSum);
+  else                      bRows.sort((a,b)=> b.qtySum - a.qtySum);   // 'qty' 출고량순
+  const curTotal = bRows.reduce((s,r)=> s + curCol(r.o), 0);           // 선택 소스 총합(비중 분모)
+  const grandSum = curTotal;
+  const sortSeg = [['qty','출고량순'],['pct','비율순'],['name','이름순']].map(([v,l])=>{
+    const on = psSort===v;
+    return `<span onclick="setPsSort('${v}')" style="cursor:pointer;font-size:11.5px;font-weight:${on?800:700};color:${on?'var(--primary)':'var(--text-secondary)'};padding:5px 11px;border-radius:6px;${on?'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);':''}">${l}</span>`;
+  }).join('');
+  // 합계 탭이면 4개 소스 비교 표, 특정 소스 탭이면 그 소스 단일 표
+  const pctOf = (o) => curTotal>0 ? Math.round(curCol(o)/curTotal*1000)/10 : 0;
+  let tableHead, tableBody, tableFoot, bdDesc, bdTitleSub;
+  if (psSource==='all'){
+    bdTitleSub = `(${unit} · 프로젝트+출고건+정부지원)`;
+    bdDesc = `합계 = 프로젝트 + 출고건 + 🏛️정부지원 (세 채널 전부) · 실제로 나간 제품만`;
+    tableHead = `<th style="text-align:left;">제품명</th><th class="td-num" style="color:#0A84FF;">프로젝트</th><th class="td-num" style="color:#2ba84a;">출고건</th><th class="td-num" style="color:#5E5CE6;">🏛️정부지원</th><th class="td-num" style="font-weight:800;">합계</th><th class="td-num">비중</th>`;
+    tableBody = bRows.map(r=>{
+      const dv=val(r.o,'deal'), sv=val(r.o,'ship'), gv=val(r.o,'gov'), sum=dv+sv+gv, cc=curCol(r.o), pct=pctOf(r.o);
+      return `<tr><td style="font-weight:600;">${esc(r.n)}</td><td class="td-num" style="color:#0A84FF;">${cell(dv)}</td><td class="td-num" style="color:#2ba84a;">${cell(sv)}</td><td class="td-num" style="color:#5E5CE6;">${cell(gv)}</td><td class="td-num" style="font-weight:800;">${cell(sum)}</td><td class="td-num" style="color:var(--text-tertiary);">${cc?pct+'%':'—'}</td></tr>`;
+    }).join('');
+    tableFoot = `<td>합계 (${bRows.length}종)</td><td class="td-num">${cell(bRows.reduce((s,r)=>s+val(r.o,'deal'),0))}</td><td class="td-num">${cell(bRows.reduce((s,r)=>s+val(r.o,'ship'),0))}</td><td class="td-num">${cell(bRows.reduce((s,r)=>s+val(r.o,'gov'),0))}</td><td class="td-num">${cell(grandSum)}</td><td class="td-num">100%</td>`;
+  } else {
+    const m = PS_SRC_META[psSource]; const lbl = (psSource==='gov'?'🏛️ ':'')+m.label;
+    bdTitleSub = `(${lbl} · ${unit})`;
+    bdDesc = `${lbl}(으)로 실제 나간 제품만 · 비중은 ${m.label} 안에서의 비중이에요`;
+    tableHead = `<th style="text-align:left;">제품명</th><th class="td-num" style="color:${m.color};">${lbl} ${unit}</th><th class="td-num">비중</th>`;
+    tableBody = bRows.map(r=>{
+      const cc=curCol(r.o), pct=pctOf(r.o);
+      return `<tr><td style="font-weight:600;">${esc(r.n)}</td><td class="td-num" style="color:${m.color};font-weight:700;">${cell(cc)}</td><td class="td-num" style="color:var(--text-tertiary);">${cc?pct+'%':'—'}</td></tr>`;
+    }).join('');
+    tableFoot = `<td>합계 (${bRows.length}종)</td><td class="td-num">${cell(curTotal)}</td><td class="td-num">100%</td>`;
+  }
+  const breakdown = `<div class="section-card" style="margin-bottom:18px;">
+    <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;"><div class="section-title">🧾 제품별 집계 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">${bdTitleSub}</span></div>
+      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;"><span style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">정렬</span><div style="display:inline-flex;background:#eef1f4;border-radius:8px;padding:3px;gap:2px;">${sortSeg}</div></div>
+    </div>
+    <div class="section-desc">${bdDesc}</div>
+    <div style="overflow-x:auto;"><table class="data-table" style="min-width:${psSource==='all'?'640px':'360px'};">
+      <thead><tr>${tableHead}</tr></thead>
+      <tbody>
+        ${tableBody}
+        <tr style="background:#f7f9fc;font-weight:800;border-top:1.5px solid var(--border);">${tableFoot}</tr>
+      </tbody>
+    </table></div>
+  </div>`;
+
+  // 월별 추이 (현재 소스) + 호버 툴팁
+  const mDeal=Array(12).fill(0), mShip=Array(12).fill(0), mGov=Array(12).fill(0), mTot=Array(12).fill(0);
+  names.forEach(n=>{ const o=map[n]; const key=qtyMode?'m':'mA';
+    for(let i=0;i<12;i++){
+      if(psSource==='all'){ mDeal[i]+=o[key].deal[i]; mShip[i]+=o[key].ship[i]; mGov[i]+=o[key].gov[i]; mTot[i]+=o[key].deal[i]+o[key].ship[i]+o[key].gov[i]; }
+      else { mTot[i]+=o[key][psSource][i]; }
+    }
+  });
+  // 툴팁용: 월별 제품 내역 (현재 소스·지표)
+  psBarData = Array.from({length:12},(_,i)=>{
+    const items = names.map(n=>({ n, v: curMonthly(map[n])[i] })).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+    return { tot: mTot[i], items };
+  });
+  const mMax = Math.max(1, ...mTot);
+  const stacked = psSource==='all';
+  const barLbl = v => v ? (qtyMode ? v.toLocaleString() : fmtMoney(v)) : '';
+  const shipHex = PS_SRC_META.ship.color, dealHex = PS_SRC_META.deal.color, govHex = PS_SRC_META.gov.color, curHex = PS_SRC_META[psSource].color;
+  const bars = Array.from({length:12},(_,i)=>{
+    const h = Math.round(mTot[i]/mMax*100);
+    const seg = (v,c)=> `<div style="height:${mTot[i]?Math.round(v/mTot[i]*100):0}%;background:${c};"></div>`;
+    const inner = stacked
+      ? seg(mDeal[i],dealHex) + seg(mShip[i],shipHex) + seg(mGov[i],govHex)   // column-reverse: 프로젝트 아래→출고건→정부지원 위
+      : `<div style="height:100%;background:${curHex};"></div>`;
+    return `<div onmousemove="psBarMove(event,${i})" onmouseleave="psBarLeave()" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;cursor:default;">
+      <div style="font-size:9.5px;color:var(--text-tertiary);font-weight:700;min-height:12px;">${barLbl(mTot[i])}</div>
+      <div style="width:60%;max-width:32px;height:${h}%;min-height:${mTot[i]?3:0}px;border-radius:6px 6px 3px 3px;overflow:hidden;display:flex;flex-direction:column-reverse;transition:opacity .12s;">${inner}</div>
+      <div style="font-size:10.5px;color:var(--text-tertiary);font-weight:700;">${i+1}월</div>
+    </div>`;
+  }).join('');
+  const dot = (c,l) => `<span><i style="width:10px;height:10px;border-radius:3px;display:inline-block;background:${c};margin-right:5px;vertical-align:-1px;"></i>${l}</span>`;
+  const legend = stacked
+    ? `<div style="display:flex;gap:14px;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">${dot(dealHex,'프로젝트')}${dot(shipHex,'출고건')}${dot(govHex,'🏛️정부지원')}</div>`
+    : '';
+  const monthly = `<div class="section-card" style="margin-bottom:18px;">
+    <div class="section-header"><div class="section-title">📈 월별 추이 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(${PS_SRC_META[psSource].label} · ${unit}) · 막대에 마우스를 올리면 제품별 내역</span></div></div>
+    ${legend}
+    <div style="display:flex;align-items:flex-end;gap:8px;height:170px;padding-top:6px;">${bars}</div>
+  </div>`;
+
+  // 월 × 제품 표 (현재 소스) — 히트맵 음영 + 제품명 고정
+  let pRows = names.map(n=>({ n, o:map[n], m:curMonthly(map[n]), tot:cv(map[n]) })).filter(r=> r.tot > 0);
+  if (psSort==='name')      pRows.sort((a,b)=> a.n.localeCompare(b.n,'ko'));
+  else                      pRows.sort((a,b)=> b.tot - a.tot);   // qty/pct 모두 값 큰 순
+  const colTot = Array(12).fill(0); pRows.forEach(r=> r.m.forEach((v,i)=> colTot[i]+=v));
+  let maxCell = 1; pRows.forEach(r=> r.m.forEach(v=>{ if(v>maxCell) maxCell=v; }));
+  const [hr,hg,hb] = hexToRgb(curHex);
+  const heat = v => v ? `background:rgba(${hr},${hg},${hb},${(0.10 + 0.44*(v/maxCell)).toFixed(3)});` : '';
+  const fmtV = v => qtyMode ? v.toLocaleString() : fmtMoney(v);
+  const stickyName = 'position:sticky;left:0;background:#fff;z-index:2;box-shadow:1px 0 0 var(--border);';
+  const pivot = `<div class="section-card">
+    <div class="section-header"><div class="section-title">🗂️ 월 × 제품 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(${PS_SRC_META[psSource].label} · ${unit})</span></div></div>
+    <div class="section-desc">색이 진할수록 그 달에 많이 나간 제품이에요 · 제품명은 가로 스크롤해도 고정돼요</div>
+    <div style="overflow-x:auto;"><table style="width:100%;min-width:820px;border-collapse:separate;border-spacing:0;">
+      <thead><tr>
+        <th style="${stickyName}text-align:left;font-size:11.5px;color:var(--text-secondary);font-weight:800;padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">제품</th>
+        ${Array.from({length:12},(_,i)=>`<th style="text-align:right;font-size:11.5px;color:var(--text-tertiary);font-weight:700;padding:10px 10px;border-bottom:2px solid var(--border);white-space:nowrap;">${i+1}월</th>`).join('')}
+        <th style="text-align:right;font-size:11.5px;color:var(--ink);font-weight:800;padding:10px 12px;border-bottom:2px solid var(--border);background:#fbfcfe;">합계</th>
+      </tr></thead>
+      <tbody>
+        ${pRows.map((r,ri)=>`<tr style="background:${ri%2?'#fcfdfe':'#fff'};">
+          <td style="position:sticky;left:0;background:${ri%2?'#fcfdfe':'#fff'};z-index:1;box-shadow:1px 0 0 var(--border);font-weight:700;font-size:13px;padding:10px 12px;white-space:nowrap;">${esc(r.n)}</td>
+          ${r.m.map(v=>`<td style="text-align:right;padding:9px 10px;font-size:13px;font-weight:${v?700:400};color:${v?'var(--ink)':'#d3d9df'};${heat(v)}">${v? fmtV(v) : '·'}</td>`).join('')}
+          <td style="text-align:right;padding:9px 12px;font-size:13px;font-weight:800;background:#fbfcfe;">${fmtV(r.tot)}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);">
+          <td style="position:sticky;left:0;background:#f4f7fb;z-index:1;box-shadow:1px 0 0 var(--border);font-weight:800;font-size:12.5px;padding:11px 12px;">월 합계</td>
+          ${colTot.map(v=>`<td style="text-align:right;padding:11px 10px;font-size:12.5px;font-weight:800;background:#f4f7fb;">${v?fmtV(v):'·'}</td>`).join('')}
+          <td style="text-align:right;padding:11px 12px;font-size:12.5px;font-weight:800;background:#eef3f9;">${fmtV(colTot.reduce((a,b)=>a+b,0))}</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </div>`;
+
+  const note = `<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;margin-top:16px;background:#fbfcfe;border:1px solid var(--border);border-radius:11px;padding:13px 16px;">
+    · <b>설치비는 같은 프로젝트/출고건의 제품 가격에 합산</b>해요. 제품 행의 "설치비/대"와, 별도로 들어간 <b>「설치비」 항목</b>은 그 기록의 제품들에 (금액 비례로) 얹어서 집계돼요. 수량은 실제 제품 대수만 세고, 설치비는 대수로 세지 않아요.<br>
+    · <b>프로젝트(설치건)</b>는 설치·납품 완료 기준(설치완료일), <b>출고건</b>은 출고 완료 기준(출고일, 일반출고). <b>합계 = 프로젝트 + 출고건 + 정부지원</b> 세 채널 전부예요. 프로젝트·출고건 탭은 각 채널만, 정부지원 탭은 정부지원만 봐요.<br>
+    · 같은 <b>제품명끼리 자동 합산</b>해요(띄어쓰기·표기가 다르면 다른 제품으로 잡혀요).<br>
+    · <b>AI-S0·AI-S1·AI-S2·AI-S3</b>는 세부 사양(80V·전동지게차 등)과 상관없이 <b>모델명 하나로 묶어서</b> 집계해요.${dealNoItem?`<br>· 제품 구성이 입력 안 된 프로젝트 <b>${dealNoItem}건</b>은 수량을 알 수 없어 제외했어요.`:''}<br>
+    · 출고 <b>반품</b>은 제품별로 나눠 저장돼 있지 않아, 제품 통계는 <b>출고 시점(반품 전)</b> 기준이에요. 반품 반영 순매출은 「매출 요약」 탭에서 봐요.
+  </div>`;
+
+  $('dashProductTab').innerHTML = ctrl + kpi + breakdown + monthly + pivot + note;
+}
+// 월별 추이 막대 호버 툴팁
+function psBarMove(ev, mi){
+  const d = psBarData[mi]; if(!d) return;
+  let tip = $('psBarTip');
+  if (!tip){ tip = document.createElement('div'); tip.id='psBarTip';
+    tip.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:rgba(28,30,34,.97);color:#fff;border-radius:14px;padding:15px 18px;line-height:1.5;box-shadow:0 14px 38px rgba(0,0,0,.34);width:264px;';
+    document.body.appendChild(tip);
+  }
+  const qtyMode = psMetric==='qty';
+  const label = (psSource==='gov'?'🏛️ ':'') + PS_SRC_META[psSource].label;
+  const totTxt = qtyMode ? d.tot.toLocaleString()+'대' : fmtMoney(d.tot);
+  const head = `<div style="font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;padding-bottom:11px;margin-bottom:9px;border-bottom:1px solid rgba(255,255,255,.14);">${mi+1}월 · ${label}<span style="margin-left:auto;font-size:12px;color:#c7ccd4;font-weight:700;">총 ${totTxt}</span></div>`;
+  if (!d.items.length){
+    tip.innerHTML = head + `<div style="opacity:.7;font-size:12.5px;padding:2px 0;">나간 제품 없음</div>`;
+  } else {
+    const TOPN = 8;
+    const shown = d.items.slice(0, TOPN);
+    const rows = shown.map((it,idx)=>{
+      const pct = d.tot>0 ? Math.round(it.v/d.tot*100) : 0;
+      const vTxt = qtyMode ? it.v.toLocaleString()+'대' : fmtMoney(it.v);
+      return `<div style="display:flex;align-items:center;gap:9px;padding:6px 0;">
+        <span style="width:18px;height:18px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,.13);color:#e3e7ec;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;">${idx+1}</span>
+        <span style="font-size:13px;font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.n)}</span>
+        <span style="margin-left:auto;font-size:14px;font-weight:800;white-space:nowrap;">${vTxt}</span>
+        <span style="font-size:11px;font-weight:800;color:#fff;background:rgba(255,255,255,.16);border-radius:20px;padding:2px 8px;min-width:44px;text-align:center;">${pct}%</span>
+      </div>`;
+    }).join('');
+    const more = d.items.length > TOPN ? `<div style="font-size:11.5px;color:#aeb4bd;font-weight:600;padding-top:7px;margin-top:4px;border-top:1px solid rgba(255,255,255,.1);">외 ${d.items.length-TOPN}개 제품 더</div>` : '';
+    tip.innerHTML = head + rows + more;
+  }
+  tip.style.display='block';
+  const pad=14; let x=ev.clientX+pad, y=ev.clientY+pad;
+  const w=tip.offsetWidth, h=tip.offsetHeight;
+  if (x+w>window.innerWidth-8) x=ev.clientX-w-pad;
+  if (y+h>window.innerHeight-8) y=ev.clientY-h-pad;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function psBarLeave(){ const tip=$('psBarTip'); if(tip) tip.style.display='none'; }
+function exportProductStats(){
+  const y = selectedYear;
+  const { map } = collectProductStats(y);
+  const names = Object.keys(map);
+  const qtyMode = psMetric === 'qty';
+  const val = (o,src)=> qtyMode ? o[src].q : o[src].a;
+  const key = qtyMode ? 'm' : 'mA';
+  const rows = [[`제품통계 ${y}년 (${qtyMode?'수량':'금액(원)'})`], ['제품명','프로젝트','출고건','정부지원','합계(프로젝트+출고건+정부지원)','1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']];
+  names.map(n=>({n,o:map[n],qtySum:map[n].deal.q+map[n].ship.q+map[n].gov.q,valSum:val(map[n],'deal')+val(map[n],'ship')+val(map[n],'gov')}))
+       .filter(r=> (r.o.deal.q+r.o.ship.q+r.o.gov.q)>0 || (r.o.deal.a+r.o.ship.a+r.o.gov.a)>0)
+       .sort((a,b)=> psSort==='name' ? a.n.localeCompare(b.n,'ko') : (psSort==='pct' ? b.valSum-a.valSum : b.qtySum-a.qtySum))
+       .forEach(r=>{
+         const o=r.o; const dv=val(o,'deal'),sv=val(o,'ship'),gv=val(o,'gov');
+         // 월 컬럼은 현재 소스 기준 (합계=3채널)
+         const mon = psSource==='all' ? Array.from({length:12},(_,i)=>o[key].deal[i]+o[key].ship[i]+o[key].gov[i]) : o[key][psSource];
+         rows.push([r.n, dv, sv, gv, dv+sv+gv, ...mon]);
+       });
+  const csv = rows.map(r=> r.map(c=>{ const s=String(c==null?'':c); return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `제품통계_${y}_${psSource}_${qtyMode?'수량':'금액'}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  toast('CSV로 내보냈어요 ✓');
 }
 
 function goUnpaid(){
