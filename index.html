@@ -573,6 +573,8 @@
         .cm-row .cm-nm { font-size: 13px; font-weight: 800; }
         .cm-row .cm-use { font-size: 11px; color: var(--text-tertiary); font-weight: 600; margin-left: auto; }
         .cm-row .cm-use.warn { color: var(--status-critical); }
+        .cm-row .cm-edit { font-size: 11.5px; font-weight: 700; color: var(--primary); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+        .cm-row .cm-edit:hover { background: var(--seg-track); }
         .cm-row .cm-rm { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border); color: var(--text-tertiary); font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
         .cm-row .cm-rm:hover { color: var(--status-critical); background: #fdecec; border-color: #f3c0c0; }
         .kdeal {
@@ -1431,7 +1433,10 @@
                 </div>
                 <div class="stats-grid" id="finKpis"></div>
                 <div class="section-card" style="margin-bottom:18px;">
-                    <div class="section-title" style="margin-bottom:4px;">🏢 거래처별 결제 조건</div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+                        <div class="section-title">🏢 거래처별 결제 조건</div>
+                        <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="openCompanyManage()">⚙️ 거래처 관리 · 이름 변경</button>
+                    </div>
                     <div class="section-desc" style="margin-bottom:12px;">업체마다 다른 지급 기준·정기 결제일을 수기로 관리해요 · 미수금은 자동 계산</div>
                     <div style="overflow-x:auto;">
                         <table class="data-table" id="finTermsTable"></table>
@@ -1560,14 +1565,44 @@
                     </div>
                     <div class="modal-body">
                         <div style="font-size:12.3px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">프로젝트·출고 등록에서 고르는 거래처 목록이에요. 삭제해도 기존 기록은 그대로예요.</div>
-                        <div style="display:flex;gap:8px;margin-bottom:14px;">
+                        <div style="display:flex;gap:8px;margin-bottom:12px;">
                             <input type="text" class="form-input" id="cmNewName" placeholder="새 거래처 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();cmAddNew();}">
                             <button class="btn btn-primary" style="white-space:nowrap;" onclick="cmAddNew()">＋ 추가</button>
                         </div>
-                        <div id="cmList" style="max-height:320px;overflow-y:auto;"></div>
+                        <button class="btn btn-secondary btn-sm" style="width:100%;margin-bottom:12px;" onclick="toggleCoMerge()">🔗 비슷한 이름 자동 찾아 합치기</button>
+                        <div id="cmMergeArea" style="display:none;margin-bottom:14px;"></div>
+                        <div id="cmList" style="max-height:300px;overflow-y:auto;"></div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-primary" onclick="closeCompanyManage()">닫기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 업체 건별 내역 팝업 (수금·재무에서 업체 클릭) -->
+            <div class="modal-overlay" id="coRecModal">
+                <div class="modal" style="max-width:560px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="coRecTitle">업체 내역</h2>
+                        <button class="modal-close" onclick="closeCoRecords()">×</button>
+                    </div>
+                    <div class="modal-body" id="coRecBody"></div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="closeCoRecords()">닫기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 건 상세 팝업 (업체 내역에서 항목 클릭) -->
+            <div class="modal-overlay" id="recDetailModal" style="z-index:4000;">
+                <div class="modal" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="recDetailTitle">상세</h2>
+                        <button class="modal-close" onclick="closeRecDetail()">×</button>
+                    </div>
+                    <div class="modal-body" id="recDetailBody"></div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="closeRecDetail()">닫기</button>
                     </div>
                 </div>
             </div>
@@ -2347,6 +2382,7 @@ let psSource = 'all';            // 'all' 합계(프로젝트+출고건) | 'deal
 let psMetric = 'qty';            // 'qty' 수량 | 'amt' 금액
 let psSort   = 'qty';            // 'qty' 출고량순 | 'pct' 비율순 | 'name' 이름순
 let psBarData = [];              // 월별 추이 툴팁용 (12개월 × 제품 내역)
+let psCoFilter = '';             // 업체×제품 뷰: 특정 업체만 (빈값=전체)
 let currentDealId = null;
 let loadedAt = null;
 let viewMode = 'cards'; // 'cards'(카드 목록, 기본) | 'board'(단계별)
@@ -2504,6 +2540,9 @@ async function loadKvRemote(){
     else if (companyCatalog && companyCatalog.length) { await sbUpsert(KV_TABLE, [{k:'company_catalog', data:companyCatalog}], 'k'); }
     if (Array.isArray(map.company_hidden)) { companyHidden = map.company_hidden; try{ localStorage.setItem(CHIDE_LS_KEY, JSON.stringify(companyHidden)); }catch(e){} }
     else if (companyHidden && companyHidden.length) { await sbUpsert(KV_TABLE, [{k:'company_hidden', data:companyHidden}], 'k'); }
+    // 거래처 별칭(같은 회사 묶기)
+    if (map.co_alias != null) { coAlias = map.co_alias || {}; try{ localStorage.setItem(CALIAS_LS_KEY, JSON.stringify(coAlias)); }catch(e){} }
+    else if (coAlias && Object.keys(coAlias).length) { await sbUpsert(KV_TABLE, [{k:'co_alias', data:coAlias}], 'k'); }
     // 딜 수금 내역
     if (map.deal_payments != null) { dealPayments = map.deal_payments || {}; try{ localStorage.setItem(PAY_LS_KEY, JSON.stringify(dealPayments)); }catch(e){} }
     else if (dealPayments && Object.keys(dealPayments).length) { await sbUpsert(KV_TABLE, [{k:'deal_payments', data:dealPayments}], 'k'); }
@@ -2611,6 +2650,7 @@ function loadAsLocal(){
   loadFinanceHidden();
   loadCompanyCatalog();
   loadCompanyHidden();
+  loadCoAlias();
   loadDealBatches();
   loadAttachFiles();
 }
@@ -3087,24 +3127,24 @@ function totalUnpaid(){ // 누적 미수금(원) — 소스별 내역 포함
 // 프로젝트(딜)+출고건 고객사 자동 수집 (중복 제거)
 function financeCompaniesAll(){
   const set = new Set();
-  deals.forEach(d=>{ const c=(d.co||'').trim(); if(c) set.add(c); });
-  shipments.forEach(s=>{ const c=(s.co||'').trim(); if(c) set.add(c); });
+  deals.forEach(d=>{ const c=canonCo(d.co); if(c) set.add(c); });
+  shipments.forEach(s=>{ const c=canonCo(s.co); if(c) set.add(c); });
   return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
 }
 function financeCompanies(){ return financeCompaniesAll().filter(c=>!isFinanceHidden(c)); }
 // 업체별 현재 미수금(원): 딜 미수금 + 딜 미연결 수금건(미수) + 미수금 출고건
 function companyUnpaidWon(co){
   let sum = 0;
-  deals.forEach(d=>{ if((d.co||'').trim()===co) sum += dealUnpaid(d); });
-  recvList.forEach(r=>{ if(!r.deal_id && r.status!=='received' && (r.company_name||'').trim()===co) sum += manToWon(r.amount); });
-  shipments.forEach(s=>{ if(shipDone(s) && !s.collected && (s.co||'').trim()===co) sum += shipNet(s); });
+  deals.forEach(d=>{ if(canonCo(d.co)===co) sum += dealUnpaid(d); });
+  recvList.forEach(r=>{ if(!r.deal_id && r.status!=='received' && canonCo(r.company_name)===co) sum += manToWon(r.amount); });
+  shipments.forEach(s=>{ if(shipDone(s) && !s.collected && canonCo(s.co)===co) sum += shipNet(s); });
   return sum;
 }
 // 업체별 연체(원)
 function companyOverdueWon(co){
   let sum = 0;
-  recvList.forEach(r=>{ if(r.status==='overdue' && !r.deal_id && (r.company_name||'').trim()===co) sum += manToWon(r.amount); });
-  deals.forEach(d=>{ if((d.co||'').trim()===co && dealRecvState(d)==='overdue') sum += dealUnpaid(d); });
+  recvList.forEach(r=>{ if(r.status==='overdue' && !r.deal_id && canonCo(r.company_name)===co) sum += manToWon(r.amount); });
+  deals.forEach(d=>{ if(canonCo(d.co)===co && dealRecvState(d)==='overdue') sum += dealUnpaid(d); });
   return sum;
 }
 // 날짜 + N일
@@ -3132,7 +3172,7 @@ function financeUpcoming(coFilter){
   const today = new Date().toISOString().slice(0,10);
   const rows = [];
   const push = (co, invDate, amt, kind) => {
-    co = (co||'').trim(); if (!co || amt<=0 || !invDate) return;
+    co = canonCo(co); if (!co || amt<=0 || !invDate) return;
     if (isFinanceHidden(co)) return;
     if (coFilter && co!==coFilter) return;
     const nd = coNetDays(co);
@@ -3184,7 +3224,7 @@ function renderFinance(){
     const lbl = termLabel(tm);
     const note = termNote(tm);
     return `<tr>
-      <td style="font-weight:800;">${esc(co)}</td>
+      <td><span onclick="openCoRecords('${esc(co).replace(/'/g,"\\'")}')" style="font-weight:800;cursor:pointer;border-bottom:1px dashed var(--text-tertiary);" title="이 업체 건들 보기">${esc(co)}</span></td>
       <td>${lbl ? `<span class="fin-term">${esc(lbl)}</span>` : `<span style="color:var(--text-tertiary);font-size:12px;">미등록</span>`}</td>
       <td style="color:var(--text-secondary);font-weight:600;">${note ? esc(note) : '<span style="color:var(--text-tertiary);">—</span>'}</td>
       <td style="text-align:right;font-weight:800;${unpaid>0?'':'color:var(--text-tertiary);font-weight:600;'}">${unpaid>0?fmtWon(unpaid)+'원':'0원'}</td>
@@ -3201,7 +3241,7 @@ function renderFinance(){
   // 다가오는 입금 예정 — 계산서 발행일 + 수금 기준으로 자동 계산
   const up = financeUpcoming();
   $('finUpcoming').innerHTML = up.length ? up.slice(0,40).map(r=>`
-    <div class="fin-up">
+    <div class="fin-up" style="cursor:pointer;" onclick="openCoRecords('${esc(r.co).replace(/'/g,"\\'")}')">
       <span class="fin-up-date${r.overdue?' od':''}" style="${r.noBasis?'color:var(--text-tertiary);':''}">${r.noBasis?'기준필요':(r.overdue?'연체':(r.date?r.date.slice(5).replace('-','.'):'미정'))}</span>
       <span class="fin-up-co">${esc(r.co)} <span class="fin-up-tag">🧾 ${r.invDate.slice(5).replace('-','.')} 발행</span>${r.overdue?' <span class="fin-up-tag od">기일 초과</span>':''}${r.noBasis?' <span class="fin-up-tag od">수금 기준 미입력</span>':''}</span>
       <span class="fin-up-amt"${r.overdue?' style="color:var(--status-critical);"':''}>${fmtWon(r.amt)}원</span>
@@ -3342,6 +3382,128 @@ function openCoFinPop(co, ev){
   pop.style.top = y + 'px';
 }
 function closeCoFinPop(){ const p=$('coFinPop'); if(p) p.style.display='none'; }
+/* 수금·재무 — 업체 클릭 시 그 회사로 잡힌 건들을 팝업으로 (이동 없음) */
+let _coRecCurrent = '', _editFromCoRec = false;
+function openDealEditFromCo(id){ currentDealId = id; openEditModal(); _editFromCoRec = true; }
+function openCoRecords(co){
+  co = (co||'').trim(); if(!co) return;
+  _coRecCurrent = co;
+  const dmatch = deals.filter(d=> canonCo(d.co)===co).sort((a,b)=>String(b.delivery_date||b.created_at||'').localeCompare(String(a.delivery_date||a.created_at||'')));
+  const smatch = shipments.filter(s=> shipDone(s) && canonCo(s.co)===co).sort((a,b)=>String(b.ship_date||'').localeCompare(String(a.ship_date||'')));
+  const rmatch = recvList.filter(r=> !r.deal_id && canonCo(r.company_name)===co).sort((a,b)=>String(b.expected_date||'').localeCompare(String(a.expected_date||'')));
+  const unpaid = companyUnpaidWon(co);
+  const line = (left, sub, right, rightSub, red, click) => `
+    <div ${click?`onclick="${click}"`:''} style="display:flex;align-items:center;gap:12px;padding:11px 2px;border-top:1px solid var(--border);${click?'cursor:pointer;':''}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;">${left}</div>
+        ${sub?`<div style="font-size:11.5px;color:var(--text-tertiary);font-weight:500;margin-top:3px;">${sub}</div>`:''}
+      </div>
+      <div style="text-align:right;white-space:nowrap;">
+        <div style="font-size:13.5px;font-weight:800;${red?'color:var(--status-critical);':''}">${right}</div>
+        ${rightSub?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:600;margin-top:2px;">${rightSub}</div>`:''}
+      </div>
+      ${click?'<span style="color:var(--text-tertiary);font-size:15px;flex-shrink:0;">›</span>':''}
+    </div>`;
+  const sec = (icon, title, cnt, rows) => cnt ? `
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:800;color:var(--text-secondary);">${icon} ${title} <span style="color:var(--text-tertiary);font-weight:600;">${cnt}건</span></div>
+      ${rows}
+    </div>` : '';
+
+  const dealRows = dmatch.map(d=>{
+    const amt=d.amount||0, paid=dealPaid(d), un=dealUnpaid(d);
+    const inv = dealInvoiced(d) ? '🧾 계산서 발행' : '계산서 전';
+    return line(esc(dealTitle(d)||d.name||'(이름 없음)'), `${esc(dispStage(d))} · ${inv}${d.delivery_date?' · '+fmtDate(d.delivery_date):''}`,
+      un>0?fmtWon(un)+'원':'완납', un>0?`계약 ${fmtWon(amt)} · 수금 ${fmtWon(paid)}`:`계약 ${fmtWon(amt)}`, un>0, `openDealEditFromCo(${d.id})`);
+  }).join('');
+  const shipRows = smatch.map(s=>{
+    const net=shipNet(s); const un = s.collected?0:net;
+    const inv = s.tax_invoice_issued ? '🧾 계산서 발행' : '계산서 전';
+    return line(esc(s.name||s.prod||'출고 건'), `${fmtDate(s.ship_date)} · ${inv}${s.gov_support?' · 🏛️정부지원':''}`,
+      s.collected?'수금 완료':(fmtWon(net)+'원'), s.collected?`${fmtWon(net)} 수금`:'수금 전', !s.collected && net>0, `openShipModal(${s.id})`);
+  }).join('');
+  const recvRows = rmatch.map(r=>{
+    const won=manToWon(r.amount); const done=r.status==='received';
+    return line(esc(r.company_name||'수금 건'), `${RECV_LABEL[r.status]||r.status||''}${r.expected_date?' · 예정 '+fmtDate(r.expected_date):''}`,
+      done?'수금 완료':fmtWon(won)+'원', done?'':'미수', !done, `openRecDetail('recv',${r.id})`);
+  }).join('');
+
+  const empty = (!dmatch.length && !smatch.length && !rmatch.length);
+  $('coRecTitle').textContent = co;
+  $('coRecBody').innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+      <div style="flex:1;min-width:130px;background:var(--bg-subtle);border-radius:12px;padding:12px 14px;">
+        <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">현재 미수금</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:${unpaid>0?'var(--status-critical)':'var(--text-primary)'};">${fmtWon(unpaid)}<span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">원</span></div>
+      </div>
+      <div style="flex:1;min-width:130px;background:var(--bg-subtle);border-radius:12px;padding:12px 14px;">
+        <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">잡힌 건수</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;">${dmatch.length+smatch.length+rmatch.length}<span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">건</span></div>
+      </div>
+    </div>
+    ${empty ? '<div class="di-note-empty" style="padding:20px 4px;">이 업체로 잡힌 건이 없어요</div>' : ''}
+    ${sec('📁','프로젝트(딜)', dmatch.length, dealRows)}
+    ${sec('📦','출고·납품', smatch.length, shipRows)}
+    ${sec('💳','개별 수금', rmatch.length, recvRows)}
+    <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:16px;line-height:1.6;">※ 같은 회사로 묶인 이름(별칭)의 건도 모두 함께 보여줘요.</div>`;
+  $('coRecModal').classList.add('active');
+}
+function closeCoRecords(){ $('coRecModal').classList.remove('active'); }
+/* 건 상세 팝업 (읽기 전용) — 업체 내역 팝업 위에 뜸 */
+function openRecDetail(kind, id){
+  const kv = (k,v) => (v==null||v==='') ? '' : `<div style="display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--border);"><span style="font-size:12.5px;color:var(--text-tertiary);font-weight:600;width:96px;flex-shrink:0;">${k}</span><span style="font-size:13px;font-weight:600;flex:1;white-space:pre-wrap;word-break:break-word;">${v}</span></div>`;
+  let title='상세', body='';
+  if (kind==='ship'){
+    const s = shipments.find(x=>x.id===id); if(!s){ return; }
+    title = s.name || s.prod || '출고 건';
+    const prods = (Array.isArray(s.products)&&s.products.length) ? s.products : (s.prod?[{name:s.prod,qty:s.qty,unit:s.unit_price}]:[]);
+    const prodHtml = prods.length ? prods.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;"><span>${esc(p.name||'-')} <span style="color:var(--text-tertiary);">× ${p.qty||0}</span></span><span style="font-weight:700;">${fmtWon(Math.round((p.qty||0)*(p.unit||0)))}원</span></div>`).join('') : '<span style="color:var(--text-tertiary);">-</span>';
+    const base = s.amount || prods.reduce((a,p)=>a+Math.round((p.qty||0)*(p.unit||0)),0);
+    const net = Math.max(0, base - (s.returned ? (s.return_amount||0) : 0));
+    body = `<div style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;">${fmtWon(net)}<span style="font-size:13px;font-weight:600;color:var(--text-tertiary);">원 ${s.collected?'· 수금 완료':'· 수금 전'}</span></div>`
+      + kv('고객사', esc(s.co||'-'))
+      + kv('담당자', s.person?esc(s.person):'')
+      + kv('출고일', fmtDate(s.ship_date))
+      + kv('출고 단계', s.ship_status==='done'?'출고 완료':'출고 요청')
+      + kv('세금계산서', s.tax_invoice_issued?`🧾 발행${s.tax_invoice_date?' · '+fmtDate(s.tax_invoice_date):''}`:'미발행')
+      + kv('수령지', s.addr?esc(s.addr):'')
+      + kv('수령인', (s.receiver||s.receiver_phone)?`${esc(s.receiver||'-')}${s.receiver_phone?' · '+esc(s.receiver_phone):''}`:'')
+      + kv('이메일', s.receiver_email?esc(s.receiver_email):'')
+      + kv('제품 구성', prodHtml)
+      + (s.gov_support?kv('정부지원', `🏛️ 정부지원${s.gov_order?'<br>발주처: '+esc(s.gov_order):''}${s.gov_invoice_to?'<br>계산서 발행처: '+esc(s.gov_invoice_to):''}${s.gov_install_site?'<br>설치 담당: '+esc(s.gov_install_site):''}`):'')
+      + (s.returned?kv('반품', `🔄 ${s.return_date?fmtDate(s.return_date)+' · ':''}${s.return_qty?s.return_qty+'대 · ':''}${s.return_amount?fmtWon(s.return_amount)+'원':''}${s.return_reason?'<br>'+esc(s.return_reason):''}`):'')
+      + kv('특이사항', s.memo?esc(s.memo):'');
+  } else if (kind==='deal'){
+    const d = deals.find(x=>x.id===id); if(!d){ return; }
+    title = dealTitle(d) || d.name || '프로젝트';
+    const un = dealUnpaid(d), paid = dealPaid(d);
+    const kvItems = getDealItems(d.id);
+    const prods = (kvItems&&kvItems.length) ? kvItems.map(p=>({name:p.name,qty:p.qty,unit:p.unit,fee:p.fee})) : dealProducts.filter(p=>p.deal_id===d.id).map(p=>({name:p.prod,qty:p.qty,unit:p.unit_price,fee:p.install_fee}));
+    const prodHtml = prods.length ? prods.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;"><span>${esc(p.name||'-')} <span style="color:var(--text-tertiary);">× ${p.qty||0}</span></span><span style="font-weight:700;">${fmtWon(Math.round((p.qty||0)*((p.unit||0)+(p.fee||0))))}원</span></div>`).join('') : '<span style="color:var(--text-tertiary);">-</span>';
+    body = `<div style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;">${fmtWon(d.amount||0)}<span style="font-size:13px;font-weight:600;color:var(--text-tertiary);">원 · 계약금액</span></div>`
+      + kv('고객사', esc(d.co||'-'))
+      + kv('현장', d.site?esc(d.site):'')
+      + kv('단계', esc(dispStage(d)))
+      + kv('수금', `${fmtWon(paid)}원${un>0?` · <span style="color:var(--status-critical);font-weight:800;">미수 ${fmtWon(un)}원</span>`:' · 완납'}`)
+      + kv('세금계산서', dealInvoiced(d)?'🧾 발행 완료':'발행 전')
+      + kv('설치완료일', d.delivery_date?fmtDate(d.delivery_date):'')
+      + kv('담당자', d.person?esc(d.person):'')
+      + kv('제품 구성', prodHtml);
+  } else if (kind==='recv'){
+    const r = recvList.find(x=>x.id===id); if(!r){ return; }
+    title = r.company_name || '수금 건';
+    const won = manToWon(r.amount); const done = r.status==='received';
+    body = `<div style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;">${fmtWon(won)}<span style="font-size:13px;font-weight:600;color:var(--text-tertiary);">원 ${done?'· 수금 완료':'· 미수'}</span></div>`
+      + kv('상태', esc(RECV_LABEL[r.status]||r.status||'-'))
+      + kv('예정일', r.expected_date?fmtDate(r.expected_date):'')
+      + kv('입금일', r.received_date?fmtDate(r.received_date):'')
+      + kv('메모', r.note?esc(r.note):'');
+  }
+  $('recDetailTitle').textContent = title;
+  $('recDetailBody').innerHTML = body;
+  $('recDetailModal').classList.add('active');
+}
+function closeRecDetail(){ $('recDetailModal').classList.remove('active'); }
 document.addEventListener('click', function(e){
   const p = $('coFinPop'); if(!p || p.style.display==='none') return;
   if (e.target.closest('#coFinPop') || e.target.closest('.co-fin')) return;
@@ -3416,6 +3578,12 @@ const CHIDE_LS_KEY = 'sp_company_hidden_v1';
 let companyHidden = [];
 function loadCompanyHidden(){ try{ const v=JSON.parse(localStorage.getItem(CHIDE_LS_KEY)||'[]'); companyHidden = Array.isArray(v)?v:[]; }catch(e){ companyHidden=[]; } }
 function saveCompanyHidden(){ try{ localStorage.setItem(CHIDE_LS_KEY, JSON.stringify(companyHidden)); }catch(e){} syncKv('company_hidden', companyHidden); }
+/* 거래처 별칭(같은 회사 묶기) — { 변형이름: 대표이름 } · 팀 공유 · 원본은 안 건드리고 집계만 통합 */
+const CALIAS_LS_KEY = 'sp_co_alias_v1';
+let coAlias = {};
+function loadCoAlias(){ try{ coAlias = JSON.parse(localStorage.getItem(CALIAS_LS_KEY)||'{}') || {}; }catch(e){ coAlias={}; } }
+function saveCoAlias(){ try{ localStorage.setItem(CALIAS_LS_KEY, JSON.stringify(coAlias)); }catch(e){} syncKv('co_alias', coAlias); }
+function canonCo(name){ const n=(name||'').trim(); if(!n) return n; const r=coAlias[n]; return (r && String(r).trim()) ? String(r).trim() : n; }
 function isCompanyHidden(n){ return companyHidden.indexOf((n||'').trim()) !== -1; }
 // 카탈로그에 추가(+ 숨김 해제). 저장 시에도 호출해 목록을 계속 키움
 function addCompany(name){
@@ -3428,15 +3596,15 @@ function addCompany(name){
 // 선택 가능한 거래처 목록 = 카탈로그 ∪ 실제 사용 고객사 − 숨김
 function companyList(){
   const set=new Set();
-  companyCatalog.forEach(c=>{ c=(c||'').trim(); if(c) set.add(c); });
-  deals.forEach(d=>{ const c=(d.co||'').trim(); if(c) set.add(c); });
-  shipments.forEach(s=>{ const c=(s.co||'').trim(); if(c) set.add(c); });
+  companyCatalog.forEach(c=>{ c=canonCo(c); if(c) set.add(c); });
+  deals.forEach(d=>{ const c=canonCo(d.co); if(c) set.add(c); });
+  shipments.forEach(s=>{ const c=canonCo(s.co); if(c) set.add(c); });
   return Array.from(set).filter(c=>!isCompanyHidden(c)).sort((a,b)=>a.localeCompare(b,'ko'));
 }
 function companyUsageCount(name){
   name=(name||'').trim(); let n=0;
-  deals.forEach(d=>{ if((d.co||'').trim()===name) n++; });
-  shipments.forEach(s=>{ if((s.co||'').trim()===name) n++; });
+  deals.forEach(d=>{ if(canonCo(d.co)===name) n++; });
+  shipments.forEach(s=>{ if(canonCo(s.co)===name) n++; });
   return n;
 }
 /* 고객사 선택 드롭다운 (프로젝트·출고 공용) */
@@ -3480,10 +3648,12 @@ function renderCompanyManageList(){
   const list=companyList();
   $('cmList').innerHTML = list.length ? list.map(c=>{
     const used=companyUsageCount(c);
+    const key = esc(c).replace(/'/g,"\\'");
     return `<div class="cm-row">
       <span class="cm-nm">${esc(c)}</span>
       <span class="cm-use${used>0?'':' warn'}">${used>0?('프로젝트·출고 '+used+'건'):'미사용'}</span>
-      <span class="cm-rm" title="삭제" onclick="cmDelete('${esc(c).replace(/'/g,"\\'")}')">×</span>
+      <span class="cm-edit" title="이름 변경" onclick="cmRename('${key}')">✏️ 이름 변경</span>
+      <span class="cm-rm" title="삭제" onclick="cmDelete('${key}')">×</span>
     </div>`;
   }).join('') : `<div style="font-size:12.5px;color:var(--text-tertiary);text-align:center;padding:20px;">등록된 거래처가 없어요</div>`;
 }
@@ -3504,6 +3674,145 @@ function cmDelete(name){
   saveCompanyHidden(); saveCompanyCatalog();
   toast(`"${name}"를 삭제했어요`);
   renderCompanyManageList();
+}
+/* 업체명 한 번에 변경 — 딜(운영툴)·출고·수금기준·거래처목록 전부 새 이름으로 이동 */
+let _cmRenaming = false;
+async function cmRename(oldName){
+  oldName=(oldName||'').trim(); if(!oldName || _cmRenaming) return;
+  let nn = prompt(`"${oldName}"의 새 업체명을 입력하세요`, oldName);
+  if (nn==null) return;
+  nn = nn.trim();
+  if (!nn) { toast('업체명을 입력해 주세요', true); return; }
+  if (nn===oldName) return;
+  const dealHits = deals.filter(d=>(d.co||'').trim()===oldName);
+  const shipHits = shipments.filter(s=>(s.co||'').trim()===oldName);
+  const merge = (companyList().some(c=>c===nn)) ? `\n\n※ "${nn}"는 이미 있는 업체예요 — 두 업체가 하나로 합쳐져요.` : '';
+  if (!confirm(`"${oldName}" → "${nn}"\n\n딜 ${dealHits.length}건 · 출고 ${shipHits.length}건의 고객사명을 바꾸고, 수금 기준·거래처 목록도 새 이름으로 옮겨요.${merge}\n\n진행할까요?`)) return;
+  _cmRenaming = true;
+  try {
+    // 1) 출고(대시보드 소유) — 즉시 반영
+    let shipChanged=false;
+    shipments.forEach(s=>{ if((s.co||'').trim()===oldName){ s.co=nn; shipChanged=true; } });
+    if (shipChanged) saveShipLocal();
+    // 2) 딜(surepoint 운영툴) — 각 건 패치
+    let dealFail=0;
+    for (const d of dealHits){
+      try { await sbPatch('deals', d.id, { co:nn, updated_at:new Date().toISOString() }); d.co=nn; }
+      catch(e){ dealFail++; }
+    }
+    // 3) 수금 기준(customerTerms) 이동
+    if (customerTerms[oldName]){
+      if (!customerTerms[nn] || !hasTerm(customerTerms[nn])) customerTerms[nn] = customerTerms[oldName];
+      delete customerTerms[oldName];
+      saveCustomerTerms();
+    }
+    // 4) 거래처 목록(companyCatalog) 치환 + 중복 제거
+    companyCatalog = Array.from(new Set(companyCatalog.map(x=> (x||'').trim()===oldName ? nn : x)));
+    saveCompanyCatalog();
+    // 5) 숨김 목록도 이름 이동
+    if (companyHidden.includes(oldName)){ companyHidden = Array.from(new Set(companyHidden.map(x=> x===oldName?nn:x))); saveCompanyHidden(); }
+    if (financeHidden.includes(oldName)){ financeHidden = Array.from(new Set(financeHidden.map(x=> x===oldName?nn:x))); saveFinanceHidden(); }
+    toast(dealFail ? `바꿨어요 · 딜 ${dealFail}건은 실패(새로고침 후 다시 시도)` : `"${nn}"(으)로 바꿨어요 ✓`);
+    renderCompanyManageList();
+    try{ renderShip(); }catch(e){}
+    if ($('financePage') && $('financePage').classList.contains('active')) { try{ renderFinance(); }catch(e){} }
+    if ($('dashboardPage') && $('dashboardPage').classList.contains('active')) { try{ renderDashboard(); }catch(e){} }
+    if ($('projectsPage') && $('projectsPage').classList.contains('active')) { try{ renderProjects(); }catch(e){} }
+  } finally { _cmRenaming = false; }
+}
+/* ── 비슷한 이름 자동 찾아 합치기 (별칭) ── */
+let _coMergeGroups = [];
+function _normCoKey(s){
+  return String(s||'').toLowerCase()
+    .replace(/\s+/g,'')
+    .replace(/주식회사|유한회사|㈜|㈔|\(주\)|\(유\)|\(합\)|\(재\)|\(사\)/g,'')
+    .replace(/[^0-9a-z가-힣]/g,'');
+}
+function _lev(a,b){
+  a=a||''; b=b||''; const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){ let cur=[i]; for(let j=1;j<=n;j++){ cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); } prev=cur; }
+  return prev[n];
+}
+// 비슷한 이름들을 그룹으로 (정규화 동일 + 편집거리≤1 + 접두 포함)
+function coMergeGroups(){
+  const raw = Array.from(new Set([
+    ...companyCatalog, ...deals.map(d=>d.co), ...shipments.map(s=>s.co)
+  ].map(x=>(x||'').trim()).filter(Boolean).map(canonCo)));
+  const items = raw.map(n=>({ n, k:_normCoKey(n) })).filter(x=>x.k);
+  const parent = {}; items.forEach(x=> parent[x.n]=x.n);
+  const find = x => { while(parent[x]!==x){ parent[x]=parent[parent[x]]; x=parent[x]; } return x; };
+  const union = (a,b)=>{ a=find(a); b=find(b); if(a!==b) parent[a]=b; };
+  for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){
+    const A=items[i], B=items[j];
+    const same = A.k===B.k;
+    const near = Math.abs(A.k.length-B.k.length)<=1 && _lev(A.k,B.k)<=1;
+    const pref = A.k.length>=2 && B.k.length>=2 && (A.k.startsWith(B.k) || B.k.startsWith(A.k)) && Math.abs(A.k.length-B.k.length)<=2;
+    if (same || near || pref) union(A.n, B.n);
+  }
+  const groups = {};
+  items.forEach(x=>{ const r=find(x.n); (groups[r]||(groups[r]=[])).push(x.n); });
+  return Object.values(groups).filter(g=>g.length>1)
+    .map(g=> g.slice().sort((a,b)=>companyUsageCount(b)-companyUsageCount(a)))
+    .sort((a,b)=> b.length-a.length);
+}
+function toggleCoMerge(){
+  const el=$('cmMergeArea'); if(!el) return;
+  if (el.style.display==='none'){ el.style.display=''; renderCoMergeArea(); }
+  else { el.style.display='none'; }
+}
+function renderCoMergeArea(){
+  const el=$('cmMergeArea'); if(!el) return;
+  _coMergeGroups = coMergeGroups();
+  const aliasCount = Object.keys(coAlias).length;
+  const unmerged = aliasCount ? `<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:10px;">
+      <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;margin-bottom:7px;">이미 묶인 이름 ${aliasCount}개 (누르면 해제)</div>
+      ${Object.keys(coAlias).sort().map(k=>`<span onclick="unmergeCo('${esc(k).replace(/'/g,"\\'")}')" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--text-secondary);background:var(--bg-subtle);border:1px solid var(--border);border-radius:7px;padding:4px 8px;margin:0 5px 5px 0;cursor:pointer;">${esc(k)} → <b>${esc(coAlias[k])}</b> ✕</span>`).join('')}
+    </div>` : '';
+  if (!_coMergeGroups.length){
+    el.innerHTML = `<div style="font-size:12.5px;color:var(--text-tertiary);padding:12px;background:var(--bg-subtle);border-radius:10px;">묶을 만한 비슷한 이름이 없어요 👍</div>` + unmerged;
+    return;
+  }
+  el.innerHTML = _coMergeGroups.map((g,i)=>{
+    const rep = g[0];
+    const opts = g.map(n=>`<option value="${esc(n)}" ${n===rep?'selected':''}>${esc(n)} (${companyUsageCount(n)}건)</option>`).join('');
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:8px;">
+      <div style="font-size:12.5px;color:var(--text-secondary);font-weight:600;margin-bottom:9px;line-height:1.5;">${g.map(n=>esc(n)).join('  ·  ')}</div>
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+        <span style="font-size:11.5px;color:var(--text-tertiary);">대표 이름</span>
+        <input id="coRepSel_${i}" list="coRepList_${i}" value="${esc(rep)}" placeholder="대표 이름 (직접 입력 가능)" autocomplete="off" style="font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text-primary);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:7px 9px;flex:1;min-width:130px;">
+        <datalist id="coRepList_${i}">${g.map(n=>`<option value="${esc(n)}"></option>`).join('')}</datalist>
+        <button class="btn btn-primary btn-sm" onclick="mergeCoGroupIdx(${i})">합치기</button>
+      </div>
+    </div>`;
+  }).join('') + unmerged;
+}
+function mergeCoGroupIdx(i){
+  const g=_coMergeGroups[i]; if(!g) return;
+  const rep = ($('coRepSel_'+i) && $('coRepSel_'+i).value || g[0]).trim();
+  if(!rep) return;
+  const set = new Set(g);
+  g.forEach(n=>{ n=(n||'').trim(); if(n && n!==rep) coAlias[n]=rep; });
+  if (coAlias[rep]) delete coAlias[rep];
+  Object.keys(coAlias).forEach(k=>{ if(set.has(coAlias[k])) coAlias[k]=rep; });   // 체인 정리
+  saveCoAlias();
+  toast(`"${rep}"(으)로 ${g.length}개 이름을 묶었어요 ✓`);
+  renderCoMergeArea(); renderCompanyManageList();
+  refreshAfterCoChange();
+}
+function unmergeCo(variant){
+  variant=(variant||'').trim(); if(!variant || !coAlias[variant]) return;
+  delete coAlias[variant];
+  saveCoAlias();
+  toast(`"${variant}" 묶음을 해제했어요`);
+  renderCoMergeArea(); renderCompanyManageList();
+  refreshAfterCoChange();
+}
+function refreshAfterCoChange(){
+  if ($('financePage') && $('financePage').classList.contains('active')) { try{ renderFinance(); }catch(e){} }
+  if ($('dashboardPage') && $('dashboardPage').classList.contains('active')) { try{ renderDashboard(); }catch(e){} }
+  if ($('shipPage') && $('shipPage').classList.contains('active')) { try{ renderShip(); }catch(e){} }
+  if ($('projectsPage') && $('projectsPage').classList.contains('active')) { try{ renderProjects(); }catch(e){} }
 }
 let currentEventId = null, _evType = 'meeting';
 function openEventModal(id, presetDate){
@@ -3903,34 +4212,35 @@ function normProdName(name){
 }
 // 제품값만(설치비 제외) 기준 집계 · 딜(설치·납품) / 일반출고 / 정부지원출고 소스 분리
 function collectProductStats(year){
-  const map = {}; let dealNoItem = 0;
+  const map = {}, coMap = {}; let dealNoItem = 0;   // coMap: { 업체: { 제품: {deal,ship,gov} } }
   const ensure = (name) => map[name] || (map[name] = {
     deal:{q:0,a:0}, ship:{q:0,a:0}, gov:{q:0,a:0},
     m:{deal:Array(12).fill(0), ship:Array(12).fill(0), gov:Array(12).fill(0)},      // 월별 수량
     mA:{deal:Array(12).fill(0), ship:Array(12).fill(0), gov:Array(12).fill(0)}      // 월별 금액
   });
-  const add = (name, src, mi, qty, amt) => {
+  const add = (name, src, mi, qty, amt, co) => {
     const o = ensure(name);
     o[src].q += qty; o[src].a += amt;
     if (mi>=0 && mi<12){ o.m[src][mi] += qty; o.mA[src][mi] += amt; }
+    if (co){ const c = coMap[co] || (coMap[co] = {}); const co_o = c[name] || (c[name] = {deal:{q:0,a:0}, ship:{q:0,a:0}, gov:{q:0,a:0}}); co_o[src].q += qty; co_o[src].a += amt; }
   };
   // "설치비 항목" 판별 · 한 기록의 설치비(행의 fee + 설치비 항목)를 같은 기록 제품 금액에 합산
   const isFeeItem = (n) => /설치\s*비용?|시공비/.test(n||'');
   const lineAmt = (it) => Math.round((it.qty||0) * ((it.unit||0) + (it.fee||0)));  // 행 금액(제품값 + 그 행의 설치비/대)
-  const addRecordItems = (items, src, mi) => {
+  const addRecordItems = (items, src, mi, co) => {
     const prods = items.filter(it=> !isFeeItem(it.name));      // 실제 제품 행
     const feeRows = items.filter(it=>  isFeeItem(it.name));    // 별도 "설치비" 항목 행
     const extra = feeRows.reduce((s,it)=> s + lineAmt(it), 0); // 별도 설치비 총액
     if (!prods.length){
       // 제품 없이 설치비만 있는 기록: 금액 유실 방지 위해 '설치비'로 집계(수량 0)
-      if (extra) add('설치비', src, mi, 0, extra);
+      if (extra) add('설치비', src, mi, 0, extra, co);
       return;
     }
     const baseTotal = prods.reduce((s,it)=> s + lineAmt(it), 0); // 제품 행 금액 합(설치비/대 포함)
     prods.forEach(it=>{
       const base = lineAmt(it);
       const share = baseTotal>0 ? extra*(base/baseTotal) : extra/prods.length; // 별도 설치비를 제품에 비례 배분
-      add(it.name, src, mi, it.qty, Math.round(base + share));
+      add(it.name, src, mi, it.qty, Math.round(base + share), co);
     });
   };
   // 프로젝트(설치·납품 완료 이후) — 제품값 + 설치비 합산, 설치완료(매출)일 기준
@@ -3943,7 +4253,7 @@ function collectProductStats(year){
     if (kv && kv.length) items = kv.map(p=>({ name:normProdName(p.name), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0, fee:parseFloat(p.fee)||0 }));
     else items = dealProducts.filter(p=>p.deal_id===d.id).map(p=>({ name:normProdName(p.prod), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit_price)||0, fee:parseFloat(p.install_fee)||0 }));
     if (!items.length){ dealNoItem++; return; }
-    addRecordItems(items, 'deal', mi);
+    addRecordItems(items, 'deal', mi, canonCo(d.co) || '(업체 미지정)');
   });
   // 출고건(출고 완료) — 제품값 + 설치비 항목 합산, 출고일 기준 · 정부지원은 gov 소스로 분리
   shipments.forEach(s=>{
@@ -3955,9 +4265,9 @@ function collectProductStats(year){
       ? s.products.map(p=>({ name:normProdName(p.name), qty:parseFloat(p.qty)||0, unit:parseFloat(p.unit)||0, fee:0 }))
       : [];
     if (!prods.length && (s.prod || s.amount)) prods = [{ name:normProdName(s.prod), qty:parseFloat(s.qty)||1, unit:parseFloat(s.unit_price)|| (s.qty?Math.round((s.amount||0)/s.qty):(s.amount||0)), fee:0 }];
-    if (prods.length) addRecordItems(prods, src, mi);
+    if (prods.length) addRecordItems(prods, src, mi, canonCo(s.co) || '(업체 미지정)');
   });
-  return { map, dealNoItem };
+  return { map, coMap, dealNoItem };
 }
 // Apple 시스템 컬러 팔레트
 const PS_SRC_META = { all:{label:'합계', color:'#0A84FF'}, deal:{label:'프로젝트', color:'#0A84FF'}, ship:{label:'출고건', color:'#34C759'}, gov:{label:'정부지원', color:'#5E5CE6'} };
@@ -3965,7 +4275,7 @@ function hexToRgb(h){ const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exe
 function setPsSort(v){ psSort = v; renderProductStats(); }
 function renderProductStats(){
   const y = selectedYear;
-  const { map, dealNoItem } = collectProductStats(y);
+  const { map, coMap, dealNoItem } = collectProductStats(y);
   const names = Object.keys(map);
   const qtyMode = psMetric === 'qty';
   const val  = (o,src) => qtyMode ? o[src].q : o[src].a;                 // 소스별 값
@@ -4136,6 +4446,38 @@ function renderProductStats(){
     </table></div>
   </div>`;
 
+  // 🏢 업체 × 제품 — 어느 업체에 어떤 제품이 몇 개 나갔는지 (현재 소스·지표)
+  const coEntries = Object.keys(coMap).map(co=>{
+    const prods = Object.keys(coMap[co]).map(pn=>({ pn, v:curCol(coMap[co][pn]) })).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+    return { co, prods, tot: prods.reduce((s,x)=>s+x.v,0) };
+  }).filter(r=>r.tot>0);
+  const coOptions = coEntries.slice().sort((a,b)=>a.co.localeCompare(b.co,'ko'))
+    .map(r=>`<option value="${esc(r.co)}" ${psCoFilter===r.co?'selected':''}>${esc(r.co)}</option>`).join('');
+  let coShown = coEntries.slice().sort((a,b)=>b.tot-a.tot);
+  if (psCoFilter) coShown = coShown.filter(r=>r.co===psCoFilter);
+  const vTxt = v => qtyMode ? v.toLocaleString()+'대' : fmtMoney(v);
+  // 미니멀 리스트 — 업체명 + 큰 총계, 제품은 한 줄로
+  const coBody = coShown.length ? coShown.map(r=>{
+    const prodLine = r.prods.map(x=> `<b style="color:var(--text-secondary);font-weight:600;">${esc(x.pn)}</b> ${qtyMode ? x.v.toLocaleString() : fmtMoney(x.v)}`).join('  ·  ');
+    const totNum = qtyMode ? r.tot.toLocaleString() : fmtMoney(r.tot);
+    return `<div style="display:flex;align-items:center;gap:16px;padding:18px 4px;border-top:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:17px;font-weight:700;letter-spacing:-.02em;">${esc(r.co)}</div>
+        <div style="font-size:13px;color:var(--text-tertiary);font-weight:500;margin-top:5px;line-height:1.5;">${prodLine}</div>
+      </div>
+      <div style="font-size:27px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;">${totNum}${qtyMode?'<small style="font-size:13px;font-weight:600;color:var(--text-tertiary);margin-left:3px;">대</small>':''}</div>
+    </div>`;
+  }).join('') : `<div class="di-note-empty" style="padding:18px 4px;">해당 조건에 나간 제품이 없어요</div>`;
+  const coView = `<div class="section-card">
+    <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;"><div class="section-title">🏢 업체별 출고 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(${PS_SRC_META[psSource].label} · ${unit}) · 어느 업체에 뭐가 몇 개</span></div>
+      <select onchange="setPsCoFilter(this.value)" style="margin-left:auto;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text-primary);background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:7px 11px;cursor:pointer;">
+        <option value="">전체 업체 (${coEntries.length}곳)</option>${coOptions}
+      </select>
+    </div>
+    <div class="section-desc">업체를 고르면 그 업체만 봐요 · 총계 많은 순 정렬</div>
+    <div style="margin-top:4px;">${coBody}</div>
+  </div>`;
+
   const note = `<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;margin-top:16px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:11px;padding:13px 16px;">
     · <b>설치비는 같은 프로젝트/출고건의 제품 가격에 합산</b>해요. 제품 행의 "설치비/대"와, 별도로 들어간 <b>「설치비」 항목</b>은 그 기록의 제품들에 (금액 비례로) 얹어서 집계돼요. 수량은 실제 제품 대수만 세고, 설치비는 대수로 세지 않아요.<br>
     · <b>프로젝트(설치건)</b>는 설치·납품 완료 기준(설치완료일), <b>출고건</b>은 출고 완료 기준(출고일, 일반출고). <b>합계 = 프로젝트 + 출고건 + 정부지원</b> 세 채널 전부예요. 프로젝트·출고건 탭은 각 채널만, 정부지원 탭은 정부지원만 봐요.<br>
@@ -4144,8 +4486,9 @@ function renderProductStats(){
     · 출고 <b>반품</b>은 제품별로 나눠 저장돼 있지 않아, 제품 통계는 <b>출고 시점(반품 전)</b> 기준이에요. 반품 반영 순매출은 「매출 요약」 탭에서 봐요.
   </div>`;
 
-  $('dashProductTab').innerHTML = ctrl + kpi + breakdown + monthly + pivot + note;
+  $('dashProductTab').innerHTML = ctrl + kpi + breakdown + monthly + pivot + coView + note;
 }
+function setPsCoFilter(v){ psCoFilter = v || ''; renderProductStats(); }
 // 월별 추이 막대 호버 툴팁
 function psBarMove(ev, mi){
   const d = psBarData[mi]; if(!d) return;
@@ -6190,6 +6533,8 @@ function saveShip(){
   toast(currentShipId ? '수정됐어요 ✓ (출고일 기준 매출 반영)' : '출고 건이 등록됐어요 ✓ (출고일 기준 매출 반영)');
   renderShip();
   if ($('dashboardPage').classList.contains('active')) renderDashboard();
+  if ($('financePage') && $('financePage').classList.contains('active')) { try{ renderFinance(); }catch(e){} }
+  if ($('coRecModal') && $('coRecModal').classList.contains('active') && _coRecCurrent) openCoRecords(_coRecCurrent);   // 업체 팝업 갱신
 }
 function deleteShip(){
   if (!currentShipId) return;
@@ -6415,6 +6760,7 @@ async function saveNewOrder(){
 
 /* ---- 딜 정보 수정 ---- */
 function openEditModal(){
+  _editFromCoRec = false;
   const d = deals.find(x=>x.id===currentDealId); if(!d) return;
   // 담당자: users 테이블 + 딜에 등장하는 이름 + 현재값
   const names = new Set(usersList.map(u=>u.name).filter(Boolean));
@@ -6577,7 +6923,13 @@ async function saveEdit(){
     }
     closeEditModal();
     toast('저장됐어요 ✓');
-    openDetail(d.id);
+    if (_editFromCoRec){
+      _editFromCoRec = false;
+      try{ if ($('financePage') && $('financePage').classList.contains('active')) renderFinance(); }catch(e){}
+      if (_coRecCurrent && $('coRecModal')) openCoRecords(_coRecCurrent);   // 업체 팝업 갱신 후 그대로 유지
+    } else {
+      openDetail(d.id);
+    }
   } catch (err) {
     toast(err.message, true);
   } finally {
