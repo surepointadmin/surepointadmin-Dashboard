@@ -2183,9 +2183,15 @@
                         <input type="date" class="form-input" id="edDelivery">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">도입현장</label>
-                    <input type="text" class="form-input" id="edSite" placeholder="예: 포스코 광양제철소">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">도입현장</label>
+                        <input type="text" class="form-input" id="edSite" placeholder="예: 포스코 광양제철소">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">유입 경로</label>
+                        <select class="form-input" id="edInflow"></select>
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -2325,6 +2331,7 @@ function canonStage(d){
 const INFLOW = {
   rental:  {label:'렌탈사',       color:'#6366f1', bg:'#eef2ff'},
   direct:  {label:'직접 유입',    color:'#0e7490', bg:'#ecfeff'},
+  sales_rep:{label:'내부 영업 담당자 접수', color:'#be123c', bg:'#fff1f2'},
   b2b_self:{label:'B2B 직접 영업', color:'#15803d', bg:'#f0fdf4'},
   b2b_ext: {label:'외부 영업사원', color:'#b45309', bg:'#fffbeb'},
   dealer:  {label:'대리점',       color:'#6d28d9', bg:'#f5f3ff'},
@@ -6789,6 +6796,7 @@ function openEditModal(){
   $('edDelivery').value = (d.delivery_date||'').slice(0,10);
   $('edCo').value = d.co || '';
   $('edSite').value = d.site || '';
+  $('edInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k===(d.inflow||'direct')?'selected':''}>${v.label}</option>`).join('');
   $('edContactName').value = d.contact_name || '';
   $('edContactPhone').value = d.contact_phone || '';
   $('edContactEmail').value = d.contact_email || '';
@@ -6815,13 +6823,20 @@ function openEditModal(){
 }
 function closeEditModal(){ $('editModal').classList.remove('active'); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeEditModal(); closeAsModal(); closeNewOrderModal(); closeCreateModal(); closeShipModal(); } });
-$('newOrderModal').addEventListener('click', e=>{ if(e.target===$('newOrderModal')) closeNewOrderModal(); });
-$('createModal').addEventListener('click', e=>{ if(e.target===$('createModal')) closeCreateModal(); });
-$('editModal').addEventListener('click', e=>{ if(e.target===$('editModal')) closeEditModal(); });
-$('asModal').addEventListener('click', e=>{ if(e.target===$('asModal')) closeAsModal(); });
-$('shipModal').addEventListener('click', e=>{ if(e.target===$('shipModal')) closeShipModal(); });
-$('calDayModal').addEventListener('click', e=>{ if(e.target===$('calDayModal')) closeCalDay(); });
-$('unpaidModal').addEventListener('click', e=>{ if(e.target===$('unpaidModal')) closeUnpaidModal(); });
+/* 배경 클릭으로 닫기 — 배경을 "누른 채로 시작한" 클릭일 때만 닫음 (입력칸 안에서 드래그 복사 시 닫힘 방지) */
+function bindBackdropClose(id, closeFn){
+  const el = $(id); if(!el) return;
+  let downOnSelf = false;
+  el.addEventListener('mousedown', e=>{ downOnSelf = (e.target===el); });
+  el.addEventListener('mouseup', e=>{ if(downOnSelf && e.target===el) closeFn(); downOnSelf = false; });
+}
+bindBackdropClose('newOrderModal', closeNewOrderModal);
+bindBackdropClose('createModal', closeCreateModal);
+bindBackdropClose('editModal', closeEditModal);
+bindBackdropClose('asModal', closeAsModal);
+bindBackdropClose('shipModal', closeShipModal);
+bindBackdropClose('calDayModal', closeCalDay);
+bindBackdropClose('unpaidModal', closeUnpaidModal);
 $('asImportInput').addEventListener('change', function(){
   if (this.files.length) importAs(this.files[0]);
   this.value = '';
@@ -6845,6 +6860,8 @@ async function saveEdit(){
   if (co !== (d.co||'')) patch.co = co;
   const site = $('edSite').value.trim();
   if (site !== (d.site||'')) patch.site = site || null;
+  const inflow = $('edInflow').value;
+  if (inflow !== (d.inflow||'direct')) patch.inflow = inflow;
   const cName = $('edContactName').value.trim();
   if (cName !== (d.contact_name||'')) patch.contact_name = cName || null;
   const cPhone = $('edContactPhone').value.trim();
