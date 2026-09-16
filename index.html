@@ -1431,6 +1431,7 @@
                         </button>
                     </div>
                 </div>
+                <div id="cashFlow3Fin" style="margin:0 0 18px;"></div>
                 <div class="stats-grid" id="finKpis"></div>
                 <div class="section-card" style="margin-bottom:18px;">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
@@ -3121,6 +3122,51 @@ function collectedInYear(year){ // 입금일 기준 (원)
   });
   return sum;
 }
+// 특정 월(YYYY-MM) 실제 들어온 돈(원) — 입금일(received_date) 기준
+function receivedInMonth(ym){
+  let sum=0, cnt=0;
+  recvList.forEach(r=>{ if(r.status==='received' && (r.received_date||'').slice(0,7)===ym){ sum+=manToWon(r.amount); cnt++; } });
+  productSales.forEach(p=>{ if(p.status==='received' && (p.recv_date||p.sale_date||'').slice(0,7)===ym){ sum+=(p.amount||0); cnt++; } });
+  return {sum, cnt};
+}
+// 특정 월(YYYY-MM) 들어올 예정 돈(원) — 계산서 발행 + 수금 기준으로 계산된 예정일 기준(financeUpcoming)
+function expectedInMonth(ym){
+  let sum=0, cnt=0, noBasis=0;
+  financeUpcoming().forEach(r=>{
+    if(r.noBasis){ noBasis+=r.amt; return; }        // 수금 기준 미입력 → 예정일 계산 불가
+    if((r.date||'').slice(0,7)===ym){ sum+=r.amt; cnt++; }
+  });
+  return {sum, cnt, noBasis};
+}
+// YYYY-MM 오프셋 (offset개월 후/전)
+function ymOffset(off){
+  const n=new Date(); n.setDate(1); n.setMonth(n.getMonth()+off);
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+}
+function ymLabel(ym){ const [y,m]=ym.split('-'); return `${parseInt(m,10)}월`; }
+// 실적현황·수금재무 상단 — 지난달 실수금 · 이번달 예정 · 다음달 예정
+function renderCashFlow3(elId){
+  const el = $(elId||'cashFlow3'); if(!el) return;
+  const prevYm=ymOffset(-1), curYm=ymOffset(0), nextYm=ymOffset(1);
+  const prev=receivedInMonth(prevYm);
+  const curR=receivedInMonth(curYm), curE=expectedInMonth(curYm);
+  const nextE=expectedInMonth(nextYm);
+  const noBasisTotal = curE.noBasis; // 기준 미입력은 이번/다음달 공통 참고
+  const card = (accent, tag, label, big, sub, sub2) => `
+    <div class="stat-card" style="border-top:3px solid ${accent};">
+      <div class="stat-label"><span style="color:${accent};font-weight:800;">${tag}</span> ${label}</div>
+      <div class="stat-value">${fmtMoney(big)}</div>
+      <div class="stat-sub">${sub}</div>
+      ${sub2?`<div class="stat-sub" style="margin-top:4px;">${sub2}</div>`:''}
+    </div>`;
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:800;color:var(--text-secondary);margin-bottom:9px;letter-spacing:-.01em;">💵 수금 흐름 <span style="font-weight:600;color:var(--text-tertiary);">지난달 실수금 · 이번달·다음달 들어올 돈</span></div>
+    <div class="stats-grid" style="margin:0;">
+      ${card('#64748b','지난달', `${ymLabel(prevYm)} 실제 들어온 돈`, prev.sum, `${prev.cnt}건 · 입금 완료 기준`)}
+      ${card('#0071e3','이번달', `${ymLabel(curYm)} 들어올 예정`, curE.sum, `${curE.cnt}건 · 수금 예정일 기준`, curR.sum>0?`이미 ${fmtMoney(curR.sum)} 수금됨 (${curR.cnt}건)`:'')}
+      ${card('#15803d','다음달', `${ymLabel(nextYm)} 들어올 예정`, nextE.sum, `${nextE.cnt}건 · 수금 예정일 기준`, noBasisTotal>0?`<span style="color:var(--text-tertiary);">수금 기준 미입력 ${fmtMoney(noBasisTotal)} 별도</span>`:'')}
+    </div>`;
+}
 function totalUnpaid(){ // 누적 미수금(원) — 소스별 내역 포함
   let sum = 0, cnt = 0;
   let dealSum = 0, dealCnt = 0, recvSum = 0, recvCnt = 0, psSum = 0, psCnt = 0;
@@ -3217,6 +3263,7 @@ function financeTotals(){
   return {unpaid, overdue, weekAmt, weekCnt, monthAmt, monthCnt, coCount:cos.length, termCount};
 }
 function renderFinance(){
+  renderCashFlow3('cashFlow3Fin');
   const cos = financeCompanies();
   const t = financeTotals();
   $('finKpis').innerHTML = `
@@ -6041,12 +6088,11 @@ function openAsModal(id, prefillDealId){
         }).join('') +
         `</optgroup>`;
     }).join('');
-  // 담당자
-  const names = new Set(usersList.map(u=>u.name).filter(Boolean));
-  deals.forEach(x=>{ if(x.person) names.add(x.person); });
-  asCases.forEach(x=>{ if(x.person) names.add(x.person); });
+  // 담당자 (조정된 명단 + A/S 기록에 등장하는 이름 + 현재값 유지)
+  const nameSet = new Set(personRoster(c?.person));
+  asCases.forEach(x=>{ if(x.person && !PERSON_EXCLUDE.includes(x.person)) nameSet.add(x.person); });
   $('asPerson').innerHTML = `<option value="">선택 안 함</option>` +
-    Array.from(names).sort().map(n=>`<option value="${esc(n)}" ${c&&n===c.person?'selected':''}>${esc(n)}</option>`).join('');
+    Array.from(nameSet).sort().map(n=>`<option value="${esc(n)}" ${c&&n===c.person?'selected':''}>${esc(n)}</option>`).join('');
   $('asCo').value = c?.co || '';
   $('asSite').value = c?.site || '';
   $('asProd').value = c?.prod || '';
@@ -6584,6 +6630,20 @@ function importShip(file){
   reader.readAsText(file);
 }
 
+/* ---- 담당자 명단 (대시보드 표시용 조정) ----
+   surepoint 로그인 계정(users)은 그대로 두고, 드롭다운에 보이는 담당자만 조정해요.
+   빼기: PERSON_EXCLUDE · 추가: PERSON_EXTRA. 되돌리려면 아래 배열만 수정하면 돼요. */
+const PERSON_EXCLUDE = ['김다예','황병규','김범석','김유림','박기무','안영모'];
+const PERSON_EXTRA   = ['이규서','양일호'];
+function personRoster(keepName){
+  const names = new Set(usersList.map(u=>u.name).filter(Boolean));
+  deals.forEach(x=>{ if(x.person) names.add(x.person); });
+  PERSON_EXCLUDE.forEach(n=>names.delete(n));
+  PERSON_EXTRA.forEach(n=>names.add(n));
+  if(keepName) names.add(keepName);   // 현재 지정된 담당자가 제외 대상이어도 목록에 유지
+  return Array.from(names).sort();
+}
+
 /* ---- 새 프로젝트(딜) 등록 ---- */
 let ncNameDirty = false;
 let dupSourceId = null;  // 복제 원본 딜 id (등록 시 지게차 등 부가정보 복사용)
@@ -6591,10 +6651,8 @@ function openCreateModal(){
   dupSourceId = null;
   $('createTitle').textContent = '새 프로젝트(딜) 등록';
   ncNameDirty = false;
-  const names = new Set(usersList.map(u=>u.name).filter(Boolean));
-  deals.forEach(x=>{ if(x.person) names.add(x.person); });
   $('ncPerson').innerHTML = `<option value="">선택 안 함</option>` +
-    Array.from(names).sort().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    personRoster().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   $('ncInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k==='direct'?'selected':''}>${v.label}</option>`).join('');
   ['ncCo','ncSite','ncName','ncClose','ncDelivery','ncNote'].forEach(i=>$(i).value='');
   $('ncStage').value = '잠재발굴';
@@ -6769,12 +6827,9 @@ async function saveNewOrder(){
 function openEditModal(){
   _editFromCoRec = false;
   const d = deals.find(x=>x.id===currentDealId); if(!d) return;
-  // 담당자: users 테이블 + 딜에 등장하는 이름 + 현재값
-  const names = new Set(usersList.map(u=>u.name).filter(Boolean));
-  deals.forEach(x=>{ if(x.person) names.add(x.person); });
-  if (d.person) names.add(d.person);
+  // 담당자: 조정된 명단 + 현재값 유지
   $('edPerson').innerHTML = `<option value="">선택 안 함</option>` +
-    Array.from(names).sort().map(n=>`<option value="${esc(n)}" ${n===d.person?'selected':''}>${esc(n)}</option>`).join('');
+    personRoster(d.person).map(n=>`<option value="${esc(n)}" ${n===d.person?'selected':''}>${esc(n)}</option>`).join('');
   // 단계: 표시 단계 + 실패·보류
   const cur = dispStage(d);
   $('edStage').innerHTML = [...STAGES, LOST].map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s}</option>`).join('');
