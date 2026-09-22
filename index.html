@@ -1985,6 +1985,59 @@
         </div>
     </div>
 
+    <!-- 지게차 직접 추가 모달 -->
+    <div class="modal-overlay" id="forkAddModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">🚜 지게차 추가</h2>
+                <button class="modal-close" onclick="closeForkAddModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-hint" style="margin-bottom:14px;">프로젝트와 상관없이 지게차 설치 내역을 바로 추가해요. 추가하면 지게차 통계에 바로 반영돼요.</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">브랜드 <span style="color:var(--status-critical)">*</span></label>
+                        <input type="text" class="form-input" id="fkBrand" list="fkBrandList" placeholder="예: 클라크" autocomplete="off">
+                        <datalist id="fkBrandList"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">모델명 <span style="color:var(--status-critical)">*</span></label>
+                        <input type="text" class="form-input" id="fkModel" list="fkModelList" placeholder="예: EPX162" autocomplete="off">
+                        <datalist id="fkModelList"></datalist>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">동력 <span style="color:var(--status-critical)">*</span></label>
+                        <select class="form-input" id="fkPower"><option value="">선택</option><option>전동</option><option>디젤</option><option>LPG</option><option>수소</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">제품명 (우리 제품) <span style="color:var(--status-critical)">*</span></label>
+                        <select class="form-input" id="fkProduct"><option value="">선택</option><option>AI-S3</option><option>AI-S2</option><option>AI-S1</option><option>AI-S0</option><option>기타</option></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">설치 현장 <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;">(선택)</span></label>
+                    <input type="text" class="form-input" id="fkSite" placeholder="예: 빙그레 남양주">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">수량 <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;">(선택 · 기본 1)</span></label>
+                        <input type="number" min="1" class="form-input" id="fkQty" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">설치일 <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;">(선택)</span></label>
+                        <input type="date" class="form-input" id="fkDate">
+                    </div>
+                </div>
+                <div style="display:flex;gap:9px;margin-top:8px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="closeForkAddModal()">취소</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="saveForkAdd()">추가</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 새 프로젝트(딜) 등록 모달 -->
     <div class="modal-overlay" id="createModal">
         <div class="modal">
@@ -2528,6 +2581,9 @@ async function loadKvRemote(){
     // 딜 지게차 정보
     if (map.deal_forklift != null) { dealForklift = map.deal_forklift || {}; try{ localStorage.setItem(DFORK_LS_KEY, JSON.stringify(dealForklift)); }catch(e){} }
     else if (dealForklift && Object.keys(dealForklift).length) { await sbUpsert(KV_TABLE, [{k:'deal_forklift', data:dealForklift}], 'k'); }
+    // 직접 추가한 지게차 기록
+    if (Array.isArray(map.forklift_manual)) { forkManual = map.forklift_manual; try{ localStorage.setItem(FMANUAL_LS_KEY, JSON.stringify(forkManual)); }catch(e){} }
+    else if (forkManual && forkManual.length) { await sbUpsert(KV_TABLE, [{k:'forklift_manual', data:forkManual}], 'k'); }
     // 딜 제품 구성(여러 제품+설치비)
     if (map.deal_items != null) { dealItems = map.deal_items || {}; try{ localStorage.setItem(DITEMS_LS_KEY, JSON.stringify(dealItems)); }catch(e){} }
     else if (dealItems && Object.keys(dealItems).length) { await sbUpsert(KV_TABLE, [{k:'deal_items', data:dealItems}], 'k'); }
@@ -2653,6 +2709,7 @@ function loadAsLocal(){
   loadDealInstall();
   loadDealChat();
   loadDealForklift();
+  loadForkManual();
   loadDealItems();
   loadForkliftModels();
   loadForkMakers();
@@ -2681,6 +2738,11 @@ const FORK_POWERS = ['전동','디젤'];
 const DFORK_LS_KEY = 'sp_deal_forklift_v1';
 let dealForklift = {};
 function loadDealForklift(){ try { dealForklift = JSON.parse(localStorage.getItem(DFORK_LS_KEY) || '{}') || {}; } catch(e){ dealForklift = {}; } }
+/* 프로젝트와 무관하게 직접 추가한 지게차 설치 기록 — [{id,brand,model,power,product,site,qty,date}] · 팀 공유 */
+const FMANUAL_LS_KEY = 'sp_forklift_manual_v1';
+let forkManual = [];
+function loadForkManual(){ try { const v=JSON.parse(localStorage.getItem(FMANUAL_LS_KEY)||'[]'); forkManual = Array.isArray(v)?v:[]; } catch(e){ forkManual = []; } }
+function saveForkManual(){ try { localStorage.setItem(FMANUAL_LS_KEY, JSON.stringify(forkManual)); } catch(e){} syncKv('forklift_manual', forkManual); }
 function saveDealForklift(){ try { localStorage.setItem(DFORK_LS_KEY, JSON.stringify(dealForklift)); } catch(e){} syncKv('deal_forklift', dealForklift); }
 function getDealForklift(id){ return dealForklift[id] || {maker:'',power:'',model:''}; }
 function setDealForklift(id, maker, power, model){ maker=(maker||'').trim(); power=(power||'').trim(); model=(model||'').trim(); if (maker||power||model) dealForklift[id] = {maker, power, model}; else delete dealForklift[id]; saveDealForklift(); }
@@ -4554,29 +4616,43 @@ function renderProductStats(){
 
 /* ===== 지게차 브랜드·모델 통계 (설치 건수 기준) ===== */
 const FORK_COLORS = ['#0071e3','#0d9488','#7d5bed','#e8730c','#d11d6b','#2f855a','#9a6a00','#5b5bd6','#0e7490','#b45309'];
+const FORK_PCOLOR = {'AI-S3':'#4f46e5','AI-S2':'#0891b2','AI-S1':'#c2410c','AI-S0':'#7c3aed'};
+// 딜의 대표 우리 제품(AI-Sx) — 제품 구성 첫 제품(설치비 제외) 또는 딜 제품명 기준
+function dealForkProduct(d){
+  const items = getDealItems(d.id);
+  let name = '';
+  if (items && items.length){
+    const isFee = n => /설치\s*비용?|시공비/.test(n||'');
+    const p = items.find(x => x.name && !isFee(x.name));
+    name = p ? p.name : '';
+  }
+  if (!name) name = d.prod || '';
+  return normProdName(name) || '(제품 미상)';
+}
 function collectForkliftStats(){
   const brands = {};
-  deals.forEach(d=>{
-    const f = dealForklift[d.id];
-    if (!f) return;
-    const maker = (f.maker||'').trim();
-    const modelRaw = (f.model||'').trim();
-    const power = (f.power||'').trim();
+  const add = (maker, modelRaw, power, site, product) => {
+    maker=(maker||'').trim(); modelRaw=(modelRaw||'').trim(); power=(power||'').trim();
     if (!maker && !modelRaw && !power) return;                 // 지게차 정보가 하나도 없으면 제외
     const bkey  = maker || '(제조사 미입력)';
     const model = modelRaw || '(모델 미입력)';
-    const site  = (d.site||'').trim() || (d.co||'').trim() || '(현장 미상)';
+    site    = (site||'').trim() || '(현장 미상)';
+    product = (product||'').trim() || '(제품 미상)';
     const b = brands[bkey] || (brands[bkey] = {name:bkey, cnt:0, sites:new Set(), models:{}});
     b.cnt++; b.sites.add(site);
     const mkey = model + '|' + power;
-    const m = b.models[mkey] || (b.models[mkey] = {model, power, cnt:0, sites:new Set(), noName:!modelRaw});
-    m.cnt++; m.sites.add(site);
-  });
+    const m = b.models[mkey] || (b.models[mkey] = {model, power, cnt:0, sites:new Set(), prod:{}, noName:!modelRaw});
+    m.cnt++; m.sites.add(site); m.prod[product] = (m.prod[product]||0) + 1;
+  };
+  // 1) 프로젝트에 입력된 지게차
+  deals.forEach(d=>{ const f = dealForklift[d.id]; if(!f) return; add(f.maker, f.model, f.power, (d.site||d.co||''), dealForkProduct(d)); });
+  // 2) 직접 추가한 지게차
+  (forkManual||[]).forEach(r=> add(r.brand, r.model, r.power, r.site, r.product));
   // 배열화 + 정렬(건수순), 색 부여
   const arr = Object.values(brands).map(b=>({
     name:b.name, cnt:b.cnt, siteCnt:b.sites.size,
     models: Object.values(b.models).sort((x,y)=> y.cnt-x.cnt || x.model.localeCompare(y.model,'ko'))
-                  .map(m=>({model:m.model, power:m.power, cnt:m.cnt, siteCnt:m.sites.size, sites:[...m.sites], noName:m.noName})),
+                  .map(m=>({model:m.model, power:m.power, cnt:m.cnt, siteCnt:m.sites.size, sites:[...m.sites], noName:m.noName, prod:m.prod})),
   }));
   arr.sort((a,b)=> b.cnt-a.cnt || b.models.length-a.models.length || a.name.localeCompare(b.name,'ko'));
   arr.forEach((b,i)=> b.color = FORK_COLORS[i] || '#8b95a1');
@@ -4591,12 +4667,14 @@ function renderForkliftStats(){
   const pwTag = p => p ? `<span style="display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:1.5px 6px;margin-left:5px;vertical-align:1px;${p==='전동'?'color:#0d8f6f;background:rgba(13,143,111,.12);':'color:#c26a12;background:rgba(194,106,18,.13);'}">${esc(p)}</span>` : '';
   const schip = (v,k)=>`<div style="display:flex;align-items:baseline;gap:6px;background:var(--bg-subtle);border-radius:11px;padding:9px 14px;"><span style="font-size:19px;font-weight:800;letter-spacing:-.02em;">${v}</span><span style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">${k}</span></div>`;
 
+  const pChip = p => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:1px;background:var(--bg-inset,var(--bg-subtle));color:var(--text-primary);"><span style="width:6px;height:6px;border-radius:50%;background:${FORK_PCOLOR[p]||'#8b95a1'};"></span>${esc(p)}</span>`;
   const cards = brands.length ? brands.map((b,idx)=>{
     const tint = `color-mix(in srgb, ${b.color} 9%, var(--bg-card))`;
     const models = b.models.map(m=>{
       const title = m.sites.join(' · ').replace(/"/g,'&quot;');
+      const chips = Object.keys(m.prod).sort((a,b)=>m.prod[b]-m.prod[a]).map(pChip).join('');
       return `<div title="현장: ${title}" style="display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid var(--grid-hairline,var(--border));">
-        <span style="font-size:13px;font-weight:700;min-width:0;">${esc(m.model)}${pwTag(m.power)}</span>
+        <span style="font-size:13px;font-weight:700;min-width:0;">${esc(m.model)}${pwTag(m.power)}${chips}</span>
         <span style="margin-left:auto;font-size:12.5px;font-weight:800;color:var(--text-secondary);white-space:nowrap;">${m.cnt}건</span>
       </div>`;
     }).join('');
@@ -4612,14 +4690,53 @@ function renderForkliftStats(){
 
   return `<div class="section-card">
     <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;">
-      <div class="section-title">🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 브랜드·모델이 몇 건 설치됐나</span></div>
+      <div class="section-title">🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 지게차에 어떤 제품을 달았나</span></div>
+      <button onclick="openForkAddModal()" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> 지게차 추가</button>
     </div>
-    <div class="section-desc">지게차 정보가 입력된 프로젝트 기준 · 건수순 · 모델에 마우스를 올리면 현장이 보여요</div>
+    <div class="section-desc">프로젝트에 입력된 지게차 + 직접 추가한 건 · 건수순 · 모델 옆 색 칩이 우리 제품 · 모델에 마우스를 올리면 현장이 보여요</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;">
       ${schip(totB,'브랜드')}${schip(totM,'모델')}${schip(totC,'설치 건수')}${schip(totS,'현장')}
     </div>
     ${cards}
   </div>`;
+}
+/* 지게차 직접 추가 모달 */
+function openForkAddModal(){
+  // 자동완성: 기존 제조사·모델 카탈로그 + 이미 입력된 값
+  const makers = new Set((forkMakers||[]));
+  const models = new Set();
+  Object.values(dealForklift||{}).forEach(f=>{ if(f&&f.maker) makers.add(f.maker); if(f&&f.model) models.add(f.model); });
+  (forkliftModels||[]).forEach(m=>{ if(m&&m.model) models.add(m.model); });
+  (forkManual||[]).forEach(r=>{ if(r.brand) makers.add(r.brand); if(r.model) models.add(r.model); });
+  $('fkBrandList').innerHTML = [...makers].filter(Boolean).sort().map(v=>`<option value="${esc(v)}">`).join('');
+  $('fkModelList').innerHTML = [...models].filter(Boolean).sort().map(v=>`<option value="${esc(v)}">`).join('');
+  ['fkBrand','fkModel','fkSite','fkDate'].forEach(i=>{ if($(i)) $(i).value=''; });
+  if($('fkPower')) $('fkPower').value='';
+  if($('fkProduct')) $('fkProduct').value='';
+  if($('fkQty')) $('fkQty').value='1';
+  $('forkAddModal').classList.add('active');
+}
+function closeForkAddModal(){ $('forkAddModal').classList.remove('active'); }
+function saveForkAdd(){
+  const brand=($('fkBrand').value||'').trim();
+  const model=($('fkModel').value||'').trim();
+  const power=($('fkPower').value||'').trim();
+  const product=($('fkProduct').value||'').trim();
+  if(!brand || !model || !power || !product){ toast('브랜드·모델명·동력·제품명을 모두 입력해 주세요', true); return; }
+  const rec = {
+    id: 'fk_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    brand, model, power, product,
+    site: ($('fkSite').value||'').trim(),
+    qty: Math.max(1, parseInt($('fkQty').value,10)||1),
+    date: $('fkDate').value || ''
+  };
+  forkManual.push(rec);
+  saveForkManual();
+  // 제조사·모델 카탈로그에도 반영(자동완성 성장)
+  if (!(forkMakers||[]).includes(brand)) { forkMakers.push(brand); saveForkMakers(); }
+  closeForkAddModal();
+  toast('지게차를 추가했어요');
+  if (dashSubTab==='forklift') $('dashForkliftTab').innerHTML = renderForkliftStats();
 }
 function setPsCoFilter(v){ psCoFilter = v || ''; renderProductStats(); }
 // 월별 추이 막대 호버 툴팁
@@ -6966,6 +7083,7 @@ function bindBackdropClose(id, closeFn){
 }
 bindBackdropClose('newOrderModal', closeNewOrderModal);
 bindBackdropClose('createModal', closeCreateModal);
+bindBackdropClose('forkAddModal', closeForkAddModal);
 bindBackdropClose('editModal', closeEditModal);
 bindBackdropClose('asModal', closeAsModal);
 bindBackdropClose('shipModal', closeShipModal);
