@@ -1202,6 +1202,9 @@
 
                 <!-- 탭 2: 제품 통계 -->
                 <div id="dashProductTab" style="display:none;"></div>
+
+                <!-- 탭 3: 지게차 통계 -->
+                <div id="dashForkliftTab" style="display:none;"></div>
             </div>
 
             <!-- ===== 프로젝트(딜) 관리 ===== -->
@@ -4153,14 +4156,20 @@ function selectYear(y){ selectedYear = y; renderDashboard(); }
 function renderDashboard(){
   renderYearSelector();
   renderDashSubTabs();
+  $('dashSalesTab').style.display = 'none';
+  $('dashProductTab').style.display = 'none';
+  if ($('dashForkliftTab')) $('dashForkliftTab').style.display = 'none';
   if (dashSubTab === 'product'){
-    $('dashSalesTab').style.display = 'none';
     $('dashProductTab').style.display = '';
     renderProductStats();
     return;
   }
+  if (dashSubTab === 'forklift'){
+    $('dashForkliftTab').style.display = '';
+    $('dashForkliftTab').innerHTML = renderForkliftStats();
+    return;
+  }
   $('dashSalesTab').style.display = '';
-  $('dashProductTab').style.display = 'none';
   const y = selectedYear;
   const NOW = new Date();
   const thisYearRev = revenueOfYear(y);
@@ -4249,7 +4258,7 @@ function renderDashSubTabs(){
     return `<button onclick="switchDashSubTab('${val}')" style="padding:4px 2px;border:none;background:transparent;font-family:inherit;font-size:15px;letter-spacing:-.01em;font-weight:${on?800:500};color:${on?'var(--text-primary)':'var(--text-tertiary)'};cursor:pointer;transition:color .15s;">${label}</button>`;
   };
   $('dashSubTabs').innerHTML = `<div style="display:inline-flex;gap:22px;align-items:center;width:100%;">
-      ${tab('📊 매출 요약','sales')}${tab('📦 제품 통계','product')}
+      ${tab('📊 매출 요약','sales')}${tab('📦 제품 통계','product')}${tab('🚜 지게차 통계','forklift')}
     </div>`;
 }
 function switchDashSubTab(v){ dashSubTab = v; renderDashboard(); }
@@ -4541,6 +4550,76 @@ function renderProductStats(){
   </div>`;
 
   $('dashProductTab').innerHTML = ctrl + kpi + breakdown + monthly + pivot + coView + note;
+}
+
+/* ===== 지게차 브랜드·모델 통계 (설치 건수 기준) ===== */
+const FORK_COLORS = ['#0071e3','#0d9488','#7d5bed','#e8730c','#d11d6b','#2f855a','#9a6a00','#5b5bd6','#0e7490','#b45309'];
+function collectForkliftStats(){
+  const brands = {};
+  deals.forEach(d=>{
+    const f = dealForklift[d.id];
+    if (!f) return;
+    const maker = (f.maker||'').trim();
+    const modelRaw = (f.model||'').trim();
+    const power = (f.power||'').trim();
+    if (!maker && !modelRaw && !power) return;                 // 지게차 정보가 하나도 없으면 제외
+    const bkey  = maker || '(제조사 미입력)';
+    const model = modelRaw || '(모델 미입력)';
+    const site  = (d.site||'').trim() || (d.co||'').trim() || '(현장 미상)';
+    const b = brands[bkey] || (brands[bkey] = {name:bkey, cnt:0, sites:new Set(), models:{}});
+    b.cnt++; b.sites.add(site);
+    const mkey = model + '|' + power;
+    const m = b.models[mkey] || (b.models[mkey] = {model, power, cnt:0, sites:new Set(), noName:!modelRaw});
+    m.cnt++; m.sites.add(site);
+  });
+  // 배열화 + 정렬(건수순), 색 부여
+  const arr = Object.values(brands).map(b=>({
+    name:b.name, cnt:b.cnt, siteCnt:b.sites.size,
+    models: Object.values(b.models).sort((x,y)=> y.cnt-x.cnt || x.model.localeCompare(y.model,'ko'))
+                  .map(m=>({model:m.model, power:m.power, cnt:m.cnt, siteCnt:m.sites.size, sites:[...m.sites], noName:m.noName})),
+  }));
+  arr.sort((a,b)=> b.cnt-a.cnt || b.models.length-a.models.length || a.name.localeCompare(b.name,'ko'));
+  arr.forEach((b,i)=> b.color = FORK_COLORS[i] || '#8b95a1');
+  return arr;
+}
+function renderForkliftStats(){
+  const brands = collectForkliftStats();
+  const totB = brands.length;
+  const totM = brands.reduce((s,b)=> s + b.models.filter(m=>!m.noName).length, 0);
+  const totC = brands.reduce((s,b)=> s + b.cnt, 0);
+  const totS = brands.reduce((s,b)=> s + b.siteCnt, 0);
+  const pwTag = p => p ? `<span style="display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:1.5px 6px;margin-left:5px;vertical-align:1px;${p==='전동'?'color:#0d8f6f;background:rgba(13,143,111,.12);':'color:#c26a12;background:rgba(194,106,18,.13);'}">${esc(p)}</span>` : '';
+  const schip = (v,k)=>`<div style="display:flex;align-items:baseline;gap:6px;background:var(--bg-subtle);border-radius:11px;padding:9px 14px;"><span style="font-size:19px;font-weight:800;letter-spacing:-.02em;">${v}</span><span style="font-size:11.5px;color:var(--text-tertiary);font-weight:700;">${k}</span></div>`;
+
+  const cards = brands.length ? brands.map((b,idx)=>{
+    const tint = `color-mix(in srgb, ${b.color} 9%, var(--bg-card))`;
+    const models = b.models.map(m=>{
+      const title = m.sites.join(' · ').replace(/"/g,'&quot;');
+      return `<div title="현장: ${title}" style="display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid var(--grid-hairline,var(--border));">
+        <span style="font-size:13px;font-weight:700;min-width:0;">${esc(m.model)}${pwTag(m.power)}</span>
+        <span style="margin-left:auto;font-size:12.5px;font-weight:800;color:var(--text-secondary);white-space:nowrap;">${m.cnt}건</span>
+      </div>`;
+    }).join('');
+    return `<div style="border:1px solid var(--border);border-radius:16px;overflow:hidden;display:grid;grid-template-columns:132px 1fr;margin-top:${idx?12:0}px;">
+      <div style="background:${tint};padding:16px 15px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:7px;"><span style="width:9px;height:9px;border-radius:50%;background:${b.color};flex-shrink:0;"></span><span style="font-size:15px;font-weight:800;">${esc(b.name)}</span></div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:${b.color};line-height:1;margin-top:8px;">${b.cnt}<small style="font-size:12px;color:var(--text-tertiary);font-weight:700;">건</small></div>
+        <div style="font-size:10.5px;color:var(--text-tertiary);font-weight:600;margin-top:7px;">모델 ${b.models.filter(m=>!m.noName).length} · 현장 ${b.siteCnt}</div>
+      </div>
+      <div style="padding:9px 16px 10px;display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-content:start;">${models}</div>
+    </div>`;
+  }).join('') : `<div class="di-note-empty" style="padding:18px 4px;">지게차 정보(제조사·모델·동력)가 입력된 프로젝트가 없어요 · 딜 정보 수정에서 입력하면 여기 모여요</div>`;
+
+  return `<div class="section-card">
+    <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="section-title">🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 브랜드·모델이 몇 건 설치됐나</span></div>
+    </div>
+    <div class="section-desc">지게차 정보가 입력된 프로젝트 기준 · 건수순 · 모델에 마우스를 올리면 현장이 보여요</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;">
+      ${schip(totB,'브랜드')}${schip(totM,'모델')}${schip(totC,'설치 건수')}${schip(totS,'현장')}
+    </div>
+    ${cards}
+  </div>`;
 }
 function setPsCoFilter(v){ psCoFilter = v || ''; renderProductStats(); }
 // 월별 추이 막대 호버 툴팁
