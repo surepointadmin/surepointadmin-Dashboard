@@ -1584,20 +1584,26 @@
                             <label class="form-label">수량 (대) <span style="color:var(--status-critical)">*</span></label>
                             <input type="number" min="0" class="form-input" id="batchQty" placeholder="예: 3">
                         </div>
-                        <div class="form-row">
+                        <div class="form-row" id="batchInstallWrap">
                             <div class="form-group">
-                                <label class="form-label">설치 시작일 <span style="color:var(--status-critical)">*</span></label>
+                                <label class="form-label" id="batchStartLabel">설치 시작일 <span id="batchStartReq" style="color:var(--status-critical)">*</span></label>
                                 <input type="date" class="form-input" id="batchStart">
                             </div>
                             <div class="form-group">
-                                <label class="form-label">설치 완료일</label>
+                                <label class="form-label" id="batchEndLabel">설치 완료일</label>
                                 <input type="date" class="form-input" id="batchEnd">
-                                <div class="form-hint">하루면 시작일과 같게 두거나 비워도 돼요</div>
+                                <div class="form-hint" id="batchEndHint">하루면 시작일과 같게 두거나 비워도 돼요</div>
                             </div>
+                        </div>
+                        <div class="form-group" id="batchCancelWrap" style="display:none;">
+                            <label class="form-label">해체·취소일 <span style="color:var(--status-critical)">*</span></label>
+                            <input type="date" class="form-input" id="batchCancelDate">
+                            <div class="form-hint">설치했다가 철거/취소한 날짜예요 · 위 설치 날짜는 언제 설치했었는지 기록용이에요</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">상태</label>
                             <div id="batchStatusSeg" style="display:flex;gap:6px;"></div>
+                            <div class="form-hint">🚫 해체·취소 = 설치했다가 철거/취소된 대수예요. 실매출·잠재매출 양쪽에서 모두 빠져요.</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">메모 (선택)</label>
@@ -2717,10 +2723,8 @@
             }).join('');
           }
           if(f && !f.getAttribute('srcdoc') && !f._spLoaded){
-            try{ var _bin=atob(window.__QSITE_B64), _by=new Uint8Array(_bin.length);
-              for(var _i=0;_i<_bin.length;_i++) _by[_i]=_bin.charCodeAt(_i);
-              f.srcdoc=new TextDecoder('utf-8').decode(_by); f._spLoaded=true;
-            }catch(e){ f.setAttribute('src',SITE_URL); }
+            try{ var _b=atob(window.__QSITE_B64); var _by=new Uint8Array(_b.length); for(var _i=0;_i<_b.length;_i++){_by[_i]=_b.charCodeAt(_i);} f.srcdoc=new TextDecoder('utf-8').decode(_by); f._spLoaded=true; }
+            catch(e){ f.setAttribute('src',SITE_URL); }
           }
           m.classList.add('active');
           clearTimeout(window._qsiteT);
@@ -3538,6 +3542,8 @@ function saveAttachFiles(){ try { localStorage.setItem(AFILES_LS_KEY, JSON.strin
 function getAttachFiles(scope){ const a = attachFiles[scope]; return Array.isArray(a) ? a : []; }
 function dealTotalQty(d){ const items = getDealItems(d.id); if (items && items.length){ return items.reduce((s,p)=>s+(Number(p.qty)||0),0); } return Number(d.qty)||0; }
 function dealBatchDoneQty(id){ return getDealBatches(id).filter(b=>b.status==='done').reduce((s,b)=>s+(Number(b.qty)||0),0); }
+/* 해체·설치취소된 수량 (설치했다가 철거해서 매출에서 빠지는 대수) */
+function dealBatchCancelQty(id){ return getDealBatches(id).filter(b=>b.status==='cancel').reduce((s,b)=>s+(Number(b.qty)||0),0); }
 /* ---- 출고·납품 로컬 저장 ---- */
 function loadShipLocal(){ try { shipments = JSON.parse(localStorage.getItem(SHIP_LS_KEY) || '[]'); } catch(e){ shipments = []; } }
 function saveShipLocal(){ try { localStorage.setItem(SHIP_LS_KEY, JSON.stringify(shipments)); } catch(e){ toast('저장 공간 부족 — 백업 후 정리해 주세요', true); } if (shipRemoteOn) syncShipRemote(); }
@@ -3823,18 +3829,52 @@ function revenueOfYear(year, uptoMonth){
   });
   return sum;
 }
-/* 실매출(확정): 세금계산서 발행된 것만 — 딜 + 출고 */
+function _todayStr(){ const t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+/* 딜의 실매출(실현) 금액
+   - 설치완료 이후 단계: 전액
+   - 설치중: 설치 시작일(close_date)이 오늘 이전(설치 시작됨)이면 → 분할 설치는 완료 수량 비율만, 단순 설치는 전액. 설치 시작 전이면 0
+   - 그 외(설치 전 단계): 0 */
+function dealRealizedWon(d){
+  if(isLost(d)) return 0;
+  const st = canonStage(d), amt = d.amount||0;
+  const total = dealTotalQty(d);
+  const cancel = dealBatchCancelQty(d.id);               // 해체·설치취소 대수
+  const cancelWon = (total>0) ? Math.round(amt * Math.min(1, cancel/total)) : 0;
+  if(DELIVERED_STAGES.has(st)) return Math.max(0, amt - cancelWon);  // 설치완료·세금계산서 = 전액 − 해체취소분
+  if(st==='설치중'){
+    const start=(d.close_date||'').slice(0,10);
+    if(!start || start > _todayStr()) return 0;         // 아직 설치 시작 전
+    const batches=getDealBatches(d.id);
+    if(batches.length && total>0){                       // 분할 설치 → (완료 − 해체취소) 수량만
+      const net = Math.max(0, dealBatchDoneQty(d.id) - cancel);
+      return Math.round(amt * Math.max(0, Math.min(1, net/total)));
+    }
+    return Math.max(0, amt - cancelWon);                 // 단순 설치, 시작됨 → 전액 − 해체취소분
+  }
+  return 0;
+}
+/* 딜의 잠재매출 금액 = 제안견적 단계 이상에서 (아직 설치 안 됐고 취소도 아닌 미설치분).
+   잠재 = 전액 − 실매출(설치분) − 해체취소분 → 해체·취소분은 실매출·잠재매출 모두에서 제외 */
+function dealPotentialWon(d){
+  if(isLost(d)) return 0;
+  if(stageIdx(d) < 2) return 0;                          // 잠재발굴·미팅접촉 제외 (제안견적부터)
+  const amt = d.amount||0, total = dealTotalQty(d);
+  const cancel = dealBatchCancelQty(d.id);
+  const cancelWon = (total>0) ? Math.round(amt * Math.min(1, cancel/total)) : 0;
+  return Math.max(0, amt - dealRealizedWon(d) - cancelWon);
+}
+/* 실매출(확정): 출고 완료 + 설치 시작 이후(분할 설치는 완료 수량만) */
 function realRevenueSplit(){
   let deal=0, ship=0;
-  deals.forEach(d=>{ if(!isLost(d) && dealInvoiced(d)) deal += (d.amount||0); });
-  shipments.forEach(s=>{ if(s.tax_invoice_issued) ship += shipNet(s); });
+  deals.forEach(d=>{ deal += dealRealizedWon(d); });
+  shipments.forEach(s=>{ if(shipDone(s)) ship += shipNet(s); });
   return {deal:deal, ship:ship, total:deal+ship};
 }
-/* 잠재매출(진행 중): 설치중~마지막 단계 딜 전체 + 출고·납품 전체 리스트 */
+/* 잠재매출: 제안견적 단계 이상의 미실현분(설치 예정 수량 포함) + 출고 예정(미완료) */
 function potentialRevenueSplit(){
   let deal=0, ship=0;
-  deals.forEach(d=>{ if(!isLost(d) && REVENUE_STAGES.has(canonStage(d))) deal += (d.amount||0); });
-  shipments.forEach(s=>{ ship += shipNet(s); });
+  deals.forEach(d=>{ deal += dealPotentialWon(d); });
+  shipments.forEach(s=>{ if(!shipDone(s)) ship += shipNet(s); });
   return {deal:deal, ship:ship, total:deal+ship};
 }
 function yearsInData(){
@@ -4698,7 +4738,7 @@ function renderCalendar(){
   deals.filter(d=>!isLost(d) && inGroup(d)).forEach(d=>{
     const batches = getDealBatches(d.id);
     if (batches.length){
-      batches.forEach((b,i)=>{ if(b.start) spans.push({kind:'deal', ref:d, start:String(b.start).slice(0,10), end:String(b.end||b.start).slice(0,10), batchLabel:(i+1)+'차', batchQty:Number(b.qty)||0, batchDone:b.status==='done'}); });
+      batches.forEach((b,i)=>{ if(b.start && b.status!=='cancel') spans.push({kind:'deal', ref:d, start:String(b.start).slice(0,10), end:String(b.end||b.start).slice(0,10), batchLabel:(i+1)+'차', batchQty:Number(b.qty)||0, batchDone:b.status==='done'}); });
     } else {
       const sp = dealSpan(d); if (sp) spans.push({kind:'deal', ref:d, start:sp.start, end:sp.end});
     }
@@ -4783,7 +4823,7 @@ function hexToRgba(hex, a){
 }
 function openCalDay(ds){
   const inGroup = d => calGroup==='all' ? true : (calGroup==='rev' ? isRevenue(d) : (!isRevenue(d) && !isLost(d)));
-  const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const bs=getDealBatches(d.id); if(bs.length){ return bs.some(b=>b.start && String(b.start).slice(0,10)<=ds && ds<=String(b.end||b.start).slice(0,10)); } const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
+  const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const bs=getDealBatches(d.id); if(bs.length){ return bs.some(b=>b.start && b.status!=='cancel' && String(b.start).slice(0,10)<=ds && ds<=String(b.end||b.start).slice(0,10)); } const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
   const days = calEvents.filter(e=> e.start && String(e.start).slice(0,10)<=ds && ds<=String(e.end||e.start).slice(0,10));
   const taxItems = [];
   deals.forEach(d=>{ if(d.tax_invoice_issued && String(d.tax_invoice_date||'').slice(0,10)===ds) taxItems.push({t:'deal', ref:d}); });
@@ -4927,36 +4967,36 @@ function renderDashboard(){
   // ── 실매출(확정) / 잠재매출(진행 중) 분리 ──
   const rvReal = realRevenueSplit();
   const rvPot  = potentialRevenueSplit();
-  const rvPct  = rvPot.total > 0 ? Math.round(rvReal.total / rvPot.total * 1000) / 10 : 0;
-  const rvUnconf = Math.max(0, rvPot.total - rvReal.total);
-  const rvUnPct = Math.max(0, Math.round((100 - rvPct) * 10) / 10);
+  const rvGrand = rvReal.total + rvPot.total;
+  const rvPct  = rvGrand > 0 ? Math.round(rvReal.total / rvGrand * 1000) / 10 : 0;
+  const rvPotPct = Math.max(0, Math.round((100 - rvPct) * 10) / 10);
   $('dashHero').innerHTML = `
     <div class="rv2">
       <div class="rv2-card real">
-        <span class="rv2-tag">🧾 실매출 · 확정</span>
+        <span class="rv2-tag">✅ 실매출 · 확정</span>
         <div class="rv2-val">${fmtMoney(rvReal.total)}</div>
-        <div class="rv2-crit">세금계산서 발행된 것만</div>
+        <div class="rv2-crit">출고 완료 + 설치 시작 이후 (분할 설치는 완료 수량만)</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (세금계산서 발행)</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
-          <div class="rv2-bk"><div class="k">출고 (세금계산서 발행)</div><div class="v">${fmtMoney(rvReal.ship)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (설치 시작·완료분)</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
+          <div class="rv2-bk"><div class="k">출고 (출고 완료)</div><div class="v">${fmtMoney(rvReal.ship)}</div></div>
         </div>
       </div>
       <div class="rv2-card pot">
-        <span class="rv2-tag">📦 잠재매출 · 진행 중</span>
+        <span class="rv2-tag">📦 잠재매출 · 예정</span>
         <div class="rv2-val">${fmtMoney(rvPot.total)}</div>
-        <div class="rv2-crit">설치중~마지막 단계 딜 전체 + 출고·납품 전체</div>
+        <div class="rv2-crit">제안견적 단계 이상 · 실매출 제외 (설치 예정 수량 포함)</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (설치중~완료)</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
-          <div class="rv2-bk" style="cursor:pointer;" onclick="showPage('ship')"><div class="k">출고 전체</div><div class="v">${fmtMoney(rvPot.ship)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (제안견적~ 미설치분)</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
+          <div class="rv2-bk" style="cursor:pointer;" onclick="showPage('ship')"><div class="k">출고 (출고 예정)</div><div class="v">${fmtMoney(rvPot.ship)}</div></div>
         </div>
       </div>
     </div>
     <div class="rv2bar-wrap">
-      <div class="rv2bar-t">잠재매출 중 실매출(확정) 비율 <span class="pct">전체 ${fmtMoney(rvPot.total)} 중 확정 ${fmtMoney(rvReal.total)}</span></div>
+      <div class="rv2bar-t">실매출 / 잠재매출 비율 <span class="pct">전체(실+잠재) ${fmtMoney(rvGrand)} 중 확정 ${fmtMoney(rvReal.total)}</span></div>
       <div class="rv2bar"><div class="fill" style="width:${rvPct}%"></div></div>
       <div class="rv2bar-lg">
         <span><span class="rv2dot" style="background:#15803d"></span>실매출(확정) <b>${fmtMoney(rvReal.total)} · ${rvPct}%</b></span>
-        <span><span class="rv2dot" style="background:#eef2ff;border:1px solid #c7d2fe"></span>미확정(잠재−실) <b>${fmtMoney(rvUnconf)} · ${rvUnPct}%</b></span>
+        <span><span class="rv2dot" style="background:#eef2ff;border:1px solid #c7d2fe"></span>잠재매출(예정) <b>${fmtMoney(rvPot.total)} · ${rvPotPct}%</b></span>
       </div>
     </div>`;
 
@@ -5996,8 +6036,8 @@ function projectCardHtml(d, seq){
         <div class="pc-subsmall">${d.site?`<span class="pin">📍</span> ${esc(d.site)}`:''}${(d.site&&d.prod)?' · ':''}${d.prod?`<span class="prod">${esc(d.prod)}</span>`:''} · ${esc(d.person||'-')}</div>
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
-        ${(()=>{ const bs=getDealBatches(d.id); if(!bs.length) return ''; const tot=dealTotalQty(d); const dn=dealBatchDoneQty(d.id); const p=tot>0?Math.min(100,Math.round(dn/tot*100)):0; return `<div class="pc-inst">
-          <div class="pc-inst-h"><span>🔧 설치 진행</span><span>${tot>0?`${dn} / ${tot}대`:`${dn}대`}</span></div>
+        ${(()=>{ const bs=getDealBatches(d.id); if(!bs.length) return ''; const tot=dealTotalQty(d); const cn=dealBatchCancelQty(d.id); const dn=Math.max(0,dealBatchDoneQty(d.id)-cn); const p=tot>0?Math.min(100,Math.round(dn/tot*100)):0; return `<div class="pc-inst">
+          <div class="pc-inst-h"><span>🔧 설치 진행</span><span>${tot>0?`${dn} / ${tot}대`:`${dn}대`}${cn>0?` <span style="color:#dc2626;">🚫${cn}</span>`:''}</span></div>
           ${tot>0?`<div class="pc-inst-bar"><i style="width:${p}%;"></i></div>`:''}
         </div>`; })()}
       </div>
@@ -6599,21 +6639,28 @@ function renderDealBatches(d){
   const batches = getDealBatches(d.id);
   const total = dealTotalQty(d);
   const done = dealBatchDoneQty(d.id);
-  const remain = total - done;
-  const pct = total>0 ? Math.min(100, Math.round(done/total*100)) : 0;
+  const cancel = dealBatchCancelQty(d.id);
+  const net = Math.max(0, done - cancel);                 // 실제 설치 유지 대수
+  const remain = Math.max(0, total - done);               // 미설치분
+  const pct = total>0 ? Math.min(100, Math.round(net/total*100)) : 0;
   const rows = batches.map((b,i)=>{
-    const isDone = b.status==='done';
-    const dateTxt = b.start
-      ? (fmtDate(b.start) + (b.end && b.end!==b.start ? ' ~ '+fmtDate(b.end) : '') + (isDone?' 설치 완료':' 설치 예정'))
-      : '일정 미정';
-    return `<div class="db-row">
+    const isDone = b.status==='done', isCancel = b.status==='cancel';
+    const stTxt = isDone?' 설치 완료':' 설치 예정';
+    const dateTxt = isCancel
+      ? ((b.start?fmtDate(b.start)+' 설치 → ':'') + (b.cancelDate ? fmtDate(b.cancelDate)+' 해체·취소' : '해체·취소 (날짜 미정)'))
+      : (b.start
+          ? (fmtDate(b.start) + (b.end && b.end!==b.start ? ' ~ '+fmtDate(b.end) : '') + stTxt)
+          : '일정 미정');
+    const badge = isCancel ? '<span class="db-st" style="background:#fdeaea;color:#dc2626;border:1px solid #f3c0c0;">🚫 해체·취소</span>'
+      : `<span class="db-st ${isDone?'done':'plan'}">${isDone?'✅ 완료':'⏳ 예정'}</span>`;
+    return `<div class="db-row"${isCancel?' style="opacity:.75;"':''}>
       <div class="db-seq">${i+1}차</div>
       <div class="db-mid">
-        <div class="db-qty">${Number(b.qty)||0}대</div>
+        <div class="db-qty"${isCancel?' style="text-decoration:line-through;color:#dc2626;"':''}>${Number(b.qty)||0}대</div>
         <div class="db-sched">📅 ${dateTxt}</div>
         ${b.memo?`<div class="db-memo">📝 ${esc(b.memo)}</div>`:''}
       </div>
-      <span class="db-st ${isDone?'done':'plan'}">${isDone?'✅ 완료':'⏳ 예정'}</span>
+      ${badge}
       <span class="db-edit" onclick="openBatchModal(${d.id},'${b.id}')">수정</span>
     </div>`;
   }).join('');
@@ -6623,7 +6670,7 @@ function renderDealBatches(d){
       <button class="btn btn-secondary btn-sm" style="color:var(--primary);border-color:#cfe3f6;" onclick="openBatchModal(${d.id})">＋ 설치 회차 추가</button>
     </div>
     ${(total>0 && batches.length) ? `<div style="margin-bottom:14px;">
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:6px;"><span>설치 진행 · 총 ${total}대</span><span style="color:var(--green,#15803d);">${done}대 완료${remain>0?` · ${remain}대 남음`:''}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:6px;"><span>설치 진행 · 총 ${total}대</span><span style="color:var(--green,#15803d);">${net}대 설치${cancel>0?` · <span style="color:#dc2626;">🚫 ${cancel}대 해체취소</span>`:''}${remain>0?` · ${remain}대 남음`:''}</span></div>
       <div style="height:9px;border-radius:6px;background:#eef1f4;overflow:hidden;"><i style="display:block;height:100%;background:linear-gradient(90deg,#16a34a,#15803d);width:${pct}%;"></i></div>
     </div>`:''}
     ${rows || '<div class="di-note-empty">등록된 설치 회차가 없어요 · 「＋ 설치 회차 추가」로 3대 샘플 먼저 설치처럼 나눠서 관리할 수 있어요</div>'}
@@ -6637,38 +6684,67 @@ function openBatchModal(dealId, batchId){
   $('batchQty').value = b ? (b.qty||'') : '';
   $('batchStart').value = b ? (b.start||'') : '';
   $('batchEnd').value = b ? (b.end||'') : '';
+  $('batchCancelDate').value = b ? (b.cancelDate||'') : '';
   _batchStatus = b ? (b.status||'plan') : 'plan';
   $('batchMemo').value = b ? (b.memo||'') : '';
   renderBatchStatusSeg();
+  updateBatchDateVis();
   $('batchDeleteBtn').style.display = b ? '' : 'none';
   $('batchModal').classList.add('active');
 }
-function setBatchStatus(s){ _batchStatus=s; renderBatchStatusSeg(); }
+function updateBatchDateVis(){
+  const cancel = _batchStatus==='cancel';
+  // 취소여도 설치 날짜 칸은 그대로 보여줘서 "설치했던 날짜"를 확인·기록할 수 있게
+  $('batchInstallWrap').style.display = '';
+  $('batchCancelWrap').style.display = cancel ? '' : 'none';
+  $('batchStartLabel').innerHTML = cancel ? '설치했던 날짜 <span style="color:var(--text-tertiary);font-weight:500;font-size:11px;">(선택)</span>' : '설치 시작일 <span style="color:var(--status-critical)">*</span>';
+  $('batchEndLabel').textContent = cancel ? '설치 완료일 (선택)' : '설치 완료일';
+  $('batchEndHint').textContent = cancel ? '설치했던 기간이 기억나면 입력해 주세요' : '하루면 시작일과 같게 두거나 비워도 돼요';
+}
+function setBatchStatus(s){ _batchStatus=s; renderBatchStatusSeg(); updateBatchDateVis(); }
 function renderBatchStatusSeg(){
-  $('batchStatusSeg').innerHTML = [['plan','⏳ 예정','#b45309'],['done','✅ 완료','#15803d']].map(([s,lbl,col])=>{
+  $('batchStatusSeg').innerHTML = [['plan','⏳ 예정','#b45309'],['done','✅ 완료','#15803d'],['cancel','🚫 해체·취소','#dc2626']].map(([s,lbl,col])=>{
     const on=_batchStatus===s;
-    return `<span onclick="setBatchStatus('${s}')" style="flex:1;text-align:center;font-size:12.5px;font-weight:700;border:1px solid ${on?col:'var(--border)'};background:${on?col:'#fff'};color:${on?'#fff':'var(--text-secondary)'};border-radius:8px;padding:8px;cursor:pointer;">${lbl}</span>`;
+    return `<span onclick="setBatchStatus('${s}')" style="flex:1;text-align:center;font-size:11.5px;font-weight:700;white-space:nowrap;border:1px solid ${on?col:'var(--border)'};background:${on?col:'#fff'};color:${on?'#fff':'var(--text-secondary)'};border-radius:8px;padding:8px 4px;cursor:pointer;">${lbl}</span>`;
   }).join('');
 }
 function closeBatchModal(){ $('batchModal').classList.remove('active'); }
 function saveBatch(){
   const qty = parseInt($('batchQty').value,10)||0;
-  const start = $('batchStart').value;
+  const isCancel = _batchStatus==='cancel';
   if (!qty){ toast('수량을 입력해 주세요', true); return; }
-  if (!start){ toast('설치 시작일을 입력해 주세요', true); return; }
-  const end = $('batchEnd').value || start;
+  if (isCancel){
+    if (!$('batchCancelDate').value){ toast('해체·취소일을 입력해 주세요', true); return; }
+  } else {
+    if (!$('batchStart').value){ toast('설치 시작일을 입력해 주세요', true); return; }
+  }
+  const cancelDate = $('batchCancelDate').value;
+  const start = $('batchStart').value;                        // 취소여도 설치했던 날짜는 보존
+  const end = $('batchEnd').value || (start || '');
   const memo = $('batchMemo').value.trim();
   const arr = (dealBatches[_batchDealId] || []).slice();
+  const isEdit = !!_batchId;
+  let prevStatus = null;
   if (_batchId){
     const idx = arr.findIndex(x=>x.id===_batchId);
-    if (idx>=0) arr[idx] = {...arr[idx], qty, start, end, status:_batchStatus, memo};
+    if (idx>=0){ prevStatus = arr[idx].status||'plan'; arr[idx] = {...arr[idx], qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:''}; }
   } else {
-    arr.push({ id:'b'+Date.now(), qty, start, end, status:_batchStatus, memo });
+    arr.push({ id:'b'+Date.now(), qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:'' });
   }
   dealBatches[_batchDealId] = arr;
   saveDealBatches();
+  // 진행 타임라인 기록
+  try{
+    const stLbl = isCancel?'해체·취소':(_batchStatus==='done'?'설치 완료':'설치 예정');
+    const when = isCancel ? (cancelDate?fmtDate(cancelDate):'날짜 미정') : (start ? fmtDate(start) : '일정 미정');
+    let logTxt;
+    if(isCancel){ const inst = start?`${fmtDate(start)} 설치 → `:''; logTxt = `설치 ${qty}대 해체·설치취소 (${inst}${when} 취소)${memo?' · '+memo:''} — 실매출·잠재매출에서 제외`; }
+    else if(isEdit && prevStatus && prevStatus!==_batchStatus){ logTxt = `설치 회차 상태 변경 → ${stLbl} · ${qty}대 (${when})${memo?' · '+memo:''}`; }
+    else { logTxt = `설치 회차 ${isEdit?'수정':'등록'} · ${stLbl} ${qty}대 (${when})${memo?' · '+memo:''}`; }
+    addActivity(_batchDealId, isCancel?'해체·취소':'설치 일정', logTxt, {source:'auto'});
+  }catch(e){}
   closeBatchModal();
-  toast('설치 회차를 저장했어요 ✓ (팀 공유)');
+  toast(_batchStatus==='cancel'?'해체·취소 내역을 저장했어요 ✓ (팀 공유)':'설치 회차를 저장했어요 ✓ (팀 공유)');
   if ($('detailPage').classList.contains('active')) renderInfo();
   if ($('calendarPage').classList.contains('active')) renderCalendar();
 }
