@@ -4738,7 +4738,14 @@ function renderCalendar(){
   deals.filter(d=>!isLost(d) && inGroup(d)).forEach(d=>{
     const batches = getDealBatches(d.id);
     if (batches.length){
-      batches.forEach((b,i)=>{ if(b.start && b.status!=='cancel') spans.push({kind:'deal', ref:d, start:String(b.start).slice(0,10), end:String(b.end||b.start).slice(0,10), batchLabel:(i+1)+'차', batchQty:Number(b.qty)||0, batchDone:b.status==='done'}); });
+      batches.forEach((b,i)=>{
+        if(b.status==='cancel'){
+          const cd = String(b.cancelDate||'').slice(0,10);
+          if(cd) spans.push({kind:'deal', ref:d, start:cd, end:cd, batchLabel:(i+1)+'차', batchQty:Number(b.qty)||0, batchCancel:true});
+        } else if(b.start){
+          spans.push({kind:'deal', ref:d, start:String(b.start).slice(0,10), end:String(b.end||b.start).slice(0,10), batchLabel:(i+1)+'차', batchQty:Number(b.qty)||0, batchDone:b.status==='done'});
+        }
+      });
     } else {
       const sp = dealSpan(d); if (sp) spans.push({kind:'deal', ref:d, start:sp.start, end:sp.end});
     }
@@ -4761,7 +4768,7 @@ function renderCalendar(){
       if (s.start <= weekStart) cs = 0;
       let ce = 6; for (let c=6;c>=0;c--){ if (wd[c].ds <= s.end){ ce=c; break; } }
       if (s.end >= weekEnd) ce = 6;
-      segs.push({ kind:s.kind, ref:s.ref, refType:s.refType, batchLabel:s.batchLabel, batchQty:s.batchQty, batchDone:s.batchDone, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
+      segs.push({ kind:s.kind, ref:s.ref, refType:s.refType, batchLabel:s.batchLabel, batchQty:s.batchQty, batchDone:s.batchDone, batchCancel:s.batchCancel, cs, ce, contL: s.start < weekStart, contR: s.end > weekEnd, multi: s.end>s.start });
     });
     // 레인 배정 (겹치면 아래로 쌓기)
     segs.sort((a,b)=> a.cs-b.cs || (b.ce-b.cs)-(a.ce-a.cs));
@@ -4794,7 +4801,11 @@ function renderCalendar(){
         icon = '🧾 ';
       } else {
         const d = sg.ref; nm = dealTitle(d);
-        if (sg.batchLabel){
+        if (sg.batchCancel){
+          col = '#dc2626';                               // 해체·취소 = 빨강
+          nm = `${sg.batchLabel} ${sg.batchQty}대 해체·취소 · ${dealTitle(d)}`;
+          ttl = `${dealTitle(d)} · ${sg.batchLabel} ${sg.batchQty}대 해체·설치취소`;
+        } else if (sg.batchLabel){
           col = sg.batchDone ? '#16a34a' : '#e07b39';   // 완료=초록, 예정=주황
           nm = `${sg.batchLabel} ${sg.batchQty}대 · ${dealTitle(d)}`;
           ttl = `${dealTitle(d)} · ${sg.batchLabel} ${sg.batchQty}대 (${sg.batchDone?'설치 완료':'설치 예정'})`;
@@ -4803,7 +4814,7 @@ function renderCalendar(){
           ttl = `${nm} · ${String(d.close_date||'').slice(5,10)}~${String(d.delivery_date||'').slice(5,10)}`;
         }
         click = `openCalPop('deal', ${d.id}, event)`;
-        icon = '🔧 ';
+        icon = sg.batchCancel ? '🚫 ' : '🔧 ';
       }
       const left = `calc(${(sg.cs/7*100).toFixed(4)}% + 3px)`;
       const width = `calc(${((sg.ce-sg.cs+1)/7*100).toFixed(4)}% - 6px)`;
@@ -4823,7 +4834,7 @@ function hexToRgba(hex, a){
 }
 function openCalDay(ds){
   const inGroup = d => calGroup==='all' ? true : (calGroup==='rev' ? isRevenue(d) : (!isRevenue(d) && !isLost(d)));
-  const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const bs=getDealBatches(d.id); if(bs.length){ return bs.some(b=>b.start && b.status!=='cancel' && String(b.start).slice(0,10)<=ds && ds<=String(b.end||b.start).slice(0,10)); } const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
+  const evs = deals.filter(d=>{ if(isLost(d)||!inGroup(d)) return false; const bs=getDealBatches(d.id); if(bs.length){ return bs.some(b=> b.status==='cancel' ? (String(b.cancelDate||'').slice(0,10)===ds) : (b.start && String(b.start).slice(0,10)<=ds && ds<=String(b.end||b.start).slice(0,10)) ); } const sp=dealSpan(d); return sp && sp.start<=ds && ds<=sp.end; });
   const days = calEvents.filter(e=> e.start && String(e.start).slice(0,10)<=ds && ds<=String(e.end||e.start).slice(0,10));
   const taxItems = [];
   deals.forEach(d=>{ if(d.tax_invoice_issued && String(d.tax_invoice_date||'').slice(0,10)===ds) taxItems.push({t:'deal', ref:d}); });
