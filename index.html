@@ -404,6 +404,7 @@
         .tax-block .datewrap.hide { display: none; }
         /* 카드: 회사명 크게 / 주소·제품 작게 */
         .pc-coBig { font-size: 16px; font-weight: 800; line-height: 1.3; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .aj-pill { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:800; color:#6d28d9; background:#f5f3ff; border:1px solid #ddd0fb; border-radius:999px; padding:2px 8px; letter-spacing:.2px; white-space:nowrap; }
         .pc-subsmall { font-size: 11.5px; color: var(--text-tertiary); font-weight: 600; line-height: 1.5; margin-bottom: 9px; }
         .pc-subsmall .pin { color: var(--primary); }
         .pc-subsmall .prod { color: var(--text-secondary); font-weight: 700; }
@@ -2312,6 +2313,18 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label class="form-label">경유사 (영업 중개사)</label>
+                        <input type="text" class="form-input" id="edAgency" list="agencyList" placeholder="예: AJ네트웍스 (없으면 비워두세요)">
+                        <datalist id="agencyList"><option value="AJ네트웍스"></option></datalist>
+                        <div class="form-hint">AJ처럼 중간에서 영업을 물어온 회사예요. 입력하면 <b>고객사=실제 고객(B회사)</b>로 두고, 카드에 경유 배지(🔗)가 붙어요.</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">경유사 영업담당자 (선택)</label>
+                        <input type="text" class="form-input" id="edAgencyRep" placeholder="예: 이준호 대리">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">설치팀</label>
                         <input type="text" class="form-input" id="edInstallTeam" list="installTeamList" placeholder="예: 1팀 / 협력사 A">
                         <datalist id="installTeamList"></datalist>
@@ -2815,6 +2828,10 @@
         body.rpPrinting #reportDoc{width:auto;margin:0;padding:12mm;border-radius:0;}
         body.rpPrinting #reportDoc .rp-photo{cursor:default;}
         body.rpPrinting #reportDoc .rp-photo .clr{display:none !important;}
+        /* 인쇄/PDF 저장 시 배경색(짙은 머리행·회색 칸 등)이 그대로 나오게 — 미리보기와 동일 */
+        body.rpPrinting #reportModal, body.rpPrinting #reportDoc, body.rpPrinting #reportDoc *{
+          -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;
+        }
         @page{size:A4;margin:0;}
       }
     </style>
@@ -2894,7 +2911,28 @@
           try{
             if(typeof html2canvas!=='function' || !window.jspdf) throw new Error('PDF 라이브러리 로드 실패 (인터넷 연결 확인)');
             var node=document.getElementById('reportDoc');
-            var canvas=await html2canvas(node,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+            var canvas=await html2canvas(node,{scale:2,useCORS:true,backgroundColor:'#ffffff',
+              onclone:function(cdoc){
+                try{
+                  var rd=cdoc.getElementById('reportDoc'); if(!rd) return;
+                  var cv=cdoc.defaultView||window;
+                  // input/textarea 값이 html2canvas에서 비는 문제 → 같은 스타일의 텍스트로 치환 (미리보기와 동일하게)
+                  Array.prototype.forEach.call(rd.querySelectorAll('input, textarea'), function(inp){
+                    var cs=cv.getComputedStyle(inp);
+                    var isTa=inp.tagName==='TEXTAREA';
+                    var box=cdoc.createElement('div');
+                    box.textContent = inp.value || '';
+                    box.style.fontFamily=cs.fontFamily; box.style.fontSize=cs.fontSize; box.style.fontWeight=cs.fontWeight;
+                    box.style.color=cs.color; box.style.textAlign=cs.textAlign; box.style.letterSpacing=cs.letterSpacing;
+                    box.style.padding=cs.padding; box.style.lineHeight= isTa?cs.lineHeight:cs.height;
+                    box.style.width='100%'; box.style.boxSizing='border-box'; box.style.background='transparent';
+                    box.style.whiteSpace= isTa?'pre-wrap':'nowrap'; box.style.overflow='hidden';
+                    if(isTa){ box.style.minHeight=cs.height; box.style.lineHeight=cs.lineHeight; }
+                    inp.parentNode.replaceChild(box, inp);
+                  });
+                }catch(e){}
+              }
+            });
             var jsPDF=window.jspdf.jsPDF;
             var pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
             var w=210, h=canvas.height*w/canvas.width;
@@ -3199,6 +3237,9 @@ async function loadKvRemote(){
     // 설치 회차(분할 설치)
     if (map.deal_batches != null) { dealBatches = map.deal_batches || {}; try{ localStorage.setItem(DBATCH_LS_KEY, JSON.stringify(dealBatches)); }catch(e){} }
     else if (dealBatches && Object.keys(dealBatches).length) { await sbUpsert(KV_TABLE, [{k:'deal_batches', data:dealBatches}], 'k'); }
+    // 딜 경유사(영업 중개사)
+    if (map.deal_agency != null) { dealAgency = map.deal_agency || {}; try{ localStorage.setItem(DAGENCY_LS_KEY, JSON.stringify(dealAgency)); }catch(e){} }
+    else if (dealAgency && Object.keys(dealAgency).length) { await sbUpsert(KV_TABLE, [{k:'deal_agency', data:dealAgency}], 'k'); }
     // 첨부 파일(사진·PDF) — deal/ship/as 공용
     if (map.attach_files != null) { attachFiles = map.attach_files || {}; try{ localStorage.setItem(AFILES_LS_KEY, JSON.stringify(attachFiles)); }catch(e){} }
     else if (map.deal_files != null) { // 레거시 deal_files → attach_files 이관
@@ -3301,6 +3342,7 @@ function loadAsLocal(){
   loadCompanyHidden();
   loadCoAlias();
   loadDealBatches();
+  loadDealAgency();
   loadAttachFiles();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
@@ -3520,6 +3562,13 @@ function loadDealInstall(){ try { dealInstall = JSON.parse(localStorage.getItem(
 function saveDealInstall(){ try { localStorage.setItem(DINSTALL_LS_KEY, JSON.stringify(dealInstall)); } catch(e){} syncKv('deal_install', dealInstall); }
 function getDealInstall(id){ return dealInstall[id] || {team:'', person:''}; }
 function setDealInstall(id, team, person){ team=(team||'').trim(); person=(person||'').trim(); if (team||person) dealInstall[id] = {team, person}; else delete dealInstall[id]; saveDealInstall(); }
+/* 딜 경유사(영업 중개사 · AJ네트웍스 등) — { dealId: {agency, rep} } · 팀 공유. 고객사=실제 고객(B회사), 경유사=중개사 */
+const DAGENCY_LS_KEY = 'sp_deal_agency_v1';
+let dealAgency = {};
+function loadDealAgency(){ try { dealAgency = JSON.parse(localStorage.getItem(DAGENCY_LS_KEY) || '{}') || {}; } catch(e){ dealAgency = {}; } }
+function saveDealAgency(){ try { localStorage.setItem(DAGENCY_LS_KEY, JSON.stringify(dealAgency)); } catch(e){} syncKv('deal_agency', dealAgency); }
+function getDealAgency(id){ return dealAgency[id] || {agency:'', rep:''}; }
+function setDealAgency(id, agency, rep){ agency=(agency||'').trim(); rep=(rep||'').trim(); if (agency||rep) dealAgency[id] = {agency, rep}; else delete dealAgency[id]; saveDealAgency(); }
 /* 설치 회차(분할 설치) — { dealId: [{id, qty, start, end, status:'plan'|'done', memo}] } · 팀 공유 */
 const DBATCH_LS_KEY = 'sp_deal_batches_v1';
 let dealBatches = {};
@@ -6044,7 +6093,7 @@ function projectCardHtml(d, seq){
     ${extRibbon}
     <div class="pc-wrap">
       <div class="pc-left">
-        <div class="pc-coBig">${seqChip?seqChip+' ':''}🏢 ${d.co?`<span class="co-fin" data-co="${esc(d.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(d.co)}</span>`:'-'}${asBadge(d)||''}</div>
+        <div class="pc-coBig">${seqChip?seqChip+' ':''}🏢 ${d.co?`<span class="co-fin" data-co="${esc(d.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(d.co)}</span>`:'-'}${agencyBadge(d)}${asBadge(d)||''}</div>
         <div class="pc-subsmall">${d.site?`<span class="pin">📍</span> ${esc(d.site)}`:''}${(d.site&&d.prod)?' · ':''}${d.prod?`<span class="prod">${esc(d.prod)}</span>`:''} · ${esc(d.person||'-')}</div>
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
@@ -6092,6 +6141,12 @@ function kdealHtml(d){
   </div>`;
 }
 /* 딜의 A/S 표시 뱃지 — 처리 중이면 주황(긴급은 빨강), 완료 이력만 있으면 회색 */
+function agencyBadge(d){
+  const ag = getDealAgency(d.id);
+  if (!ag.agency) return '';
+  const tip = `${esc(ag.agency)} 영업 경유${ag.rep?' · 담당 '+esc(ag.rep):''}`;
+  return `<span class="aj-pill" title="${tip}">🔗 ${esc(ag.agency)}</span>`;
+}
 function asBadge(d){
   const cases = asCases.filter(c=>c.deal_id===d.id);
   if (!cases.length) return '';
@@ -6619,6 +6674,7 @@ function renderInfo(){
             <div class="k">📦 설치 완료일</div><div class="v">${d.delivery_date?fmtDate(d.delivery_date):'-'}</div>
             <div class="k">등록일</div><div class="v">${fmtDate(d.created_at)}</div>
             <div class="k">유입 경로</div><div class="v">${(d.inflow&&INFLOW[d.inflow])?esc(INFLOW[d.inflow].label):'-'}</div>
+            ${(()=>{ const ag=getDealAgency(d.id); return ag.agency?`<div class="k">경유사</div><div class="v"><span style="color:#6d28d9;font-weight:800;">🔗 ${esc(ag.agency)}</span>${ag.rep?` · ${esc(ag.rep)}`:''}</div>`:''; })()}
           </div>
         </div>
         <div class="di-sec">
@@ -7907,6 +7963,7 @@ function openEditModal(){
   $('edCo').value = d.co || '';
   $('edSite').value = d.site || '';
   $('edInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k===(d.inflow||'direct')?'selected':''}>${v.label}</option>`).join('');
+  { const ag = getDealAgency(d.id); $('edAgency').value = ag.agency || ''; $('edAgencyRep').value = ag.rep || ''; }
   $('edContactName').value = d.contact_name || '';
   $('edContactPhone').value = d.contact_phone || '';
   $('edContactEmail').value = d.contact_email || '';
@@ -8023,6 +8080,11 @@ async function saveEdit(){
   // 계산서 발행일
   const invDate = $('edInvDate').value;
   if (patch.tax_invoice_date === undefined && invDate !== (d.tax_invoice_date||'').slice(0,10)) patch.tax_invoice_date = invDate || null;
+  // 경유사(영업 중개사) — 팀 공유 저장 · 영업툴 스키마 영향 없음
+  const curAg = getDealAgency(d.id);
+  const agName = $('edAgency').value.trim(), agRep = $('edAgencyRep').value.trim();
+  const agencyChanged = agName !== (curAg.agency||'') || agRep !== (curAg.rep||'');
+  if (agName) addCompany(agName);   // 경유사도 거래처 목록에 등록
   // 특이사항 (이 브라우저에 저장)
   const noteChanged = $('edNote').value.trim() !== getDealNote(d.id);
   // 설치팀·설치팀 담당자 (팀 공유 저장 · 영업툴 스키마 영향 없음)
@@ -8036,9 +8098,10 @@ async function saveEdit(){
   const forkChanged = JSON.stringify(afterForkArr) !== JSON.stringify(getDealForkList(d.id));
   // 제품 구성 변경 여부
   const itemsChanged = JSON.stringify(_items) !== JSON.stringify(getDealItems(d.id) || []);
-  if (!Object.keys(patch).length && !noteChanged && !instChanged && !forkChanged && !itemsChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
+  if (!Object.keys(patch).length && !noteChanged && !instChanged && !forkChanged && !itemsChanged && !agencyChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
   if (noteChanged) setDealNote(d.id, $('edNote').value);
   if (instChanged) setDealInstall(d.id, iTeam, iPerson);
+  if (agencyChanged) setDealAgency(d.id, agName, agRep);
   if (forkChanged) setDealForkList(d.id, afterForkArr);
   if (itemsChanged) setDealItems(d.id, dealItemRows);
 
@@ -8068,6 +8131,7 @@ async function saveEdit(){
       if (itemsChanged) ch.push('품목 구성 수정');
       if (forkChanged) ch.push('지게차 정보 수정');
       if (instChanged) ch.push('설치팀 수정');
+      if (agencyChanged) ch.push(agName?('경유사 → '+agName+(agRep?' ('+agRep+')':'')):'경유사 해제');
       if (noteChanged) ch.push('특이사항 수정');
       if (ch.length) addActivity(d.id, '딜 수정', ch.join(' · '), {source:'auto'});
     } catch(e){}
