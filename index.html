@@ -2880,7 +2880,26 @@
           +'<span class="ph">＋ 사진 추가<small>클릭해서 업로드</small></span>'
           +'<input type="file" accept="image/*" onchange="rpPick('+i+',this)"></label></div>'; }
         function grid(){ el('rp_grid').innerHTML=CELL.map(function(l,i){return cell(i,l);}).join(''); }
-        window.rpPick=function(i,inp){ var f=inp.files&&inp.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(){ RIMG[i]=r.result; paint(i); }; r.readAsDataURL(f); };
+        window.rpPick=function(i,inp){
+          var f=inp.files&&inp.files[0]; if(!f) return;
+          // 원본 그대로 넣으면 PDF가 수십 MB가 되므로, 넣는 순간 적정 크기로 압축 (최대 1400px, JPEG 0.8)
+          var fallback=function(){ var r=new FileReader(); r.onload=function(){ RIMG[i]=r.result; paint(i); }; r.readAsDataURL(f); };
+          var url; try{ url=URL.createObjectURL(f); }catch(e){ fallback(); return; }
+          var img=new Image(), done=false;
+          var to=setTimeout(function(){ if(done)return; done=true; try{URL.revokeObjectURL(url);}catch(e){} fallback(); }, 12000);
+          img.onload=function(){ if(done)return; done=true; clearTimeout(to);
+            try{
+              var maxDim=1400, w=img.naturalWidth, h=img.naturalHeight;
+              var sc=Math.min(1, maxDim/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+              var c=document.createElement('canvas'); c.width=w; c.height=h;
+              c.getContext('2d').drawImage(img,0,0,w,h);
+              RIMG[i]=c.toDataURL('image/jpeg',0.8); paint(i);
+            }catch(e){ fallback(); }
+            try{URL.revokeObjectURL(url);}catch(e){}
+          };
+          img.onerror=function(){ if(done)return; done=true; clearTimeout(to); try{URL.revokeObjectURL(url);}catch(e){} fallback(); };
+          img.src=url;
+        };
         window.rpClr=function(e,i){ e.preventDefault(); e.stopPropagation(); RIMG[i]=''; paint(i); };
         function paint(i){ var ph=el('rp-ph-'+i); if(!ph) return; var p=ph.querySelector('img'); if(p) p.remove(); var s=ph.querySelector('.ph');
           if(RIMG[i]){ var im=new Image(); im.src=RIMG[i]; ph.insertBefore(im, ph.querySelector('input')); ph.classList.add('has'); if(s) s.style.display='none'; }
@@ -2938,7 +2957,7 @@
             var jsPDF=window.jspdf.jsPDF;
             var pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
             var w=210, h=canvas.height*w/canvas.width;
-            pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,h);
+            pdf.addImage(canvas.toDataURL('image/jpeg',0.82),'JPEG',0,0,w,h,undefined,'FAST');
             // 파일명: 설치보고서_고객사이름_설치완료일
             var _d=(typeof deals!=='undefined'&&Array.isArray(deals))?deals.find(function(x){return x.id===_rpDealId;}):null;
             var _clean=function(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'').trim(); };
