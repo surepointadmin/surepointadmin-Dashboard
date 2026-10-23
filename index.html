@@ -855,6 +855,9 @@
             padding: 20px;
         }
         .modal-overlay.active { display: flex; }
+        /* 팝업 안에서 스크롤이 끝까지 가도 뒤 배경으로 넘어가지 않게 */
+        .modal-overlay, .modal-body, #reportModal, #qPreview, .qsite-overlay { overscroll-behavior: contain; }
+        body.modal-open { overflow: hidden !important; }
         .modal {
             background: var(--bg-card);
             border-radius: var(--radius-xl);
@@ -2040,6 +2043,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" style="margin-right:auto;color:var(--status-critical);display:none;" id="shDeleteBtn" onclick="deleteShip()">삭제</button>
+                <button class="btn btn-secondary" style="display:none;color:var(--primary);border-color:#cfe3f6;" id="shDuplicateBtn" onclick="duplicateShip()">📋 이 건 복제</button>
                 <button class="btn btn-secondary" onclick="closeShipModal()">취소</button>
                 <button class="btn btn-primary" id="shSaveBtn" onclick="saveShip()">저장</button>
             </div>
@@ -2767,7 +2771,9 @@
           }
         });
         (function(){ var m=document.getElementById('quoteSiteModal');
-          if(m) m.addEventListener('click',function(e){ if(e.target===m) window.closeQuoteSite(); }); })();
+          if(m){ var _qsDown=false;
+            m.addEventListener('mousedown',function(e){ _qsDown=(e.target===m); });
+            m.addEventListener('mouseup',function(e){ if(_qsDown && e.target===m) window.closeQuoteSite(); _qsDown=false; }); } })();
       })();
     </script>
 
@@ -2898,15 +2904,7 @@
           if(typeof attachBlobToScope!=='function'){ if(typeof toast==='function') toast('저장 기능을 쓸 수 없어요', true); return; }
           var scope='deal_'+_rpDealId;
           if(typeof toast==='function') toast('딜에 저장 중…');
-          // 1) 사진 업로드
-          var imgN=0;
-          for(var i=0;i<CELL.length;i++){
-            if(RIMG[i] && typeof dataUriToBlob==='function'){
-              var blob=dataUriToBlob(RIMG[i]);
-              if(blob){ try{ await attachBlobToScope(scope, blob, 'image/jpeg', '설치사진_'+(CELL[i]||('사진'+(i+1)))+'.jpg', 'image'); imgN++; }catch(e){} }
-            }
-          }
-          // 2) 보고서 PDF 생성 (html2canvas + jsPDF)
+          // 보고서 PDF만 생성·저장 (개별 사진은 저장하지 않음) — html2canvas + jsPDF
           var pdfOk=false;
           try{
             if(typeof html2canvas!=='function' || !window.jspdf) throw new Error('PDF 라이브러리 로드 실패 (인터넷 연결 확인)');
@@ -2917,7 +2915,9 @@
                   var rd=cdoc.getElementById('reportDoc'); if(!rd) return;
                   var cv=cdoc.defaultView||window;
                   // input/textarea 값이 html2canvas에서 비는 문제 → 같은 스타일의 텍스트로 치환 (미리보기와 동일하게)
+                  // 단, 파일 선택칸(type=file)은 건드리지 않음 (C:\fakepath 경로가 글자로 찍히는 문제 방지)
                   Array.prototype.forEach.call(rd.querySelectorAll('input, textarea'), function(inp){
+                    if(inp.type==='file') return;
                     var cs=cv.getComputedStyle(inp);
                     var isTa=inp.tagName==='TEXTAREA';
                     var box=cdoc.createElement('div');
@@ -2930,6 +2930,8 @@
                     if(isTa){ box.style.minHeight=cs.height; box.style.lineHeight=cs.lineHeight; }
                     inp.parentNode.replaceChild(box, inp);
                   });
+                  // 사진칸의 ✕삭제 버튼·파일선택칸 숨김 (PDF에 안 나오게)
+                  Array.prototype.forEach.call(rd.querySelectorAll('.rp-photo .clr, .rp-photo input[type=file]'), function(el){ el.style.display='none'; });
                 }catch(e){}
               }
             });
@@ -2937,18 +2939,25 @@
             var pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
             var w=210, h=canvas.height*w/canvas.width;
             pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,h);
-            var site=(document.getElementById('rp_site').value||'현장').replace(/[\\/:*?"<>|]/g,'');
-            var nm='설치완료보고서_'+site+'_'+(document.getElementById('rp_date').value||'')+'.pdf';
+            // 파일명: 설치보고서_고객사이름_설치완료일
+            var _d=(typeof deals!=='undefined'&&Array.isArray(deals))?deals.find(function(x){return x.id===_rpDealId;}):null;
+            var _clean=function(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'').trim(); };
+            var coNm=_clean(_d&&_d.co) || _clean(document.getElementById('rp_site').value) || '고객사';
+            var doneDate=(_d&&_d.delivery_date?String(_d.delivery_date).slice(0,10):'') || document.getElementById('rp_wdate').value || document.getElementById('rp_date').value || '';
+            var nm='설치보고서_'+coNm+(doneDate?'_'+doneDate:'')+'.pdf';
             await attachBlobToScope(scope, pdf.output('blob'), 'application/pdf', nm, 'pdf');
             pdfOk=true;
           }catch(e){ if(typeof toast==='function') toast('PDF 생성 실패: '+e.message, true); }
-          try{ if(typeof addActivity==='function') addActivity(_rpDealId, '설치 완료 보고서 저장', '사진 '+imgN+'장'+(pdfOk?' + 보고서 PDF':'')+' 딜에 저장', {source:'issue'}); }catch(e){}
-          if(typeof toast==='function') toast('딜에 저장했어요 ✓ (사진 '+imgN+'장'+(pdfOk?' + PDF':'')+')');
+          try{ if(typeof addActivity==='function') addActivity(_rpDealId, '설치 완료 보고서 저장', pdfOk?'설치완료보고서 PDF 딜에 저장':'보고서 저장 시도', {source:'issue'}); }catch(e){}
+          if(typeof toast==='function') toast(pdfOk?'설치완료보고서 PDF를 딜에 저장했어요 ✓':'저장에 실패했어요', !pdfOk);
         };
         window.openReportModal=function(){
           var m=el('reportModal');
           if(!m._init){ grid(); var t=new Date(); el('rp_date').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
-            m.addEventListener('click',function(e){ if(e.target.id==='reportModal') window.closeReportModal(); }); m._init=true; }
+            var _rpDown=false;
+            m.addEventListener('mousedown',function(e){ _rpDown=(e.target===m); });
+            m.addEventListener('mouseup',function(e){ if(_rpDown && e.target===m) window.closeReportModal(); _rpDown=false; });
+            m._init=true; }
           var sel=el('rp_dealSel'), dl=document.getElementById('rpDealOpts');
           _rdmap={};
           if(sel && dl){ var arr=(typeof deals!=='undefined'&&Array.isArray(deals))?deals:[];
@@ -7513,6 +7522,7 @@ function openShipModal(id){
   const s = currentShipId ? shipments.find(x=>x.id===currentShipId) : null;
   $('shipModalTitle').textContent = s ? '출고·납품 수정' : '새 출고 등록';
   $('shDeleteBtn').style.display = s ? '' : 'none';
+  $('shDuplicateBtn').style.display = s ? '' : 'none';
   // 담당자: 운영툴과 무관하게 이 탭에서 입력했던 이름만 자동완성으로 제안 (자유 입력)
   const names = new Set(shipments.map(x=>x.person).filter(Boolean));
   $('shPersonList').innerHTML = Array.from(names).sort().map(n=>`<option value="${esc(n)}"></option>`).join('');
@@ -7696,6 +7706,25 @@ function deleteShip(){
   toast('삭제됐어요');
   renderShip();
   if ($('dashboardPage').classList.contains('active')) renderDashboard();
+}
+function duplicateShip(){
+  if (!currentShipId) return;
+  const s = shipments.find(x=>x.id===currentShipId); if(!s) return;
+  const copy = JSON.parse(JSON.stringify(s));
+  copy.id = Date.now();
+  copy.created_at = new Date().toISOString();
+  copy.updated_at = new Date().toISOString();
+  copy.name = s.name ? (s.name + ' (복사)') : '복사본';
+  // 진행 상태는 초기화 — 새 건으로 시작 (계산서·수금·반품은 복제하지 않음)
+  copy.ship_status = 'request';
+  copy.tax_invoice_issued = false; copy.tax_invoice_date = null;
+  copy.collected = false;
+  copy.returned = false; copy.return_date = null; copy.return_qty = null; copy.return_amount = null; copy.return_reason = null;
+  shipments.unshift(copy);
+  saveShipLocal();
+  renderShip();
+  openShipModal(copy.id);   // 복사본을 열어 출고일·내용을 확인·수정하도록
+  toast('복제했어요 — 출고일·내용을 확인하고 저장해 주세요 ✓');
 }
 function exportShip(){
   const payload = { version: 1, type: 'shipments', shipments };
@@ -8006,6 +8035,29 @@ bindBackdropClose('asModal', closeAsModal);
 bindBackdropClose('shipModal', closeShipModal);
 bindBackdropClose('calDayModal', closeCalDay);
 bindBackdropClose('unpaidModal', closeUnpaidModal);
+/* 팝업이 열려 있으면 뒤 배경 스크롤 잠금 (커서가 팝업 밖으로 나가도 배경이 안 움직이게) */
+(function(){
+  var SELS = '.modal-overlay, .qsite-overlay, #reportModal, #qPreview';
+  function anyModalOpen(){
+    var els = document.querySelectorAll(SELS);
+    for (var i=0;i<els.length;i++){ var cs=getComputedStyle(els[i]); if (cs.display!=='none' && cs.visibility!=='hidden') return true; }
+    return false;
+  }
+  var locked=false;
+  function sync(){
+    var open=anyModalOpen();
+    if (open && !locked){ locked=true; document.body.classList.add('modal-open'); }
+    else if (!open && locked){ locked=false; document.body.classList.remove('modal-open'); }
+  }
+  try{
+    var obs=new MutationObserver(sync);
+    document.querySelectorAll(SELS).forEach(function(el){ obs.observe(el,{attributes:true, attributeFilter:['class','style']}); });
+  }catch(e){}
+  // 폴백: 모든 클릭 후 한 번 더 확인 (동적으로 열고 닫히는 경우 대비)
+  document.addEventListener('click', function(){ setTimeout(sync, 60); }, true);
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') setTimeout(sync, 60); });
+  sync();
+})();
 $('asImportInput').addEventListener('change', function(){
   if (this.files.length) importAs(this.files[0]);
   this.value = '';
@@ -8429,7 +8481,9 @@ loadAll();
       ['q_spName','q_spBiz','q_spCeo','q_spAddr','q_spBizType','q_spTel','q_docRep','q_docRepTel','q_docEmail'].forEach(id=>{
         el(id).addEventListener('input', saveLocal);
       });
-      el('qPreview').addEventListener('click', e=>{ if(e.target.id==='qPreview') window.qClosePreview(); });
+      (function(){ var qp=el('qPreview'); var _qpDown=false;
+        qp.addEventListener('mousedown', e=>{ _qpDown=(e.target.id==='qPreview'); });
+        qp.addEventListener('mouseup', e=>{ if(_qpDown && e.target.id==='qPreview') window.qClosePreview(); _qpDown=false; }); })();
       // 문서 기본값
       const t=new Date();
       el('q_docDate').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
