@@ -1613,6 +1613,20 @@
                             <label class="form-label">메모 (선택)</label>
                             <input type="text" class="form-input" id="batchMemo" placeholder="예: 샘플 · 고객 확인용 / 잔여분">
                         </div>
+                        <div class="form-group" id="batchTaxWrap" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+                            <label class="form-label">🧾 이 회차 세금계산서 발행 (선택)</label>
+                            <div class="form-row">
+                                <div class="form-group" style="margin:0;">
+                                    <label class="form-label" style="font-weight:600;color:var(--text-secondary);">발행일</label>
+                                    <input type="date" class="form-input" id="batchTaxDate">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label class="form-label" style="font-weight:600;color:var(--text-secondary);">발행 금액 (원, 선택)</label>
+                                    <input type="number" min="0" class="form-input" id="batchTaxAmount" placeholder="비우면 회차 금액">
+                                </div>
+                            </div>
+                            <div class="form-hint">먼저 설치 끝난 회차부터 세금계산서를 끊을 때, 발행일을 여기에 넣으면 회차별로 따로 기록돼요.</div>
+                        </div>
                     </div>
                     <div class="modal-footer" style="justify-content:space-between;">
                         <button class="btn btn-secondary btn-sm" id="batchDeleteBtn" style="color:var(--status-critical);border-color:#f3c0c0;" onclick="deleteBatch()">삭제</button>
@@ -6767,17 +6781,29 @@ function renderDealBatches(d){
           : '일정 미정');
     const badge = isCancel ? '<span class="db-st" style="background:#fdeaea;color:#dc2626;border:1px solid #f3c0c0;">🚫 해체·취소</span>'
       : `<span class="db-st ${isDone?'done':'plan'}">${isDone?'✅ 완료':'⏳ 예정'}</span>`;
+    const taxLine = (!isCancel && b.taxDate)
+      ? `<div class="db-sched" style="color:#15803d;font-weight:700;">🧾 세금계산서 발행 ${fmtDate(b.taxDate)}${b.taxAmount?' · '+fmtMoney(b.taxAmount):''}</div>`
+      : (!isCancel && isDone ? `<div class="db-sched" style="color:#b45309;">🧾 세금계산서 미발행</div>` : '');
     return `<div class="db-row"${isCancel?' style="opacity:.75;"':''}>
       <div class="db-seq">${i+1}차</div>
       <div class="db-mid">
         <div class="db-qty"${isCancel?' style="text-decoration:line-through;color:#dc2626;"':''}>${Number(b.qty)||0}대</div>
         <div class="db-sched">📅 ${dateTxt}</div>
+        ${taxLine}
         ${b.memo?`<div class="db-memo">📝 ${esc(b.memo)}</div>`:''}
       </div>
       ${badge}
       <span class="db-edit" onclick="openBatchModal(${d.id},'${b.id}')">수정</span>
     </div>`;
   }).join('');
+  // 회차별 세금계산서 발행 요약
+  const taxBatches = batches.filter(b=>b.status!=='cancel' && b.taxDate);
+  const doneBatches = batches.filter(b=>b.status==='done');
+  const taxSummary = doneBatches.length ? `<div style="margin-bottom:14px;padding:11px 13px;border-radius:10px;background:#f1faf3;border:1px solid #bfe3c9;font-size:12.5px;">
+      <div style="font-weight:800;color:#15803d;margin-bottom:${taxBatches.length?'6px':'0'};">🧾 세금계산서 발행 ${taxBatches.length}/${doneBatches.length}건 (설치 완료 회차 기준)</div>
+      ${taxBatches.map(b=>`<div style="color:var(--text-secondary);font-weight:600;">· ${batches.indexOf(b)+1}차 ${Number(b.qty)||0}대 — ${fmtDate(b.taxDate)}${b.taxAmount?' · '+fmtMoney(b.taxAmount):''}</div>`).join('')}
+      ${taxBatches.length<doneBatches.length?`<div style="color:#b45309;font-weight:600;margin-top:${taxBatches.length?'4px':'0'};">· 미발행 ${doneBatches.length-taxBatches.length}건 — 회차 수정에서 발행일을 넣어주세요</div>`:''}
+    </div>` : '';
   return `<div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
       <div class="meta-label" style="margin:0;">🔧 설치 일정 <span style="font-weight:500;color:var(--text-tertiary);font-size:12px;">(회차별 관리 · 분할 설치)</span></div>
@@ -6787,6 +6813,7 @@ function renderDealBatches(d){
       <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:6px;"><span>설치 진행 · 총 ${total}대</span><span style="color:var(--green,#15803d);">${net}대 설치${cancel>0?` · <span style="color:#dc2626;">🚫 ${cancel}대 해체취소</span>`:''}${remain>0?` · ${remain}대 남음`:''}</span></div>
       <div style="height:9px;border-radius:6px;background:#eef1f4;overflow:hidden;"><i style="display:block;height:100%;background:linear-gradient(90deg,#16a34a,#15803d);width:${pct}%;"></i></div>
     </div>`:''}
+    ${taxSummary}
     ${rows || '<div class="di-note-empty">등록된 설치 회차가 없어요 · 「＋ 설치 회차 추가」로 3대 샘플 먼저 설치처럼 나눠서 관리할 수 있어요</div>'}
   </div>`;
 }
@@ -6799,6 +6826,8 @@ function openBatchModal(dealId, batchId){
   $('batchStart').value = b ? (b.start||'') : '';
   $('batchEnd').value = b ? (b.end||'') : '';
   $('batchCancelDate').value = b ? (b.cancelDate||'') : '';
+  $('batchTaxDate').value = b ? (b.taxDate||'') : '';
+  $('batchTaxAmount').value = (b && b.taxAmount) ? b.taxAmount : '';
   _batchStatus = b ? (b.status||'plan') : 'plan';
   $('batchMemo').value = b ? (b.memo||'') : '';
   renderBatchStatusSeg();
@@ -6836,14 +6865,16 @@ function saveBatch(){
   const start = $('batchStart').value;                        // 취소여도 설치했던 날짜는 보존
   const end = $('batchEnd').value || (start || '');
   const memo = $('batchMemo').value.trim();
+  const taxDate = $('batchTaxDate').value;
+  const taxAmount = parseInt($('batchTaxAmount').value,10)||0;
   const arr = (dealBatches[_batchDealId] || []).slice();
   const isEdit = !!_batchId;
-  let prevStatus = null;
+  let prevStatus = null, prevTaxDate = '';
   if (_batchId){
     const idx = arr.findIndex(x=>x.id===_batchId);
-    if (idx>=0){ prevStatus = arr[idx].status||'plan'; arr[idx] = {...arr[idx], qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:''}; }
+    if (idx>=0){ prevStatus = arr[idx].status||'plan'; prevTaxDate = arr[idx].taxDate||''; arr[idx] = {...arr[idx], qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:'', taxDate, taxAmount}; }
   } else {
-    arr.push({ id:'b'+Date.now(), qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:'' });
+    arr.push({ id:'b'+Date.now(), qty, start, end, status:_batchStatus, memo, cancelDate:isCancel?cancelDate:'', taxDate, taxAmount });
   }
   dealBatches[_batchDealId] = arr;
   saveDealBatches();
@@ -6856,6 +6887,8 @@ function saveBatch(){
     else if(isEdit && prevStatus && prevStatus!==_batchStatus){ logTxt = `설치 회차 상태 변경 → ${stLbl} · ${qty}대 (${when})${memo?' · '+memo:''}`; }
     else { logTxt = `설치 회차 ${isEdit?'수정':'등록'} · ${stLbl} ${qty}대 (${when})${memo?' · '+memo:''}`; }
     addActivity(_batchDealId, isCancel?'해체·취소':'설치 일정', logTxt, {source:'auto'});
+    // 세금계산서 발행일이 새로 입력/변경되면 별도 기록
+    if(taxDate && taxDate!==prevTaxDate){ addActivity(_batchDealId, '세금계산서 발행', `${qty}대분 세금계산서 발행 (${fmtDate(taxDate)}${taxAmount?' · '+fmtMoney(taxAmount):''})`, {source:'issue'}); }
   }catch(e){}
   closeBatchModal();
   toast(_batchStatus==='cancel'?'해체·취소 내역을 저장했어요 ✓ (팀 공유)':'설치 회차를 저장했어요 ✓ (팀 공유)');
