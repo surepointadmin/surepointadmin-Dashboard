@@ -7973,13 +7973,15 @@ function exportShipExcel(){
   try{
     if(typeof XLSX==='undefined') throw new Error('엑셀 라이브러리 로드 실패 (인터넷 연결 확인)');
     const ws = XLSX.utils.json_to_sheet(data);
-    // 열 너비 자동(대략)
     const keys = Object.keys(data[0]);
     ws['!cols'] = keys.map(k=>{ let w=k.length; data.forEach(r=>{ const v=String(r[k]??''); if(v.length>w) w=v.length; }); return {wch: Math.min(40, Math.max(6, w+2))}; });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '출고납품');
-    XLSX.writeFile(wb, fname);
-    toast(`${rows.length}건 엑셀로 내려받았어요 ✓`);
+    // writeFile 대신 Blob으로 만들어 직접 다운로드 (일부 브라우저에서 writeFile이 조용히 막히는 문제 방지)
+    const out = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    triggerDownload(blob, fname);
+    toast(`${rows.length}건 엑셀로 내려받았어요 ✓ (다운로드 폴더 확인)`);
   }catch(e){
     // CSV 폴백 (UTF-8 BOM — 엑셀에서 한글 안 깨짐)
     try{
@@ -7987,19 +7989,28 @@ function exportShipExcel(){
       const esc = v => { v=String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
       const csv = [keys.join(',')].concat(data.map(r=>keys.map(k=>esc(r[k])).join(','))).join('\r\n');
       const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname.replace(/\.xlsx$/,'.csv'); a.click(); URL.revokeObjectURL(a.href);
-      toast(`${rows.length}건 CSV로 내려받았어요 ✓ (엑셀에서 열려요)`);
+      triggerDownload(blob, fname.replace(/\.xlsx$/,'.csv'));
+      toast(`${rows.length}건 CSV로 내려받았어요 ✓ (다운로드 폴더 확인 · 엑셀에서 열려요)`);
     }catch(e2){ toast('다운로드 실패: '+e.message, true); }
   }
+}
+/* 브라우저 호환성 높은 파일 다운로드 — 링크를 DOM에 붙여 클릭 (Firefox 등 필수) + 새 탭 폴백 */
+function triggerDownload(blob, filename){
+  // IE/구형 Edge
+  if (window.navigator && window.navigator.msSaveOrOpenBlob){ window.navigator.msSaveOrOpenBlob(blob, filename); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  try { a.click(); }
+  catch(e){ try{ window.open(url, '_blank'); }catch(_){} }   // 클릭이 막히면 새 탭으로
+  setTimeout(()=>{ try{ document.body.removeChild(a); }catch(e){} URL.revokeObjectURL(url); }, 1500);
 }
 function exportShip(){
   const payload = { version: 1, type: 'shipments', shipments };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `출고납품_백업_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  triggerDownload(blob, `출고납품_백업_${new Date().toISOString().slice(0,10)}.json`);
   toast(`출고·납품 ${shipments.length}건 백업 완료 ✓`);
 }
 function importShip(file){
