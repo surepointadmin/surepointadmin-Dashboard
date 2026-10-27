@@ -1108,6 +1108,7 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <script>/* 다크/라이트 모드 조기 적용 (깜빡임 방지) · 기본 라이트 */
@@ -1705,6 +1706,7 @@
                         <p class="page-subtitle">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · 기록은 이 컴퓨터(브라우저)에 저장돼요</p>
                     </div>
                     <div class="header-actions">
+                        <button class="btn btn-secondary btn-sm" id="shExcelBtn" style="color:#15803d;border-color:#bfe3c9;" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">백업 ↓</button>
                         <button class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
                         <button class="btn btn-primary" onclick="openShipModal()">
@@ -2440,6 +2442,31 @@
                                 <label class="form-label" style="color:#15803d;">발행일</label>
                                 <input type="date" class="form-input" id="edInvDate" style="max-width:240px;border-color:#bfd8c4;">
                             </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:16px;">
+                    <label class="form-label">🧰 설치비 지급 (외주 설치팀에 줄 돈)</label>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" style="font-weight:600;color:var(--text-secondary);">설치비 금액 (원)</label>
+                            <input type="number" min="0" class="form-input" id="edPayAmount" placeholder="예: 6000000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-weight:600;color:var(--text-secondary);">지급 예정일</label>
+                            <input type="date" class="form-input" id="edPayDue">
+                            <div class="form-hint" id="edPayDueHint">비우면 설치 완료일 익월 말로 자동 계산돼요</div>
+                        </div>
+                    </div>
+                    <div class="tax-block" id="edPayBlock" style="margin-top:4px;">
+                        <div class="tchk" onclick="toggleEdPay()">
+                            <span class="box" id="edPayBox"></span>
+                            <span class="tlabel">설치비 지급 완료</span>
+                            <span class="toff" id="edPayState">미지급</span>
+                        </div>
+                        <div class="datewrap hide" id="edPayDateWrap">
+                            <label class="form-label" style="color:#15803d;">지급일</label>
+                            <input type="date" class="form-input" id="edPayDate" style="max-width:240px;border-color:#bfd8c4;">
                         </div>
                     </div>
                 </div>
@@ -3308,6 +3335,9 @@ async function loadKvRemote(){
     // 딜 경유사(영업 중개사)
     if (map.deal_agency != null) { dealAgency = map.deal_agency || {}; try{ localStorage.setItem(DAGENCY_LS_KEY, JSON.stringify(dealAgency)); }catch(e){} }
     else if (dealAgency && Object.keys(dealAgency).length) { await sbUpsert(KV_TABLE, [{k:'deal_agency', data:dealAgency}], 'k'); }
+    // 딜 설치비 지급
+    if (map.deal_payout != null) { dealPayout = map.deal_payout || {}; try{ localStorage.setItem(DPAYOUT_LS_KEY, JSON.stringify(dealPayout)); }catch(e){} }
+    else if (dealPayout && Object.keys(dealPayout).length) { await sbUpsert(KV_TABLE, [{k:'deal_payout', data:dealPayout}], 'k'); }
     // 첨부 파일(사진·PDF) — deal/ship/as 공용
     if (map.attach_files != null) { attachFiles = map.attach_files || {}; try{ localStorage.setItem(AFILES_LS_KEY, JSON.stringify(attachFiles)); }catch(e){} }
     else if (map.deal_files != null) { // 레거시 deal_files → attach_files 이관
@@ -3411,6 +3441,7 @@ function loadAsLocal(){
   loadCoAlias();
   loadDealBatches();
   loadDealAgency();
+  loadDealPayout();
   loadAttachFiles();
 }
 /* 딜 특이사항 — 이 브라우저에 저장 (운영툴 스키마 영향 없음) */
@@ -3637,6 +3668,21 @@ function loadDealAgency(){ try { dealAgency = JSON.parse(localStorage.getItem(DA
 function saveDealAgency(){ try { localStorage.setItem(DAGENCY_LS_KEY, JSON.stringify(dealAgency)); } catch(e){} syncKv('deal_agency', dealAgency); }
 function getDealAgency(id){ return dealAgency[id] || {agency:'', rep:''}; }
 function setDealAgency(id, agency, rep){ agency=(agency||'').trim(); rep=(rep||'').trim(); if (agency||rep) dealAgency[id] = {agency, rep}; else delete dealAgency[id]; saveDealAgency(); }
+/* 딜 설치비 지급(외주 설치팀에 줄 돈) — { dealId: {amount, due, paid, paidDate} } · 팀 공유. 지급예정일=설치완료 익월말(due 비우면 자동) */
+const DPAYOUT_LS_KEY = 'sp_deal_payout_v1';
+let dealPayout = {};
+function loadDealPayout(){ try { dealPayout = JSON.parse(localStorage.getItem(DPAYOUT_LS_KEY) || '{}') || {}; } catch(e){ dealPayout = {}; } }
+function saveDealPayout(){ try { localStorage.setItem(DPAYOUT_LS_KEY, JSON.stringify(dealPayout)); } catch(e){} syncKv('deal_payout', dealPayout); }
+function getDealPayout(id){ return dealPayout[id] || {amount:0, due:'', paid:false, paidDate:''}; }
+function setDealPayout(id, obj){ const a=Number(obj.amount)||0, due=(obj.due||'').trim(), paid=!!obj.paid, paidDate=(obj.paidDate||'').trim();
+  if (a||due||paid||paidDate) dealPayout[id] = {amount:a, due, paid, paidDate}; else delete dealPayout[id]; saveDealPayout(); }
+/* 설치 완료일(또는 기준일)의 '익월 말' 날짜 (YYYY-MM-DD) */
+function nextMonthEnd(dateStr){ if(!dateStr) return ''; const s=String(dateStr).slice(0,10); const y=+s.slice(0,4), m=+s.slice(5,7); if(!y||!m) return '';
+  const ny = m===12 ? y+1 : y, nm = m===12 ? 1 : m+1;        // 익월
+  const last = new Date(ny, nm, 0).getDate();                 // 익월의 말일
+  return ny+'-'+String(nm).padStart(2,'0')+'-'+String(last).padStart(2,'0'); }
+/* 설치비 지급 예정일: 저장된 due가 있으면 그걸, 없으면 설치완료일(delivery_date) 익월말 자동 */
+function payoutDue(d){ const p=getDealPayout(d.id); if(p.due) return p.due; const base=d.delivery_date||d.close_date||''; return base?nextMonthEnd(base):''; }
 /* 설치 회차(분할 설치) — { dealId: [{id, qty, start, end, status:'plan'|'done', memo}] } · 팀 공유 */
 const DBATCH_LS_KEY = 'sp_deal_batches_v1';
 let dealBatches = {};
@@ -6775,11 +6821,52 @@ function renderInfo(){
         </div>
       </div>
     </div>
+    ${renderSettleCard(d)}
     ${prodRows}
     ${renderDealBatches(d)}
     ${renderAttachBox('deal_'+d.id)}
     ${relatedDealsHtml(d)}
     ${asHistoryHtml(d)}`;
+}
+/* 정산 카드 — 수금(받을 돈) ↔ 설치비 지급(줄 돈) + 순마진 (시안 1) */
+function renderSettleCard(d){
+  const today = (typeof _todayStr==='function') ? _todayStr() : new Date().toISOString().slice(0,10);
+  // 수금 측
+  const recvAmt = d.amount||0;
+  const rs = d.recv_status||'pending';
+  let recvBadge;
+  if (rs==='received') recvBadge = '<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#eaf7ee;color:#15803d;border:1px solid #bfe3c9;">수금 완료</span>';
+  else if (rs==='overdue') recvBadge = '<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#fdeaea;color:#dc2626;border:1px solid #f3c0c0;">연체</span>';
+  else recvBadge = '<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#fff7ed;color:#b45309;border:1px solid #fde4c8;">미수금</span>';
+  const recvMeta = dealInvoiced(d) ? `세금계산서 ${d.tax_invoice_date?fmtDate(d.tax_invoice_date):'발행'} · ${rs==='received'?'입금됨':'입금 전'}` : '세금계산서 발행 전';
+  // 지급 측 (설치비)
+  const p = getDealPayout(d.id);
+  const payAmt = p.amount||0;
+  const due = payoutDue(d);
+  let payBadge, payMeta;
+  if (payAmt<=0){ payBadge = '<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:#f1f3f6;color:#8b95a1;">설치비 미입력</span>'; payMeta = '정보 수정에서 설치비를 입력하세요'; }
+  else if (p.paid){ payBadge = `<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#eaf7ee;color:#15803d;border:1px solid #bfe3c9;">지급완료${p.paidDate?' '+fmtDate(p.paidDate):''}</span>`; payMeta = `설치완료 ${d.delivery_date?fmtDate(d.delivery_date):'-'} · 외주 설치비`; }
+  else { const overdue = due && due < today; payBadge = `<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:${overdue?'#fdeaea':'#fff7ed'};color:${overdue?'#dc2626':'#b45309'};border:1px solid ${overdue?'#f3c0c0':'#fde4c8'};">${overdue?'지급 지연':'지급 예정'} ${due?fmtDate(due).slice(5):''}</span>`; payMeta = `설치완료 ${d.delivery_date?fmtDate(d.delivery_date):'-'} · 익월 말 지급`; }
+  const margin = recvAmt - payAmt;
+  return `<div style="margin-top:20px;padding:16px 17px;border:1px solid var(--border);border-radius:16px;background:var(--bg-card);">
+    <div style="font-size:13px;font-weight:800;margin-bottom:12px;">⚖️ 정산 현황 <span style="color:var(--text-tertiary);font-weight:600;font-size:12px;">— 수금 · 설치비 지급</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="border-radius:12px;padding:14px 15px;background:#eaf7ee;border:1px solid #bfe3c9;">
+        <div style="font-size:12px;font-weight:800;color:#15803d;margin-bottom:8px;">💰 수금 (받을 돈)</div>
+        <div style="font-size:21px;font-weight:800;letter-spacing:-.02em;">${fmtMoney(recvAmt)}</div>
+        <div style="font-size:11.5px;color:var(--text-secondary);font-weight:600;margin-top:7px;line-height:1.6;">${recvBadge} ${recvMeta}</div>
+      </div>
+      <div style="border-radius:12px;padding:14px 15px;background:#fff7ed;border:1px solid #fde4c8;">
+        <div style="font-size:12px;font-weight:800;color:#b45309;margin-bottom:8px;">🧰 설치비 지급 (줄 돈)</div>
+        <div style="font-size:21px;font-weight:800;letter-spacing:-.02em;${payAmt<=0?'color:var(--text-tertiary);':''}">${payAmt>0?fmtMoney(payAmt):'-'}</div>
+        <div style="font-size:11.5px;color:var(--text-secondary);font-weight:600;margin-top:7px;line-height:1.6;">${payBadge} ${payMeta}</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);font-size:13px;font-weight:700;">
+      <span style="color:var(--text-secondary);">순마진 (수금 − 설치비)</span>
+      <b style="font-size:17px;font-weight:800;color:${margin>=0?'#15803d':'#dc2626'};">${margin>=0?'+':'−'}${fmtMoney(Math.abs(margin))}</b>
+    </div>
+  </div>`;
 }
 function renderDealBatches(d){
   const batches = getDealBatches(d.id);
@@ -7556,8 +7643,9 @@ function renderShip(){
     <div class="stat-card"><div class="stat-label">출고 요청 대기</div><div class="stat-value" style="color:${reqCnt?'#b45309':'inherit'}">${reqCnt}<span class="unit">건</span></div><div class="stat-sub">${fmtWon(reqAmt)}원 · 완료로 바꿔야 매출 반영</div></div>
     <div class="stat-card"><div class="stat-label">세금계산서 미발행</div><div class="stat-value" style="color:${shipScope.filter(s=>!s.tax_invoice_issued).length?'var(--status-critical)':'inherit'}">${shipScope.filter(s=>!s.tax_invoice_issued).length}<span class="unit">건</span></div><div class="stat-sub">전체 ${shipScope.length}건 중 · 발행 ${shipScope.filter(s=>s.tax_invoice_issued).length}건</div></div>`;
 
+  window._shipRenderedIds = list.map(s=>s.id);
   $('shipTable').innerHTML = `
-    <thead><tr><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
+    <thead><tr><th style="width:30px;text-align:center;"><input type="checkbox" id="shSelAll" onclick="toggleShipSelAll(this.checked)" title="전체 선택"></th><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
     <tbody>${list.length ? list.map(s=>{
       const inv = s.tax_invoice_issued
         ? `<span class="status-badge badge-paid" style="font-size:11px;padding:3px 9px;">발행 ${s.tax_invoice_date?fmtDate(s.tax_invoice_date):''}</span>`
@@ -7575,6 +7663,7 @@ function renderShip(){
       </select>`;
       return `
       <tr style="cursor:pointer" onclick="openShipModal(${s.id})">
+        <td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" class="sh-chk" ${shipSelected.has(s.id)?'checked':''} onclick="event.stopPropagation();toggleShipSel(${s.id},this.checked)"></td>
         <td class="td-num" style="font-weight:700;">${fmtDate(s.ship_date)}</td>
         <td style="font-weight:600">${esc(s.name||'-')}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}${(s.gov_support&&(s.gov_order||s.gov_invoice_to||s.gov_install_site))?`<div style="font-size:11px;color:#4338ca;font-weight:600;margin-top:3px;background:#f2f4ff;border:1px solid #d5dbf7;border-radius:6px;padding:4px 7px;line-height:1.55;">🏛️ ${[s.gov_order?'발주 '+esc(s.gov_order):'',s.gov_invoice_to?'계산서 '+esc(s.gov_invoice_to):'',s.gov_install_site?'설치사 '+esc(s.gov_install_site):''].filter(Boolean).join(' · ')}</div>`:''}</td>
         <td>${s.co?`<span class="co-fin" data-co="${esc(s.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(s.co)}</span>`:'-'}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
@@ -7585,7 +7674,8 @@ function renderShip(){
         <td>${shipStage}</td>
         <td>${shipStepper(s)}</td>
         <td>${esc(s.person||'-')}</td>
-      </tr>`;}).join('') : `<tr><td colspan="10"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">등록된 출고·납품 건이 없어요</div><div class="empty-desc">오른쪽 위 "새 출고 등록"으로 추가하면 출고일 기준으로 매출에 반영돼요</div></div></td></tr>`}</tbody>`;
+      </tr>`;}).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">등록된 출고·납품 건이 없어요</div><div class="empty-desc">오른쪽 위 "새 출고 등록"으로 추가하면 출고일 기준으로 매출에 반영돼요</div></div></td></tr>`}</tbody>`;
+  updateShipSelUI();
 }
 function onShipYear(){ renderShip(); }
 function setShipStatus(id, val){
@@ -7819,6 +7909,88 @@ function duplicateShip(){
   renderShip();
   openShipModal(copy.id);   // 복사본을 열어 출고일·내용을 확인·수정하도록
   toast('복제했어요 — 출고일·내용을 확인하고 저장해 주세요 ✓');
+}
+/* ===== 출고·납품 목록 선택 + 엑셀 다운로드 ===== */
+let shipSelected = new Set();
+function toggleShipSel(id, checked){ if(checked) shipSelected.add(id); else shipSelected.delete(id); updateShipSelUI(); }
+function toggleShipSelAll(checked){
+  const ids = window._shipRenderedIds || [];
+  if(checked) ids.forEach(id=>shipSelected.add(id)); else ids.forEach(id=>shipSelected.delete(id));
+  document.querySelectorAll('#shipTable .sh-chk').forEach(cb=>{ cb.checked = checked; });
+  updateShipSelUI();
+}
+function updateShipSelUI(){
+  const ids = window._shipRenderedIds || [];
+  const selInView = ids.filter(id=>shipSelected.has(id)).length;
+  const all = $('shSelAll');
+  if(all){ all.checked = ids.length>0 && selInView===ids.length; all.indeterminate = selInView>0 && selInView<ids.length; }
+  const btn = $('shExcelBtn');
+  if(btn){ const n = shipSelected.size; btn.textContent = n>0 ? `📥 엑셀 다운로드 (${n}건)` : '📥 엑셀 다운로드'; }
+}
+function shipStatusLabel(s){ return shipReturned(s) ? '반품 완료' : (s.ship_status==='done' ? '출고 완료' : '출고 요청'); }
+function shipRowForExcel(s){
+  const products = Array.isArray(s.products)&&s.products.length ? s.products.map(p=>`${p.name||'제품'}${p.qty?' x'+p.qty:''}`).join(', ') : (s.prod||'');
+  return {
+    '출고일': s.ship_date||'',
+    '건명': s.name||'',
+    '고객사': s.co||'',
+    '주소': s.addr||'',
+    '받는분': s.receiver||'',
+    '연락처': s.receiver_phone||'',
+    '이메일': s.receiver_email||'',
+    '제품': products,
+    '수량': Number(s.qty)||0,
+    '공급가(원)': Number(s.amount)||0,
+    '순매출(원)': shipNet(s),
+    'VAT포함(원)': Math.round(shipNet(s)*1.1),
+    '출고 상태': shipStatusLabel(s),
+    '세금계산서': s.tax_invoice_issued?'발행':'미발행',
+    '계산서 발행일': s.tax_invoice_date||'',
+    '수금': s.collected?'수금완료':'수금전',
+    '반품': shipReturned(s)?'반품':'',
+    '반품수량': s.return_qty||'',
+    '반품금액(원)': s.return_amount||'',
+    '반품사유': s.return_reason||'',
+    '반품일': s.return_date||'',
+    '정부지원': s.gov_support?'Y':'',
+    '정부-발주': s.gov_order||'',
+    '정부-계산서': s.gov_invoice_to||'',
+    '정부-설치사': s.gov_install_site||'',
+    '담당자': s.person||'',
+    '메모': s.memo||'',
+    '등록일': (s.created_at||'').slice(0,10)
+  };
+}
+function exportShipExcel(){
+  let ids = [...shipSelected];
+  if(!ids.length) ids = (window._shipRenderedIds || []).slice();   // 선택 없으면 현재 목록 전체
+  const rows = ids.map(id=>shipments.find(x=>x.id===id)).filter(Boolean);
+  if(!rows.length){ toast('내보낼 건이 없어요', true); return; }
+  // 출고일 순 정렬
+  rows.sort((a,b)=>String(a.ship_date||'').localeCompare(String(b.ship_date||'')));
+  const data = rows.map(shipRowForExcel);
+  const fname = `출고납품_${shipSelected.size?'선택'+rows.length+'건':'전체'+rows.length+'건'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  try{
+    if(typeof XLSX==='undefined') throw new Error('엑셀 라이브러리 로드 실패 (인터넷 연결 확인)');
+    const ws = XLSX.utils.json_to_sheet(data);
+    // 열 너비 자동(대략)
+    const keys = Object.keys(data[0]);
+    ws['!cols'] = keys.map(k=>{ let w=k.length; data.forEach(r=>{ const v=String(r[k]??''); if(v.length>w) w=v.length; }); return {wch: Math.min(40, Math.max(6, w+2))}; });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '출고납품');
+    XLSX.writeFile(wb, fname);
+    toast(`${rows.length}건 엑셀로 내려받았어요 ✓`);
+  }catch(e){
+    // CSV 폴백 (UTF-8 BOM — 엑셀에서 한글 안 깨짐)
+    try{
+      const keys = Object.keys(data[0]);
+      const esc = v => { v=String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+      const csv = [keys.join(',')].concat(data.map(r=>keys.map(k=>esc(r[k])).join(','))).join('\r\n');
+      const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname.replace(/\.xlsx$/,'.csv'); a.click(); URL.revokeObjectURL(a.href);
+      toast(`${rows.length}건 CSV로 내려받았어요 ✓ (엑셀에서 열려요)`);
+    }catch(e2){ toast('다운로드 실패: '+e.message, true); }
+  }
 }
 function exportShip(){
   const payload = { version: 1, type: 'shipments', shipments };
@@ -8058,6 +8230,15 @@ function setEdInv(on){
   const dw=$('edInvDateWrap'); if(dw) dw.classList.toggle('hide', !on);
 }
 function toggleEdInv(){ setEdInv(!($('edInv') && $('edInv').value==='1')); }
+let _edPayPaid = false;
+function setEdPay(on){
+  _edPayPaid = !!on;
+  const blk=$('edPayBlock'); if(blk) blk.classList.toggle('on', _edPayPaid);
+  const box=$('edPayBox'); if(box) box.textContent = _edPayPaid ? '✓' : '';
+  const st=$('edPayState'); if(st){ st.textContent = _edPayPaid ? '✅ 지급 완료' : '미지급'; st.className = _edPayPaid ? 'ton' : 'toff'; }
+  const dw=$('edPayDateWrap'); if(dw) dw.classList.toggle('hide', !_edPayPaid);
+}
+function toggleEdPay(){ setEdPay(!_edPayPaid); }
 function openEditModal(){
   _editFromCoRec = false;
   const d = deals.find(x=>x.id===currentDealId); if(!d) return;
@@ -8087,6 +8268,14 @@ function openEditModal(){
   $('edSite').value = d.site || '';
   $('edInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k===(d.inflow||'direct')?'selected':''}>${v.label}</option>`).join('');
   { const ag = getDealAgency(d.id); $('edAgency').value = ag.agency || ''; $('edAgencyRep').value = ag.rep || ''; }
+  { const pay = getDealPayout(d.id);
+    $('edPayAmount').value = pay.amount ? pay.amount : '';
+    $('edPayDue').value = pay.due || '';
+    $('edPayDate').value = pay.paidDate || '';
+    setEdPay(!!pay.paid);
+    const auto = (d.delivery_date||d.close_date) ? nextMonthEnd(d.delivery_date||d.close_date) : '';
+    $('edPayDueHint').textContent = pay.due ? '설치 완료일 익월 말 자동값을 덮어썼어요' : (auto ? `자동: ${fmtDate(auto)} (설치 완료일 익월 말)` : '설치 완료일을 넣으면 익월 말로 자동 계산돼요');
+  }
   $('edContactName').value = d.contact_name || '';
   $('edContactPhone').value = d.contact_phone || '';
   $('edContactEmail').value = d.contact_email || '';
@@ -8231,6 +8420,10 @@ async function saveEdit(){
   const agName = $('edAgency').value.trim(), agRep = $('edAgencyRep').value.trim();
   const agencyChanged = agName !== (curAg.agency||'') || agRep !== (curAg.rep||'');
   if (agName) addCompany(agName);   // 경유사도 거래처 목록에 등록
+  // 설치비 지급 (팀 공유 저장)
+  const curPay = getDealPayout(d.id);
+  const payObj = { amount: parseInt($('edPayAmount').value,10)||0, due: $('edPayDue').value||'', paid: _edPayPaid, paidDate: _edPayPaid ? ($('edPayDate').value||'') : '' };
+  const payChanged = JSON.stringify({a:payObj.amount,d:payObj.due,p:payObj.paid,pd:payObj.paidDate}) !== JSON.stringify({a:curPay.amount||0,d:curPay.due||'',p:!!curPay.paid,pd:curPay.paidDate||''});
   // 특이사항 (이 브라우저에 저장)
   const noteChanged = $('edNote').value.trim() !== getDealNote(d.id);
   // 설치팀·설치팀 담당자 (팀 공유 저장 · 영업툴 스키마 영향 없음)
@@ -8244,10 +8437,11 @@ async function saveEdit(){
   const forkChanged = JSON.stringify(afterForkArr) !== JSON.stringify(getDealForkList(d.id));
   // 제품 구성 변경 여부
   const itemsChanged = JSON.stringify(_items) !== JSON.stringify(getDealItems(d.id) || []);
-  if (!Object.keys(patch).length && !noteChanged && !instChanged && !forkChanged && !itemsChanged && !agencyChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
+  if (!Object.keys(patch).length && !noteChanged && !instChanged && !forkChanged && !itemsChanged && !agencyChanged && !payChanged) { closeEditModal(); toast('변경된 내용이 없어요'); return; }
   if (noteChanged) setDealNote(d.id, $('edNote').value);
   if (instChanged) setDealInstall(d.id, iTeam, iPerson);
   if (agencyChanged) setDealAgency(d.id, agName, agRep);
+  if (payChanged) setDealPayout(d.id, payObj);
   if (forkChanged) setDealForkList(d.id, afterForkArr);
   if (itemsChanged) setDealItems(d.id, dealItemRows);
 
@@ -8278,6 +8472,7 @@ async function saveEdit(){
       if (forkChanged) ch.push('지게차 정보 수정');
       if (instChanged) ch.push('설치팀 수정');
       if (agencyChanged) ch.push(agName?('경유사 → '+agName+(agRep?' ('+agRep+')':'')):'경유사 해제');
+      if (payChanged){ if(payObj.paid && !curPay.paid) ch.push('설치비 지급 완료'+(payObj.paidDate?' ('+fmtDate(payObj.paidDate)+')':'')+(payObj.amount?' · '+fmtMoney(payObj.amount):'')); else if(!payObj.paid && curPay.paid) ch.push('설치비 지급 해제'); else ch.push('설치비 정보 수정'+(payObj.amount?' ('+fmtMoney(payObj.amount)+')':'')); }
       if (noteChanged) ch.push('특이사항 수정');
       if (ch.length) addActivity(d.id, '딜 수정', ch.join(' · '), {source:'auto'});
     } catch(e){}
