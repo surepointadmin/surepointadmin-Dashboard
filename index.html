@@ -1278,6 +1278,7 @@
                         <p class="page-subtitle">잠재 발굴부터 납품·수금까지, 딜별 진행 상황을 한눈에 확인하세요</p>
                     </div>
                     <div class="header-actions">
+                        <button class="btn btn-secondary btn-sm" style="color:#15803d;border-color:#bfe3c9;" onclick="exportProjectsExcel()" title="현재 목록(검색·필터 적용된 딜 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
                         <button class="btn btn-primary" onclick="openCreateModal()">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             새 프로젝트 등록
@@ -6009,6 +6010,7 @@ function renderProjects(){
     if (!kb) return -1;
     return sort === 'install_asc' ? ka.localeCompare(kb) : kb.localeCompare(ka);
   });
+  window._projRenderedIds = list.map(d=>d.id);   // 엑셀 내보내기용 (현재 필터·정렬 반영)
 
   // 상단 통계
   const act = deals.filter(d=>!isLost(d));
@@ -7967,6 +7969,71 @@ function shipRowForExcel(s){
     '메모': s.memo||'',
     '등록일': (s.created_at||'').slice(0,10)
   };
+}
+/* ===== 프로젝트(딜) 목록 엑셀 다운로드 ===== */
+function dealRowForExcel(d){
+  const ag = getDealAgency(d.id);
+  const pay = getDealPayout(d.id);
+  const batches = getDealBatches(d.id);
+  const total = dealTotalQty(d);
+  const net = batches.length ? Math.max(0, dealBatchDoneQty(d.id) - dealBatchCancelQty(d.id)) : '';
+  const recvSt = dealRecvState(d);
+  const inflow = (d.inflow && INFLOW[d.inflow]) ? INFLOW[d.inflow].label : (d.inflow||'');
+  return {
+    '고객사': d.co||'',
+    '경유사': ag.agency||'',
+    '도입현장': d.site||'',
+    '딜명': d.name||'',
+    '제품': d.prod||'',
+    '단계': dispStage(d)||'',
+    '총수량': total||0,
+    '설치완료(순)': net,
+    '공급가(원)': Number(d.amount)||0,
+    '실매출(원)': dealRealizedWon(d),
+    '잠재매출(원)': dealPotentialWon(d),
+    '유입경로': inflow,
+    '담당자': d.person||'',
+    '고객담당자': d.contact_name||'',
+    '연락처': d.contact_phone||'',
+    '이메일': d.contact_email||'',
+    '설치시작일': (d.close_date||'').slice(0,10),
+    '설치완료일': (d.delivery_date||'').slice(0,10),
+    '세금계산서': dealInvoiced(d)?'발행':'미발행',
+    '계산서발행일': (d.tax_invoice_date||'').slice(0,10),
+    '수금상태': recvSt ? (RECV_LABEL[recvSt]||recvSt) : '-',
+    '설치비(원)': Number(pay.amount)||0,
+    '설치비지급': pay.paid ? '지급완료' : (Number(pay.amount)>0?'미지급':'-'),
+    '지급예정일': (payoutDue(d)||'').slice(0,10),
+    '지급일': (pay.paidDate||'').slice(0,10),
+    '등록일': (d.created_at||'').slice(0,10)
+  };
+}
+function exportProjectsExcel(){
+  let ids = (window._projRenderedIds || []).slice();
+  if(!ids.length){ toast('내보낼 딜이 없어요 (목록을 먼저 확인해 주세요)', true); return; }
+  const rows = ids.map(id=>deals.find(x=>x.id===id)).filter(Boolean);
+  if(!rows.length){ toast('내보낼 딜이 없어요', true); return; }
+  const data = rows.map(dealRowForExcel);
+  const fname = `프로젝트딜_${rows.length}건_${new Date().toISOString().slice(0,10)}.xlsx`;
+  try{
+    if(typeof XLSX==='undefined') throw new Error('엑셀 라이브러리 로드 실패 (인터넷 연결 확인)');
+    const ws = XLSX.utils.json_to_sheet(data);
+    const keys = Object.keys(data[0]);
+    ws['!cols'] = keys.map(k=>{ let w=k.length; data.forEach(r=>{ const v=String(r[k]??''); if(v.length>w) w=v.length; }); return {wch: Math.min(40, Math.max(6, w+2))}; });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '프로젝트딜');
+    const out = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    triggerDownload(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), fname);
+    toast(`${rows.length}건 엑셀로 내려받았어요 ✓ (다운로드 폴더 확인)`);
+  }catch(e){
+    try{
+      const keys = Object.keys(data[0]);
+      const esc = v => { v=String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+      const csv = [keys.join(',')].concat(data.map(r=>keys.map(k=>esc(r[k])).join(','))).join('\r\n');
+      triggerDownload(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'}), fname.replace(/\.xlsx$/,'.csv'));
+      toast(`${rows.length}건 CSV로 내려받았어요 ✓ (다운로드 폴더 확인 · 엑셀에서 열려요)`);
+    }catch(e2){ toast('다운로드 실패: '+e.message, true); }
+  }
 }
 function exportShipExcel(){
   let ids = [...shipSelected];
