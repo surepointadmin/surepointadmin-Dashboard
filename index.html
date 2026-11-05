@@ -1707,15 +1707,17 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">출고·납품 관리</h1>
-                        <p class="page-subtitle">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · 기록은 이 컴퓨터(브라우저)에 저장돼요</p>
+                        <p class="page-subtitle">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · <b>📨 출고 요청</b>은 잔디 출고방 전송 + 목록에 자동 추가돼요</p>
                     </div>
                     <div class="header-actions">
                         <button class="btn btn-secondary btn-sm" id="shExcelBtn" style="color:#15803d;border-color:#bfe3c9;" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">백업 ↓</button>
                         <button class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
-                        <button class="btn btn-primary" onclick="openShipModal()">
+                        <button class="btn btn-primary sh-req-btn" onclick="openShipReq()" title="잔디 출고방 전송 + 목록 자동 추가">📨 출고 요청<span class="b" id="shReqBadge" style="display:none">0</span></button>
+                        <button class="btn btn-secondary" onclick="srOpenId=null;openShipReq('hist')">🕒 요청 이력</button>
+                        <button class="btn btn-primary" onclick="openShipModal()" title="카톡 등 다른 경로로 받은 건을 수기로 등록">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                            새 출고 등록
+                            직접 등록
                         </button>
                         <input type="file" id="shipImportInput" hidden accept=".json">
                     </div>
@@ -3274,7 +3276,7 @@ function compressImage(file, maxDim, quality){
 /* ===== 출고·납품 / A/S / 주문연결 / 특이사항 팀 공유 (Supabase 전용 테이블, 없으면 로컬 폴백) ===== */
 const KV_TABLE = 'sp_kv';   // 주문 연결·딜 특이사항 등 blob 공유 (k 기준)
 let kvRemoteOn = false;
-async function loadTeamData(){ await loadShipRemote(); await loadAsRemote(); await loadKvRemote(); }
+async function loadTeamData(){ await loadShipRemote(); await loadAsRemote(); await loadKvRemote(); if (typeof loadShipReqRemote==='function') await loadShipReqRemote(); }
 async function loadKvRemote(){
   try {
     const rows = await sbGet(`${KV_TABLE}?select=k,data`);
@@ -7669,7 +7671,7 @@ function renderShip(){
       <tr style="cursor:pointer" onclick="openShipModal(${s.id})">
         <td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" class="sh-chk" ${shipSelected.has(s.id)?'checked':''} onclick="event.stopPropagation();toggleShipSel(${s.id},this.checked)"></td>
         <td class="td-num" style="font-weight:700;">${fmtDate(s.ship_date)}</td>
-        <td style="font-weight:600">${esc(s.name||'-')}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}${(s.gov_support&&(s.gov_order||s.gov_invoice_to||s.gov_install_site))?`<div style="font-size:11px;color:#4338ca;font-weight:600;margin-top:3px;background:#f2f4ff;border:1px solid #d5dbf7;border-radius:6px;padding:4px 7px;line-height:1.55;">🏛️ ${[s.gov_order?'발주 '+esc(s.gov_order):'',s.gov_invoice_to?'계산서 '+esc(s.gov_invoice_to):'',s.gov_install_site?'설치사 '+esc(s.gov_install_site):''].filter(Boolean).join(' · ')}</div>`:''}</td>
+        <td style="font-weight:600">${esc(s.name||'-')}${typeof shipReqTag==='function'?shipReqTag(s):''}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}${(s.gov_support&&(s.gov_order||s.gov_invoice_to||s.gov_install_site))?`<div style="font-size:11px;color:#4338ca;font-weight:600;margin-top:3px;background:#f2f4ff;border:1px solid #d5dbf7;border-radius:6px;padding:4px 7px;line-height:1.55;">🏛️ ${[s.gov_order?'발주 '+esc(s.gov_order):'',s.gov_invoice_to?'계산서 '+esc(s.gov_invoice_to):'',s.gov_install_site?'설치사 '+esc(s.gov_install_site):''].filter(Boolean).join(' · ')}</div>`:''}</td>
         <td>${s.co?`<span class="co-fin" data-co="${esc(s.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(s.co)}</span>`:'-'}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
         <td>${esc(s.prod||'-')}${(Array.isArray(s.products)&&s.products.length>1)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">${s.products.map(p=>esc(p.name||'제품')+(p.qty?` ×${p.qty}`:'')).join(', ')}</div>`:''}</td>
         <td class="td-num">${s.qty||0}</td>
@@ -7699,6 +7701,7 @@ function setShipStatus(id, val){
     if (val !== 'done' && s.tax_invoice_issued) { s.tax_invoice_issued = false; s.tax_invoice_date = null; cleared = true; }
     msg = (val==='done' ? '출고 완료로 변경했어요 ✓' : ('출고 요청으로 변경했어요 ✓' + (cleared ? ' (계산서 발행 해제됨)' : '')));
   }
+  if (typeof onShipStatusLog==='function') onShipStatusLog(s, val);
   s.updated_at = new Date().toISOString();
   saveShipLocal();
   toast(msg);
@@ -8923,5 +8926,463 @@ loadAll();
   window.closeIncentive = function(){ document.getElementById('incvModal').classList.remove('active'); };
 })();
 </script>
+
+<!-- ═══════════ 출고 요청 (요청 작성 + 요청 이력) ═══════════ -->
+<style>
+  #shipReqModal .modal{max-width:1040px;width:96vw;}
+  .sr-tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--border);position:sticky;top:81px;background:var(--bg-card);z-index:4;}
+  .sr-tab{border:none;background:transparent;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--text-tertiary);padding:12px 14px;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;}
+  .sr-tab.on{color:var(--text-primary);font-weight:800;border-bottom-color:var(--primary);}
+  .sr-tab .cnt{display:inline-block;min-width:20px;padding:1px 7px;border-radius:20px;background:#fff7ed;color:#c2410c;font-size:11.5px;font-weight:800;margin-left:5px;}
+  .sr-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start;}
+  .sr-sec{font-size:12.5px;font-weight:800;color:var(--text-secondary);margin:4px 0 10px;display:flex;align-items:center;gap:6px;}
+  .sr-sec:not(:first-child){margin-top:20px;padding-top:16px;border-top:1px dashed var(--border);}
+  .sr-prod{display:grid;grid-template-columns:1.2fr 1fr 80px 34px;gap:8px;align-items:center;margin-bottom:8px;}
+  .sr-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--text-secondary);}
+  .sr-chk input{width:15px;height:15px;accent-color:var(--primary);}
+  .sr-seg{display:flex;gap:8px;}
+  .sr-seg label{flex:1;border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;}
+  .sr-seg label:has(input:checked){border-color:var(--primary);background:#eff6ff;color:#1d4ed8;}
+  .sr-seg input{accent-color:var(--primary);}
+  .sr-pv-wrap{position:sticky;top:140px;}
+  .sr-pv{background:#fffbe6;border:1px solid #f1e3a0;border-radius:var(--radius-md);padding:15px 16px;font-size:13.5px;line-height:1.75;white-space:pre-wrap;word-break:break-all;min-height:320px;color:#191f28;}
+  .sr-flow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--text-tertiary);}
+  .sr-flow span{background:var(--bg-main);border-radius:20px;padding:3px 9px;font-weight:600;}
+  .sr-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .sr-tbl th{text-align:left;font-size:12px;color:var(--text-tertiary);font-weight:700;padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .sr-tbl td{padding:12px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .sr-tbl tr.row{cursor:pointer;} .sr-tbl tr.row:hover td{background:var(--bg-main);}
+  .sr-tbl tr.open td{background:#f8fbff;}
+  .sr-pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .sr-pill.req{background:#fff7ed;color:#b45309;border:1px solid #fed7aa;}
+  .sr-pill.done{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;}
+  .sr-pill.ret{background:#fdecec;color:#b91c1c;border:1px solid #fecaca;}
+  .sr-pill.ok{background:#eff6ff;color:#1d4ed8;}
+  .sr-pill.fail{background:#fdecec;color:#b91c1c;}
+  .sr-pill.off{background:#f2f4f6;color:#6b7684;}
+  .sr-ts{font-variant-numeric:tabular-nums;}
+  .sr-detail{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 4px 10px;}
+  .sr-tl{list-style:none;margin:0;padding:0;}
+  .sr-tl li{position:relative;padding:0 0 12px 18px;font-size:12.5px;}
+  .sr-tl li::before{content:'';position:absolute;left:3px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--primary);}
+  .sr-tl li::after{content:'';position:absolute;left:6.5px;top:16px;bottom:0;width:1px;background:var(--border);}
+  .sr-tl li:last-child::after{display:none;}
+  .sr-tl li.done::before{background:#16a34a;} .sr-tl li.fail::before{background:#dc2626;} .sr-tl li.ret::before{background:#dc2626;}
+  .sr-tl .t{color:var(--text-tertiary);font-size:11.5px;}
+  .sr-filter{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  .sr-fbtn{border:1px solid var(--border);background:var(--bg-card);border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:700;color:var(--text-secondary);cursor:pointer;font-family:inherit;}
+  .sr-fbtn.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .sh-req-btn{background:#f97316 !important;border-color:#f97316 !important;color:#fff !important;position:relative;}
+  .sh-req-btn .b{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;border-radius:10px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg-card);}
+  @media (max-width:860px){ .sr-grid,.sr-detail{grid-template-columns:1fr;} .sr-pv-wrap{position:static;} .sr-tabs{top:73px;} }
+</style>
+
+<div class="modal-overlay" id="shipReqModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">📨 출고 요청</h2>
+        <div style="font-size:12.5px;color:var(--text-tertiary);margin-top:3px;">보내면 <b style="color:var(--text-secondary)">잔디 출고방 전송</b> + <b style="color:var(--text-secondary)">출고·납품 목록에 '출고 요청'으로 자동 추가</b>돼요</div>
+      </div>
+      <button class="modal-close" onclick="closeShipReq()">×</button>
+    </div>
+    <div class="sr-tabs">
+      <button class="sr-tab on" id="srTabNew" onclick="srTab('new')">요청 작성</button>
+      <button class="sr-tab" id="srTabHist" onclick="srTab('hist')">요청 이력<span class="cnt" id="srHistCnt">0</span></button>
+    </div>
+
+    <!-- ── 요청 작성 ── -->
+    <div class="modal-body" id="srNew">
+      <div class="sr-grid">
+        <div>
+          <div class="sr-sec">🙋 요청자</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">요청자 *</label><input class="form-input" id="srRequester" list="srStaff"></div>
+            <div class="form-group"><label class="form-label">요청 일시</label><input class="form-input" id="srNow" disabled></div>
+          </div>
+          <datalist id="srStaff"><option>김다은</option><option>이수훈</option><option>이상혁</option><option>이재훈</option></datalist>
+
+          <div class="sr-sec">🏢 고객 / 현장</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">고객사 *</label><input class="form-input" id="srCo" list="srCoList" placeholder="예: 국일케빈"></div>
+            <div class="form-group"><label class="form-label">현장명 *</label><input class="form-input" id="srSite" placeholder="예: 미래에프엘"></div>
+          </div>
+          <datalist id="srCoList"></datalist>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">담당자 *</label><input class="form-input" id="srMgr" placeholder="예: 원종문 대표"></div>
+            <div class="form-group"><label class="form-label">연락처 *</label><input class="form-input" id="srPhone" inputmode="tel" placeholder="010-0000-0000"></div>
+          </div>
+          <div class="form-group"><label class="form-label">수령인 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(담당자와 다를 때만)</span></label><input class="form-input" id="srRecv" placeholder="예: AJ솔루션테크 지진환 010-4785-9758"></div>
+
+          <div class="sr-sec">📦 제품</div>
+          <div id="srProds"></div>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="srAddProd()">+ 제품 추가</button>
+          <div class="form-group" style="margin-top:14px;"><label class="form-label">지게차 모델</label><input class="form-input" id="srFork" placeholder="예: 디젤 3톤"></div>
+
+          <div class="sr-sec">🚚 출고 / 배송</div>
+          <div class="form-group">
+            <label class="form-label">출고 희망일 *</label>
+            <div class="sr-seg" style="margin-bottom:8px;">
+              <label><input type="radio" name="srHope" value="asap" checked> 최대한 빠르게</label>
+              <label><input type="radio" name="srHope" value="date"> 날짜 지정</label>
+            </div>
+            <input type="date" class="form-input" id="srHopeDate" disabled>
+          </div>
+          <div class="form-group"><label class="form-label">납품 주소 *</label><input class="form-input" id="srAddr" placeholder="예: 경기도 광주시 신현동 문형산길 217"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">운임</label>
+              <div class="sr-seg"><label><input type="radio" name="srFreight" value="선불" checked> 선불</label><label><input type="radio" name="srFreight" value="착불"> 착불</label></div>
+            </div>
+            <div class="form-group"><label class="form-label">배송 방법</label>
+              <select class="form-input" id="srDelivery"><option value="">선택 안 함</option><option>경동화물</option><option>경동택배</option><option>일반택배</option><option>퀵/용달</option><option>직접 수령</option></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="sr-chk" style="margin-bottom:8px;"><input type="checkbox" id="srBox" checked> 박스에 발주번호 표기</label>
+            <input class="form-input" id="srOrderNo" placeholder="SP-S3-20261104-5">
+            <div class="form-hint">제품·날짜·수량으로 자동 생성 · 직접 수정 가능</div>
+          </div>
+
+          <div class="sr-sec">📝 특이사항</div>
+          <div class="form-group"><label class="form-label">특이사항 (연구소 전달)</label><textarea class="form-input" id="srNotes" rows="2" placeholder="예: 구성품 및 불량 사항 확인 부탁드립니다"></textarea></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">참고 메모 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(업무 진행 시 참고 안 해도 되는 내용)</span></label><input class="form-input" id="srMemo" placeholder="예: 클라크EV 스마트 / 3대만 이번 달 계산서 발행"></div>
+        </div>
+
+        <div class="sr-pv-wrap">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <b style="font-size:14px;">💬 잔디 출고방 미리보기</b>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="srCopy()">문구 복사</button>
+          </div>
+          <div class="sr-pv" id="srPv"></div>
+          <div class="sr-flow"><span>① 잔디 출고방 전송</span><span>② 출고·납품 목록 '출고 요청' 추가</span><span>③ 요청 이력에 일시 기록</span></div>
+          <button class="btn btn-primary" id="srSendBtn" type="button" style="width:100%;justify-content:center;padding:14px;margin-top:14px;font-size:15px;background:#f97316;border-color:#f97316;" onclick="srSubmit()">출고 요청 보내기</button>
+          <button class="btn btn-secondary" type="button" style="width:100%;justify-content:center;margin-top:8px;" onclick="srReset()">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 요청 이력 ── -->
+    <div class="modal-body" id="srHist" style="display:none;">
+      <div class="sr-filter" id="srFilter"></div>
+      <div style="overflow-x:auto;"><table class="sr-tbl" id="srHistTbl"></table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ===== 출고 요청 — 설정 ===== */
+const SHIP_REQ_WEBHOOK        = 'https://nfrnd.app.n8n.cloud/webhook/surepoint-shipping';         // 요청 등록: 잔디 전송 + 시트 기록 (비우면 '미연결')
+const SHIP_REQ_UPDATE_WEBHOOK = 'https://nfrnd.app.n8n.cloud/webhook/surepoint-shipping-update';  // 출고 단계 변경 → 시트 갱신 (+완료 시 잔디 알림)
+const SHIP_SHEET_URL          = 'https://docs.google.com/spreadsheets/d/1dtoB8fr0a1EB5yGYnTAh_hSwA5lhXSVRnmeHOat8Sc4/edit';  // '출고' 탭 열고 주소창 #gid=... 까지 복사해서 바꾸면 바로 그 탭으로 열려요
+const SHIP_REQ_LS_KEY  = 'sp_ship_requests_v1';
+const SHIP_REQ_KV      = 'ship_requests';  // sp_kv 공유 키
+const SR_MODELS = ['AI-S0','AI-S1','AI-S2','AI-S3'];
+
+let shipReqs = [];
+try { shipReqs = JSON.parse(localStorage.getItem(SHIP_REQ_LS_KEY)||'[]'); } catch(e){ shipReqs = []; }
+let srProds = [], srOrderEdited = false, srSending = false, srOpenId = null, srF = 'all';
+
+const srPad = n => String(n).padStart(2,'0');
+const srStamp = iso => { const d = new Date(iso); return d.getFullYear()+'.'+srPad(d.getMonth()+1)+'.'+srPad(d.getDate())+' '+srPad(d.getHours())+':'+srPad(d.getMinutes()); };
+const srStampS = iso => srStamp(iso)+':'+srPad(new Date(iso).getSeconds());
+const srToday = () => { const d=new Date(); return d.getFullYear()+'-'+srPad(d.getMonth()+1)+'-'+srPad(d.getDate()); };
+
+function saveShipReqs(){
+  try { localStorage.setItem(SHIP_REQ_LS_KEY, JSON.stringify(shipReqs)); } catch(e){}
+  if (typeof syncKv === 'function') syncKv(SHIP_REQ_KV, shipReqs);
+  srBadge();
+}
+async function loadShipReqRemote(){
+  try {
+    const rows = await sbGet(`${KV_TABLE}?select=k,data&k=eq.${SHIP_REQ_KV}`);
+    const remote = rows && rows[0] && Array.isArray(rows[0].data) ? rows[0].data : null;
+    if (remote) { shipReqs = remote; try{ localStorage.setItem(SHIP_REQ_LS_KEY, JSON.stringify(shipReqs)); }catch(e){} }
+    else if (shipReqs.length) { await sbUpsert(KV_TABLE, [{k:SHIP_REQ_KV, data:shipReqs}], 'k'); }
+  } catch(e){}
+  srBadge();
+}
+const srKey = iso => { const d=new Date(iso); return d.getFullYear()+'-'+srPad(d.getMonth()+1)+'-'+srPad(d.getDate())+' '+srPad(d.getHours())+':'+srPad(d.getMinutes())+':'+srPad(d.getSeconds()); };
+function srRow(r){
+  const s = shipments.find(x=>x.id===r.shipment_id);
+  return {
+    '요청일시': srKey(r.requested_at), '요청자': r.requester||'', '고객사': r.customer||'', '현장명': r.site||'',
+    '담당자': r.manager||'', '연락처': r.phone||'', '수령인': r.receiver||'',
+    '제품': (r.items||[]).map(i=>i.name+' ×'+i.qty).join(', '), '총수량': r.total_qty||0, '지게차모델': r.forklift||'',
+    '출고희망일': r.asap ? '최대한 빠르게' : (r.hope_date||''), '납품주소': r.address||'', '운임': r.freight||'', '배송방법': r.delivery||'',
+    '발주번호': r.box_label ? (r.order_no||'') : '', '특이사항': r.notes||'', '참고메모': r.memo||'',
+    '진행상태': '출고 요청', '출고완료일시': '', '처리자': '', '건명': s ? (s.name||'') : ''
+  };
+}
+function srLog(r, type, msg){ (r.log = r.log || []).push({ at:new Date().toISOString(), type, by:curUser(), msg }); }
+
+/* ===== 열기/닫기/탭 ===== */
+function openShipReq(tab){
+  if (!srProds.length) srProds = [srNewProd()];
+  if (!$('srRequester').value) $('srRequester').value = curUser();
+  $('srCoList').innerHTML = (typeof companyCatalog!=='undefined'?companyCatalog:[]).map(c=>`<option value="${esc(c)}">`).join('');
+  srRenderProds(); srUpdate();
+  $('shipReqModal').classList.add('active'); document.body.classList.add('modal-open');
+  srTab(tab||'new');
+  clearInterval(openShipReq.t); openShipReq.t = setInterval(()=>{ $('srNow').value = srStamp(new Date().toISOString()); }, 1000);
+  $('srNow').value = srStamp(new Date().toISOString());
+}
+function closeShipReq(){ $('shipReqModal').classList.remove('active'); document.body.classList.remove('modal-open'); clearInterval(openShipReq.t); }
+function srTab(t){
+  $('srTabNew').classList.toggle('on', t==='new'); $('srTabHist').classList.toggle('on', t==='hist');
+  $('srNew').style.display = t==='new' ? '' : 'none'; $('srHist').style.display = t==='hist' ? '' : 'none';
+  if (t==='hist') srRenderHist();
+}
+
+/* ===== 제품 행 ===== */
+function srNewProd(){ return { model:'AI-S3', custom:'', gov:false, qty:1 }; }
+function srAddProd(){ srProds.push(srNewProd()); srRenderProds(); srUpdate(); }
+function srDelProd(i){ srProds.splice(i,1); if(!srProds.length) srProds.push(srNewProd()); srRenderProds(); srUpdate(); }
+function srRenderProds(){
+  $('srProds').innerHTML = srProds.map((p,i)=>`
+    <div class="sr-prod">
+      <select class="form-input" style="padding:10px 12px;" onchange="srProds[${i}].model=this.value;srRenderProds();srUpdate()">
+        ${SR_MODELS.map(m=>`<option ${p.model===m?'selected':''}>${m}</option>`).join('')}<option value="기타" ${p.model==='기타'?'selected':''}>기타(직접입력)</option>
+      </select>
+      ${p.model==='기타'
+        ? `<input class="form-input" style="padding:10px 12px;" placeholder="제품명" value="${esc(p.custom)}" oninput="srProds[${i}].custom=this.value;srUpdate()">`
+        : `<label class="sr-chk"><input type="checkbox" ${p.gov?'checked':''} onchange="srProds[${i}].gov=this.checked;srUpdate()"> 🏛️ 정부지원</label>`}
+      <input class="form-input" style="padding:10px 8px;text-align:center;" type="number" min="1" value="${p.qty}" oninput="srProds[${i}].qty=parseInt(this.value)||0;srUpdate()">
+      <button class="modal-close" type="button" style="width:34px;height:34px;font-size:15px;" title="삭제" onclick="srDelProd(${i})">×</button>
+    </div>`).join('');
+}
+const srProdName = p => p.model==='기타' ? (p.custom.trim()||'(제품명)') : p.model + (p.gov?' (정부지원)':'');
+const srTotal = () => srProds.reduce((a,p)=>a+(p.qty||0),0);
+
+/* ===== 수집 / 문구 ===== */
+function srCollect(){
+  const v = id => $(id).value.trim();
+  const hope = document.querySelector('input[name=srHope]:checked').value;
+  return {
+    requester: v('srRequester'), customer: v('srCo'), site: v('srSite'), manager: v('srMgr'), phone: v('srPhone'), receiver: v('srRecv'),
+    items: srProds.map(p=>({ name: srProdName(p), model: p.model==='기타'?p.custom.trim():p.model, gov: p.model!=='기타' && p.gov, qty: p.qty||0 })),
+    total_qty: srTotal(), forklift: v('srFork'),
+    asap: hope==='asap', hope_date: hope==='date' ? $('srHopeDate').value : '',
+    address: v('srAddr'), freight: document.querySelector('input[name=srFreight]:checked').value, delivery: $('srDelivery').value,
+    box_label: $('srBox').checked, order_no: v('srOrderNo'), notes: v('srNotes'), memo: v('srMemo')
+  };
+}
+function srText(d){
+  const L = ['[출고 요청]',''];
+  L.push('■ 고객사 : '+d.customer, '■ 현장명 : '+d.site, '■ 담당자 : '+d.manager, '■ 연락처 : '+d.phone);
+  if (d.receiver) L.push('■ 수령인 : '+d.receiver);
+  L.push('');
+  if (d.items.length===1){ L.push('■ 제품명 : '+d.items[0].name, '■ 수량 : '+d.items[0].qty+' set'); }
+  else { L.push('■ 제품 :'); d.items.forEach(i=>L.push('   - '+i.name+' / '+i.qty+' set')); L.push('■ 총 수량 : '+d.total_qty+' set'); }
+  if (d.forklift) L.push('■ 지게차 모델 : '+d.forklift);
+  L.push('');
+  L.push('■ 출고 희망일 : '+(d.asap ? '최대한 빠르게 부탁드립니다.' : (d.hope_date||'(날짜 선택)')));
+  L.push('■ 납품 주소 : '+d.address);
+  const sp = [d.freight]; if (d.delivery) sp.push(d.delivery);
+  if (d.box_label) sp.push('박스에 발주번호 표기 꼭 부탁드리겠습니다'+(d.order_no?'(발주번호 : '+d.order_no+')':''));
+  if (d.notes) sp.push(d.notes);
+  L.push('■ 특이사항 : '+sp.join(' / '));
+  if (d.memo){ L.push('', '* '+d.memo+' (참고용으로 작성된 사항이므로, 실제 업무 진행 시에는 별도로 참고하지 않으셔도 됩니다.)'); }
+  L.push('', '— 요청 '+(d.requester||'-')+' · '+srStamp(new Date().toISOString()));
+  return L.join('\n');
+}
+function srUpdate(){
+  if (!srOrderEdited){
+    const f = srProds.find(p=>p.model!=='기타');
+    $('srOrderNo').value = 'SP-'+(f?f.model.replace('AI-',''):'ETC')+'-'+srToday().replace(/-/g,'')+'-'+srTotal();
+  }
+  $('srPv').textContent = srText(srCollect());
+}
+
+/* ===== 보내기: ① 출고목록 추가 ② 요청 이력 기록 ③ 잔디 전송 ===== */
+async function srSubmit(){
+  if (srSending) return;
+  const d = srCollect();
+  const miss = [];
+  if (!d.requester) miss.push('요청자'); if (!d.customer) miss.push('고객사'); if (!d.site) miss.push('현장명');
+  if (!d.manager) miss.push('담당자'); if (!d.phone) miss.push('연락처'); if (!d.address) miss.push('납품 주소');
+  if (!d.asap && !d.hope_date) miss.push('출고 희망일');
+  if (d.items.some(i=>!i.qty || !i.model)) miss.push('제품/수량');
+  if (miss.length) { toast('필수 항목 확인: '+miss.join(', '), true); return; }
+
+  srSending = true; $('srSendBtn').disabled = true; $('srSendBtn').textContent = '보내는 중...';
+  setCurUser(d.requester);
+  const nowIso = new Date().toISOString();
+  const reqId = Date.now();
+  const anyGov = d.items.some(i=>i.gov);
+  const p0 = d.items[0];
+  const autoName = d.customer+' '+(p0.model||p0.name)+(anyGov?' 정부지원':'')+' '+d.total_qty+'대 출고'+(d.site && d.site!==d.customer ? ' ('+d.site+')' : '');
+
+  // ① 출고·납품 목록에 '출고 요청' 상태로 추가
+  const shipId = reqId + 1;
+  shipments.unshift({
+    id: shipId, created_at: nowIso, updated_at: nowIso,
+    name: autoName, co: d.customer, person: d.requester,
+    addr: d.address || null, receiver: d.receiver || d.manager, receiver_phone: d.phone, receiver_email: null,
+    products: d.items.map(i=>({ name:i.name, qty:i.qty, unit:0 })),
+    prod: p0.name + (d.items.length>1 ? ` 외 ${d.items.length-1}건` : ''),
+    qty: d.total_qty, unit_price: 0, amount: 0,
+    ship_date: d.asap ? srToday() : d.hope_date,
+    ship_status: 'request', tax_invoice_issued: false, tax_invoice_date: null, collected: false,
+    memo: [d.order_no, d.site && d.site!==d.customer ? '현장 '+d.site : '', d.forklift ? '지게차 '+d.forklift : '', d.notes, d.memo].filter(Boolean).join(' · ') || null,
+    gov_support: anyGov, gov_order: null, gov_invoice_to: null, gov_install_site: null, returned: false,
+    request_id: reqId, requested_at: nowIso, requested_by: d.requester
+  });
+  if (typeof addCompany === 'function') addCompany(d.customer);
+  saveShipLocal();
+
+  // ② 요청 이력 기록
+  const r = { id: reqId, requested_at: nowIso, ...d, text: srText(d), shipment_id: shipId, jandi: { status:'pending', tries:0 }, log: [] };
+  srLog(r, 'request', '출고 요청 등록 · 목록에 추가');
+  shipReqs.unshift(r);
+  saveShipReqs();
+
+  // ③ 잔디 전송
+  await srSendJandi(r);
+
+  srSending = false; $('srSendBtn').disabled = false; $('srSendBtn').textContent = '출고 요청 보내기';
+  renderShip();
+  if ($('dashboardPage') && $('dashboardPage').classList.contains('active')) renderDashboard();
+  toast(r.jandi.status==='sent' ? '출고 요청 완료 ✓ 잔디 전송 + 목록 추가' : '목록에 추가됐어요 · 잔디 전송은 '+(r.jandi.status==='off'?'미연결(시안)':'실패 — 이력에서 재전송'), r.jandi.status==='failed');
+  srReset(true);
+  srOpenId = r.id; srTab('hist');
+}
+async function srSendJandi(r){
+  r.jandi.tries = (r.jandi.tries||0)+1;
+  if (!SHIP_REQ_WEBHOOK){
+    r.jandi = { ...r.jandi, status:'off', at:new Date().toISOString() };
+    srLog(r, 'jandi_off', '잔디 미연결 — 웹훅 연결 후 자동 전송');
+    saveShipReqs(); return;
+  }
+  try {
+    const { log, jandi, ...payload } = r;
+    payload.req_key = srKey(r.requested_at); payload.row = srRow(r);
+    const res = await fetch(SHIP_REQ_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    r.jandi = { ...r.jandi, status:'sent', at:new Date().toISOString(), err:null };
+    srLog(r, 'jandi_sent', '잔디 출고방 전송 완료');
+  } catch(e){
+    r.jandi = { ...r.jandi, status:'failed', at:new Date().toISOString(), err:String(e.message||e) };
+    srLog(r, 'jandi_fail', '잔디 전송 실패 ('+r.jandi.err+')');
+  }
+  saveShipReqs();
+}
+async function srResend(id){ const r = shipReqs.find(x=>x.id===id); if(!r) return; await srSendJandi(r); srRenderHist(); toast(r.jandi.status==='sent'?'잔디 재전송 완료 ✓':'재전송 '+(r.jandi.status==='off'?'— 잔디 미연결':'실패'), r.jandi.status==='failed'); }
+function srCopy(txt){
+  const t = txt || $('srPv').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>toast('문구를 복사했어요'))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('문구를 복사했어요'); });
+}
+function srReset(keepTab){
+  ['srCo','srSite','srMgr','srPhone','srRecv','srFork','srAddr','srOrderNo','srNotes','srMemo','srHopeDate'].forEach(id=>$(id).value='');
+  document.querySelector('input[name=srHope][value=asap]').checked = true; $('srHopeDate').disabled = true;
+  document.querySelector('input[name=srFreight][value=선불]').checked = true; $('srDelivery').value=''; $('srBox').checked = true;
+  srProds = [srNewProd()]; srOrderEdited = false; srRenderProds(); srUpdate();
+}
+
+/* ===== 요청 이력 ===== */
+function srShipOf(r){ return shipments.find(s=>s.id===r.shipment_id) || null; }
+function srState(r){
+  const s = srShipOf(r);
+  if (!s) return { k:'del', label:'목록에서 삭제됨', cls:'off' };
+  if (s.returned) return { k:'ret', label:'🔄 반품', cls:'ret' };
+  if (s.ship_status==='done') return { k:'done', label:'✅ 출고 완료', cls:'done' };
+  return { k:'req', label:'📦 출고 대기', cls:'req' };
+}
+function srBadge(){
+  const pending = shipReqs.filter(r=>srState(r).k==='req').length;
+  const b = $('shReqBadge'); if (b){ b.textContent = pending; b.style.display = pending ? 'flex' : 'none'; }
+  const c = $('srHistCnt'); if (c) c.textContent = shipReqs.length;
+}
+function srSetF(f){ srF = f; srRenderHist(); }
+function srToggle(id){ srOpenId = srOpenId===id ? null : id; srRenderHist(); }
+function srGoShip(id){
+  const r = shipReqs.find(x=>x.id===id); const s = r && srShipOf(r); if (!s) return;
+  closeShipReq(); $('shipSearch').value = s.name || s.co || ''; renderShip();
+}
+function srRenderHist(){
+  const cnt = k => shipReqs.filter(r=>k==='all'||srState(r).k===k).length;
+  const fb = (k,l) => `<button class="sr-fbtn ${srF===k?'on':''}" onclick="srSetF('${k}')">${l} ${cnt(k)}</button>`;
+  $('srFilter').innerHTML = fb('all','전체')+fb('req','📦 출고 대기')+fb('done','✅ 출고 완료')
+    + `<a class="btn btn-secondary btn-sm" href="${SHIP_SHEET_URL}" target="_blank" rel="noopener" style="color:#15803d;border-color:#bfe3c9;background:#f0fdf4;text-decoration:none;">📊 구글시트에서 출고내역 보기</a>`
+    + `<input class="form-input" id="srQ" placeholder="고객사·현장·발주번호 검색" style="max-width:240px;padding:7px 12px;font-size:13px;margin-left:auto;" value="${esc(srHistQ||'')}" oninput="srHistQ=this.value;srRenderHist();this.focus();this.setSelectionRange(this.value.length,this.value.length)">`;
+  const q = (srHistQ||'').toLowerCase();
+  const list = shipReqs.filter(r=>(srF==='all'||srState(r).k===srF) && (!q || [r.customer,r.site,r.order_no,r.requester,r.manager].join(' ').toLowerCase().includes(q)));
+  const jp = r => r.jandi.status==='sent' ? `<span class="sr-pill ok">💬 전송</span>` : r.jandi.status==='failed' ? `<span class="sr-pill fail">⚠ 실패</span>` : r.jandi.status==='off' ? `<span class="sr-pill off">미연결</span>` : `<span class="sr-pill off">전송 중</span>`;
+  const icon = { request:'', jandi_sent:'', jandi_off:'', jandi_fail:'fail', done:'done', returned:'ret', reverted:'' };
+  $('srHistTbl').innerHTML = `
+    <thead><tr><th>요청 일시</th><th>요청자</th><th>고객사 / 현장</th><th>제품 · 수량</th><th>출고 희망</th><th>잔디</th><th>출고 상태</th></tr></thead>
+    <tbody>${list.length ? list.map(r=>{
+      const st = srState(r), s = srShipOf(r), open = srOpenId===r.id;
+      const doneAt = s && s.done_at ? `<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(s.done_at)}</div>` : '';
+      return `<tr class="row ${open?'open':''}" onclick="srToggle(${r.id})">
+        <td class="sr-ts" style="font-weight:700;white-space:nowrap;">${srStamp(r.requested_at)}</td>
+        <td>${esc(r.requester||'-')}</td>
+        <td><b>${esc(r.customer)}</b>${r.site&&r.site!==r.customer?`<div style="font-size:11.5px;color:var(--text-tertiary);">${esc(r.site)}</div>`:''}</td>
+        <td>${r.items.map(i=>esc(i.name)+' ×'+i.qty).join('<br>')}${r.order_no?`<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${esc(r.order_no)}</div>`:''}</td>
+        <td style="white-space:nowrap;">${r.asap?'최대한 빠르게':fmtDate(r.hope_date)}</td>
+        <td>${jp(r)}</td>
+        <td><span class="sr-pill ${st.cls}">${st.label}</span>${doneAt}</td>
+      </tr>${open ? `<tr class="open"><td colspan="7">
+        <div class="sr-detail">
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;">🕒 기록</div>
+            <ul class="sr-tl">${(r.log||[]).map(l=>`<li class="${icon[l.type]||''}"><div>${esc(l.msg)}</div><div class="t sr-ts">${srStampS(l.at)} · ${esc(l.by||'-')}</div></li>`).join('')}</ul>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+              ${s?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srGoShip(${r.id})">출고 목록에서 보기 →</button>`:''}
+              ${r.jandi.status!=='sent'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srResend(${r.id})">💬 잔디 재전송</button>`:''}
+              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srCopy(shipReqs.find(x=>x.id===${r.id}).text)">문구 복사</button>
+            </div>
+          </div>
+          <div><div style="font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;">💬 보낸 메시지</div><div class="sr-pv" style="min-height:0;font-size:12.5px;">${esc(r.text)}</div></div>
+        </div></td></tr>` : ''}`;
+    }).join('') : `<tr><td colspan="7"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">출고 요청 이력이 없어요</div><div class="empty-desc">'요청 작성' 탭에서 보내면 여기 일시와 함께 쌓여요</div></div></td></tr>`}</tbody>`;
+  srBadge();
+}
+let srHistQ = '';
+
+/* 출고 단계 변경 시 요청 이력에 일시 기록 (setShipStatus에서 호출) */
+function onShipStatusLog(s, val){
+  if (val==='done' && !s.done_at) s.done_at = new Date().toISOString();
+  if (val==='request') s.done_at = null;
+  if (!s.request_id) return;
+  const r = shipReqs.find(x=>x.id===s.request_id); if (!r) return;
+  srLog(r, val==='done'?'done':val==='returned'?'returned':'reverted', val==='done'?'출고 완료 처리':val==='returned'?'반품 처리':'출고 요청으로 되돌림');
+  saveShipReqs();
+  srPushStatus(r, s, val);
+}
+async function srPushStatus(r, s, val){
+  if (!SHIP_REQ_UPDATE_WEBHOOK) return;
+  const label = val==='done' ? '출고 완료' : val==='returned' ? '반품' : '출고 요청';
+  const payload = { req_key: srKey(r.requested_at), status: val, notify: val==='done',
+    customer: r.customer, site: r.site, items: r.items, total_qty: r.total_qty, order_no: r.order_no, by: curUser(),
+    row: { '요청일시': srKey(r.requested_at), '진행상태': label, '출고완료일시': val==='done' && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() } };
+  try {
+    const res = await fetch(SHIP_REQ_UPDATE_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+  } catch(e){ srLog(r, 'jandi_fail', '시트 상태 갱신 실패 ('+String(e.message||e)+')'); saveShipReqs(); }
+}
+/* 목록 건명 아래 '요청' 표시 */
+function shipReqTag(s){
+  if (!s.request_id) return '';
+  return `<div style="font-size:11px;font-weight:700;color:#c2410c;margin-top:3px;cursor:pointer;" onclick="event.stopPropagation();srOpenId=${s.request_id};openShipReq('hist')">📨 요청 ${s.requested_at?srStamp(s.requested_at):''} · ${esc(s.requested_by||'')}</div>`;
+}
+
+/* ===== 이벤트 ===== */
+document.addEventListener('input', e=>{
+  if (!e.target.closest || !e.target.closest('#srNew')) return;
+  if (e.target.id==='srPhone'){ const n=e.target.value.replace(/\D/g,'').slice(0,11); e.target.value = n.length<4?n:n.length<8?n.slice(0,3)+'-'+n.slice(3):n.slice(0,3)+'-'+n.slice(3,n.length-4)+'-'+n.slice(-4); }
+  if (e.target.id==='srOrderNo') srOrderEdited = e.target.value.trim()!=='';
+  srUpdate();
+});
+document.addEventListener('change', e=>{
+  if (!e.target.closest || !e.target.closest('#srNew')) return;
+  if (e.target.name==='srHope'){ $('srHopeDate').disabled = e.target.value!=='date'; }
+  srUpdate();
+});
+$('shipReqModal').addEventListener('click', e=>{ if (e.target.id==='shipReqModal') closeShipReq(); });
+srBadge();
+</script>
+
 </body>
 </html>
