@@ -1278,7 +1278,7 @@
                         <p class="page-subtitle">잠재 발굴부터 납품·수금까지, 딜별 진행 상황을 한눈에 확인하세요</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-secondary btn-sm" style="color:#15803d;border-color:#bfe3c9;" onclick="exportProjectsExcel()" title="현재 목록(검색·필터 적용된 딜 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
+                        <button class="btn btn-secondary btn-sm" style="color:#15803d;border-color:#bfe3c9;" onclick="openExportStageModal()" title="단계를 골라 엑셀로 내려받아요">📥 엑셀 다운로드</button>
                         <button class="btn btn-primary" onclick="openCreateModal()">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             새 프로젝트 등록
@@ -1583,6 +1583,29 @@
             <div id="calItemPop"></div>
 
             <!-- 설치 회차(분할 설치) 모달 -->
+            <div class="modal-overlay" id="exportStageModal">
+                <div class="modal" style="max-width:440px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">📥 단계별 엑셀 다운로드</h2>
+                        <button class="modal-close" onclick="closeExportStageModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-hint" style="margin-bottom:12px;">내보낼 <b>단계</b>를 골라 주세요. 현재 검색·담당자·연도 필터는 그대로 반영돼요.</div>
+                        <div style="display:flex;gap:8px;margin-bottom:10px;">
+                            <button class="btn btn-secondary btn-sm" onclick="exStageToggleAll(true)">전체 선택</button>
+                            <button class="btn btn-secondary btn-sm" onclick="exStageToggleAll(false)">전체 해제</button>
+                        </div>
+                        <div id="exStageList" style="display:flex;flex-direction:column;gap:2px;"></div>
+                    </div>
+                    <div class="modal-footer" style="justify-content:space-between;">
+                        <span id="exStageCount" style="font-size:12.5px;font-weight:700;color:var(--text-secondary);align-self:center;"></span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-secondary" onclick="closeExportStageModal()">취소</button>
+                            <button class="btn btn-primary" onclick="doExportProjectsExcel()">엑셀 다운로드</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="modal-overlay" id="batchModal">
                 <div class="modal" style="max-width:420px;">
                     <div class="modal-header">
@@ -5981,12 +6004,12 @@ function renderProjects(){
   const yf = $('projYearFilter').value;
   const mf = $('personFilter').value;
 
-  const list = deals.filter(d => {
+  // 단계를 제외한 모든 필터를 적용한 기준 목록 (엑셀 단계별 내보내기에서 재사용)
+  const baseNoStage = deals.filter(d => {
     if (q) {
       const hay = `${d.name||''} ${d.co||''} ${d.prod||''} ${d.site||''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
-    if (sf && dispStage(d) !== sf) return false;
     if (mf && d.person !== mf) return false;
     if (pf) { const st = dealRecvState(d); if (st !== pf) return false; }
     if (yf) {
@@ -5995,6 +6018,8 @@ function renderProjects(){
     }
     return true;
   });
+  window._projBaseNoStageIds = baseNoStage.map(d=>d.id);
+  const list = baseNoStage.filter(d => !sf || dispStage(d) === sf);
 
   // 정렬
   const sort = $('sortFilter').value || 'install_desc';
@@ -8008,13 +8033,11 @@ function dealRowForExcel(d){
     '등록일': (d.created_at||'').slice(0,10)
   };
 }
-function exportProjectsExcel(){
-  let ids = (window._projRenderedIds || []).slice();
-  if(!ids.length){ toast('내보낼 딜이 없어요 (목록을 먼저 확인해 주세요)', true); return; }
-  const rows = ids.map(id=>deals.find(x=>x.id===id)).filter(Boolean);
+/* 딜 배열 → 엑셀(.xlsx) 또는 CSV 다운로드 */
+function writeDealsExcel(rows, labelForName){
   if(!rows.length){ toast('내보낼 딜이 없어요', true); return; }
   const data = rows.map(dealRowForExcel);
-  const fname = `프로젝트딜_${rows.length}건_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const fname = `프로젝트딜_${labelForName||rows.length+'건'}_${new Date().toISOString().slice(0,10)}.xlsx`;
   try{
     if(typeof XLSX==='undefined') throw new Error('엑셀 라이브러리 로드 실패 (인터넷 연결 확인)');
     const ws = XLSX.utils.json_to_sheet(data);
@@ -8034,6 +8057,47 @@ function exportProjectsExcel(){
       toast(`${rows.length}건 CSV로 내려받았어요 ✓ (다운로드 폴더 확인 · 엑셀에서 열려요)`);
     }catch(e2){ toast('다운로드 실패: '+e.message, true); }
   }
+}
+/* 단계 선택 창 */
+function _exBaseDeals(){ const ids=new Set(window._projBaseNoStageIds||deals.map(d=>d.id)); return deals.filter(d=>ids.has(d.id)); }
+function openExportStageModal(){
+  const base = _exBaseDeals();
+  const cnt = {}; base.forEach(d=>{ const s=isLost(d)?LOST:dispStage(d); cnt[s]=(cnt[s]||0)+1; });
+  const allStages = STAGES.concat([LOST]);
+  const curSf = $('stageFilter') ? $('stageFilter').value : '';
+  $('exStageList').innerHTML = allStages.map(s=>{
+    const n = cnt[s]||0;
+    // 현재 단계 필터가 걸려 있으면 그 단계만 기본 체크, 아니면 건수 있는 단계 모두 체크
+    const checked = curSf ? (s===curSf) : (n>0);
+    const col = (STAGE_COLORS&&STAGE_COLORS[s])||'#9ca3af';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:8px;cursor:pointer;${n===0?'opacity:.45;':''}">
+      <input type="checkbox" class="ex-stage-chk" value="${esc(s)}" ${checked&&n>0?'checked':''} ${n===0?'disabled':''} onchange="exStageUpdateCount()">
+      <span style="width:8px;height:8px;border-radius:3px;background:${col};flex-shrink:0;"></span>
+      <span style="font-size:13px;font-weight:700;flex:1;">${esc(s)}</span>
+      <span style="font-size:12px;font-weight:700;color:var(--text-tertiary);">${n}건</span>
+    </label>`;
+  }).join('');
+  exStageUpdateCount();
+  $('exportStageModal').classList.add('active');
+}
+function closeExportStageModal(){ $('exportStageModal').classList.remove('active'); }
+function exStageToggleAll(on){ document.querySelectorAll('#exStageList .ex-stage-chk').forEach(cb=>{ if(!cb.disabled) cb.checked=on; }); exStageUpdateCount(); }
+function _exCheckedStages(){ return Array.from(document.querySelectorAll('#exStageList .ex-stage-chk:checked')).map(cb=>cb.value); }
+function exStageUpdateCount(){
+  const sel = new Set(_exCheckedStages());
+  const n = _exBaseDeals().filter(d=>sel.has(isLost(d)?LOST:dispStage(d))).length;
+  const el=$('exStageCount'); if(el) el.textContent = `선택 단계 딜 ${n}건`;
+}
+function doExportProjectsExcel(){
+  const sel = new Set(_exCheckedStages());
+  if(!sel.size){ toast('단계를 하나 이상 선택해 주세요', true); return; }
+  const rows = _exBaseDeals().filter(d=>sel.has(isLost(d)?LOST:dispStage(d)));
+  if(!rows.length){ toast('선택한 단계에 딜이 없어요', true); return; }
+  // 설치완료일 순 정렬
+  rows.sort((a,b)=>String(a.delivery_date||a.close_date||'').localeCompare(String(b.delivery_date||b.close_date||'')));
+  const label = sel.size===1 ? Array.from(sel)[0]+'_'+rows.length+'건' : '단계'+sel.size+'종_'+rows.length+'건';
+  writeDealsExcel(rows, label);
+  closeExportStageModal();
 }
 function exportShipExcel(){
   let ids = [...shipSelected];
@@ -8403,6 +8467,7 @@ bindBackdropClose('asModal', closeAsModal);
 bindBackdropClose('shipModal', closeShipModal);
 bindBackdropClose('calDayModal', closeCalDay);
 bindBackdropClose('unpaidModal', closeUnpaidModal);
+bindBackdropClose('exportStageModal', closeExportStageModal);
 /* 팝업이 열려 있으면 뒤 배경 스크롤 잠금 (커서가 팝업 밖으로 나가도 배경이 안 움직이게) */
 (function(){
   var SELS = '.modal-overlay, .qsite-overlay, #reportModal, #qPreview';
