@@ -9208,9 +9208,9 @@ loadAll();
             </div>
           </div>
           <div class="form-group">
-            <label class="sr-chk" style="margin-bottom:8px;"><input type="checkbox" id="srBox" checked> 박스에 발주번호 표기</label>
-            <input class="form-input" id="srOrderNo" placeholder="SP-S3-20261104-5">
-            <div class="form-hint">제품·날짜·수량으로 자동 생성 · 직접 수정 가능</div>
+            <label class="sr-chk" style="margin-bottom:8px;"><input type="checkbox" id="srBox" onchange="srUpdate()"> 박스에 발주번호 표기 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(국일 등 필요한 건만)</span></label>
+            <input class="form-input" id="srOrderNo" placeholder="국일 출고건 등 필요할 때만 입력" oninput="srOrderEdited=true;srUpdate()">
+            <div class="form-hint">기본은 없음(선택). 체크하면 제품·날짜·수량으로 자동 생성되고 직접 수정도 돼요.</div>
           </div>
 
           <div class="sr-sec">📝 특이사항</div>
@@ -9392,8 +9392,13 @@ function srText(d){
 }
 function srUpdate(){
   if (!srOrderEdited){
-    const f = srProds.find(p=>p.model!=='기타');
-    $('srOrderNo').value = 'SP-'+(f?f.model.replace('AI-',''):'ETC')+'-'+srToday().replace(/-/g,'')+'-'+srTotal();
+    // 발주번호는 '박스에 발주번호 표기'를 체크했을 때만 자동 생성 (국일 등 필요한 건만)
+    if ($('srBox') && $('srBox').checked){
+      const f = srProds.find(p=>p.model!=='기타');
+      $('srOrderNo').value = 'SP-'+(f?f.model.replace('AI-',''):'ETC')+'-'+srToday().replace(/-/g,'')+'-'+srTotal();
+    } else {
+      $('srOrderNo').value = '';
+    }
   }
   $('srPv').textContent = srText(srCollect());
 }
@@ -9492,7 +9497,7 @@ function srCopy(txt){
 function srReset(keepTab){
   ['srCo','srSite','srMgr','srPhone','srRecv','srFork','srAddr','srOrderNo','srNotes','srMemo','srHopeDate'].forEach(id=>$(id).value='');
   document.querySelector('input[name=srHope][value=asap]').checked = true; $('srHopeDate').disabled = true;
-  document.querySelector('input[name=srFreight][value=선불]').checked = true; $('srDelivery').value=''; $('srBox').checked = true;
+  document.querySelector('input[name=srFreight][value=선불]').checked = true; $('srDelivery').value=''; $('srBox').checked = false;
   srProds = [srNewProd()]; srOrderEdited = false; srRenderProds(); srUpdate();
 }
 
