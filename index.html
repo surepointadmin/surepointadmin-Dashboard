@@ -9174,15 +9174,14 @@ loadAll();
 
           <div class="sr-sec">🏢 고객 / 현장</div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">고객사 *</label><input class="form-input" id="srCo" list="srCoList" placeholder="예: 국일케빈"></div>
+            <div class="form-group"><label class="form-label">발주사 *</label><input class="form-input" id="srCo" list="srCoList" placeholder="예: 국일케빈"></div>
             <div class="form-group"><label class="form-label">현장명 *</label><input class="form-input" id="srSite" placeholder="예: 미래에프엘"></div>
           </div>
           <datalist id="srCoList"></datalist>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">담당자 *</label><input class="form-input" id="srMgr" placeholder="예: 원종문 대표"></div>
-            <div class="form-group"><label class="form-label">연락처 *</label><input class="form-input" id="srPhone" inputmode="tel" placeholder="010-0000-0000"></div>
+            <div class="form-group"><label class="form-label">수령자 *</label><input class="form-input" id="srMgr" placeholder="예: 원종문 대표"></div>
+            <div class="form-group"><label class="form-label">수령자 연락처 *</label><input class="form-input" id="srPhone" inputmode="tel" placeholder="010-0000-0000"></div>
           </div>
-          <div class="form-group"><label class="form-label">수령인 <span style="color:var(--text-tertiary);font-weight:500;font-size:12px;">(담당자와 다를 때만)</span></label><input class="form-input" id="srRecv" placeholder="예: AJ솔루션테크 지진환 010-4785-9758"></div>
 
           <div class="sr-sec">📦 제품</div>
           <div id="srProds"></div>
@@ -9363,7 +9362,7 @@ function srCollect(){
   const v = id => $(id).value.trim();
   const hope = document.querySelector('input[name=srHope]:checked').value;
   return {
-    requester: v('srRequester'), customer: v('srCo'), site: v('srSite'), manager: v('srMgr'), phone: v('srPhone'), receiver: v('srRecv'),
+    requester: v('srRequester'), customer: v('srCo'), site: v('srSite'), manager: v('srMgr'), phone: v('srPhone'), receiver: '',
     items: srProds.map(p=>({ name: srProdName(p), model: p.model==='기타'?p.custom.trim():p.model, gov: p.model!=='기타' && p.gov, qty: p.qty||0 })),
     total_qty: srTotal(), forklift: v('srFork'),
     asap: hope==='asap', hope_date: hope==='date' ? $('srHopeDate').value : '',
@@ -9373,8 +9372,7 @@ function srCollect(){
 }
 function srText(d){
   const L = ['[출고 요청]',''];
-  L.push('■ 고객사 : '+d.customer, '■ 현장명 : '+d.site, '■ 담당자 : '+d.manager, '■ 연락처 : '+d.phone);
-  if (d.receiver) L.push('■ 수령인 : '+d.receiver);
+  L.push('■ 발주사 : '+d.customer, '■ 현장명 : '+d.site, '■ 수령자 : '+d.manager, '■ 수령자 연락처 : '+d.phone);
   L.push('');
   if (d.items.length===1){ L.push('■ 제품명 : '+d.items[0].name, '■ 수량 : '+d.items[0].qty+' set'); }
   else { L.push('■ 제품 :'); d.items.forEach(i=>L.push('   - '+i.name+' / '+i.qty+' set')); L.push('■ 총 수량 : '+d.total_qty+' set'); }
@@ -9495,7 +9493,7 @@ function srCopy(txt){
     .catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('문구를 복사했어요'); });
 }
 function srReset(keepTab){
-  ['srCo','srSite','srMgr','srPhone','srRecv','srFork','srAddr','srOrderNo','srNotes','srMemo','srHopeDate'].forEach(id=>$(id).value='');
+  ['srCo','srSite','srMgr','srPhone','srFork','srAddr','srOrderNo','srNotes','srMemo','srHopeDate'].forEach(id=>$(id).value='');
   document.querySelector('input[name=srHope][value=asap]').checked = true; $('srHopeDate').disabled = true;
   document.querySelector('input[name=srFreight][value=선불]').checked = true; $('srDelivery').value=''; $('srBox').checked = false;
   srProds = [srNewProd()]; srOrderEdited = false; srRenderProds(); srUpdate();
