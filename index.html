@@ -416,6 +416,12 @@
         .pc-amt { font-size: 16.5px; font-weight: 800; }
         .pc-dt { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); }
         .pc-dt span { color: var(--text-tertiary); font-weight: 600; font-size: 10.5px; }
+        /* 시안 1: 실매출(설치분) 보조 금액 줄 */
+        .sub-amt { font-size: 11px; color: var(--text-tertiary); font-weight: 600; line-height: 1.4; }
+        .sub-amt.contract { margin-top: 4px; border-top: 1px dashed var(--border); padding-top: 4px; }
+        /* 부분완료 배지 / 남은 수량 노트 */
+        .pc-partial-badge { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:800; color:#b45309; background:#fff7ed; border:1px solid #f3d9b5; border-radius:999px; padding:2px 8px; white-space:nowrap; }
+        .pc-remain-note { font-size:11px; font-weight:700; color:var(--primary); background:#eef4ff; border:1px solid #cfe0ff; border-radius:8px; padding:7px 10px; margin-top:10px; cursor:pointer; line-height:1.5; }
         /* 수금 상태 pill (시안 B) — 상태별 색 */
         .pc-paypill { align-self: flex-end; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; padding: 4px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 800; border: 1px solid transparent; white-space: nowrap; }
         /* ===== 캘린더 ===== */
@@ -4080,6 +4086,22 @@ function dealPotentialWon(d){
   const cancelWon = (total>0) ? Math.round(amt * Math.min(1, cancel/total)) : 0;
   return Math.max(0, amt - dealRealizedWon(d) - cancelWon);
 }
+/* 부분완료 판정: 설치중 단계인데 일부 회차가 설치+세금계산서까지 끝난 딜
+   → 설치중 탭엔 '부분완료' 배지, 세금계산서완료 탭엔 '완료분만' 카드로 함께 표시
+   반환: {net, total, remain, taxCount, billableCount} 또는 null */
+function partialDone(d){
+  if(isLost(d) || canonStage(d)!=='설치중') return null;
+  const batches = getDealBatches(d.id);
+  if(!batches.length) return null;
+  const total = dealTotalQty(d);
+  const net = Math.max(0, dealBatchDoneQty(d.id) - dealBatchCancelQty(d.id));
+  if(net<=0) return null;                       // 설치된 게 없으면 부분완료 아님
+  if(total>0 && net>=total) return null;        // 전부 설치됐으면 부분완료 아님
+  const billable = batches.filter(b=>b.status==='done' && batchNetQty(b)>0);
+  const taxBatches = billable.filter(b=>b.taxDate);
+  if(!taxBatches.length) return null;           // 세금계산서 발행된 회차가 있어야 '세금계산서완료'에도 뜸
+  return {net, total, remain:Math.max(0,total-net), taxCount:taxBatches.length, billableCount:billable.length};
+}
 /* 실매출(확정): 출고 완료 + 설치 시작 이후(분할 설치는 완료 수량만) */
 function realRevenueSplit(){
   let deal=0, ship=0;
@@ -6136,6 +6158,8 @@ function renderProjects(){
   // 단계 칩 (색 점 포함) — 현재 탭·년도·월 선택 기준 건수
   const stageCounts = {};
   shown.forEach(d=>{ const s = dispStage(d); stageCounts[s] = (stageCounts[s]||0) + 1; });
+  // 부분완료 딜은 세금계산서발행 완료 칩 건수에도 포함 (완료분만 함께 표시)
+  shown.forEach(d=>{ if(dispStage(d)!=='세금계산서발행 완료' && partialDone(d)) stageCounts['세금계산서발행 완료']=(stageCounts['세금계산서발행 완료']||0)+1; });
   // 현재 탭에 해당하는 단계 칩은 건수가 0이어도 항상 표시 (rev 탭엔 설치중~세금계산서발행 완료가 늘 보이도록)
   const tabStages = STAGES.filter(s => cardGroup==='rev' ? REVENUE_STAGES.has(s) : !REVENUE_STAGES.has(s));
   if (cardStage && !tabStages.includes(cardStage)) cardStage = '';
@@ -6152,7 +6176,7 @@ function renderProjects(){
       ${chip('전체', !cardStage, "setCardStage('')")}
       ${tabStages.map(stageChipBtn).join('')}
     </div>`;
-  if (cardStage) shown = shown.filter(d=>dispStage(d)===cardStage);
+  if (cardStage) shown = shown.filter(d=> dispStage(d)===cardStage || (cardStage==='세금계산서발행 완료' && !!partialDone(d)) );
   const yearRow = years.length ? `
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:12.5px;font-weight:700;color:var(--text-tertiary);flex-shrink:0;">📅 ${cardGroup==='rev'?'설치 년도':'설치 예정'}</span>
@@ -6175,7 +6199,11 @@ function renderProjects(){
       }).join('')}
     </div>`;
   }
-  const sumAmt = shown.reduce((s,d)=>s+(d.amount||0),0);
+  const sumAmt = shown.reduce((s,d)=>{
+    // 세금계산서완료 탭에 '완료분만' 얹힌 부분완료 딜은 실매출(설치분)로 합산
+    if(cardStage==='세금계산서발행 완료' && dispStage(d)!=='세금계산서발행 완료' && partialDone(d)) return s + dealRealizedWon(d);
+    return s + (d.amount||0);
+  },0);
   const amtLabel = cardGroup==='rev' ? '합계' : (cardGroup==='pre' ? '예상' : '금액');
   const summary = `
     <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:2px 0 -2px;flex-wrap:wrap;">
@@ -6201,7 +6229,10 @@ function renderProjects(){
       ${cardToggleBar}
       ${cardFilterOpen ? stageRow + yearRow + monthRow : ''}
     </div>`;
-  const cardsHtml = shown.length ? shown.map(d=>projectCardHtml(d)).join('')
+  const cardsHtml = shown.length ? shown.map(d=>{
+      const pm = (cardStage==='세금계산서발행 완료' && dispStage(d)!=='세금계산서발행 완료' && partialDone(d)) ? 'partialTax' : null;
+      return projectCardHtml(d, undefined, pm);
+    }).join('')
     : `<div class="empty-state" style="grid-column:1/-1;padding:30px;"><div class="empty-title" style="font-size:15px;">해당 조건의 프로젝트가 없어요</div><div class="empty-desc">다른 탭이나 년도·월을 선택해 보세요</div></div>`;
   $('projectGrid').innerHTML = ctrl + summary + cardsHtml;
 }
@@ -6210,11 +6241,33 @@ function setCardYear(y){ cardYear = y; cardMonth = ''; renderProjects(); }
 function setCardMonth(m){ cardMonth = m; renderProjects(); }
 function setCardStage(s){ cardStage = s; renderProjects(); }
 
-function projectCardHtml(d, seq){
+function projectCardHtml(d, seq, mode){
   const lost = isLost(d);
   const si = stageIdx(d);
   const installed = !lost && isRevenue(d); // 설치·납품 완료 = 매출 반영
   const seqChip = Number.isInteger(seq) ? `<span class="status-badge badge-repeat" style="font-weight:700;">${seq}차${seq>1?' 추가':''}</span>` : '';
+  // 회사명 블록 (재사용)
+  const coHtml = d.co?`<span class="co-fin" data-co="${esc(d.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(d.co)}</span>`:'-';
+  const pdone = partialDone(d);
+  // ── 세금계산서완료 탭에서 '부분완료' 딜을 완료분만 compact 카드로 ──
+  if(mode==='partialTax' && pdone){
+    const realized = dealRealizedWon(d);
+    return `
+    <div class="project-card" onclick="openDetail(${d.id})" style="background:#fcfcfd;">
+      <div class="pc-wrap">
+        <div class="pc-left">
+          <div class="pc-coBig">🏢 ${coHtml} <span class="pc-partial-badge">🟡 부분완료 ${pdone.net}/${pdone.total}</span></div>
+          <div class="pc-subsmall">${d.site?`<span class="pin">📍</span> ${esc(d.site)}`:''}${(d.site&&d.prod)?' · ':''}${d.prod?`<span class="prod">${esc(d.prod)} ${pdone.net}대</span>`:''} · ${esc(d.person||'-')}</div>
+          <div class="pc-stgline" style="color:#15803d;">✅ 설치·세금계산서 완료 ${pdone.net}대</div>
+          <div class="pc-remain-note" onclick="event.stopPropagation();openDetail(${d.id})">↳ 남은 ${pdone.remain}대는 '설치중' 탭에서 진행 중 <span style="float:right;">보기 →</span></div>
+        </div>
+        <div class="pc-right">
+          <div class="pc-amt" style="color:#15803d;">${fmtMoney(realized)}</div>
+          <div class="sub-amt">세금계산서 발행 ${pdone.taxCount}건 · ${pdone.net}대분</div>
+        </div>
+      </div>
+    </div>`;
+  }
   const stageName = lost ? LOST : dispStage(d);
   const scol = lost ? '#94a3b8' : (STAGE_COLORS[stageName] || '#9ca3af');
   const st = dealRecvState(d);
@@ -6263,12 +6316,27 @@ function projectCardHtml(d, seq){
     const cntLbl = prog.length ? `진행중 ${prog.length}건` : `${kids.length}건`;
     extChildNote = `<div onclick="event.stopPropagation();openDetail(${target})" title="추가설치 건으로 이동" style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#7c3aed;background:#f5f0ff;border:1px solid #ddd0fb;border-radius:8px;padding:8px 10px;margin-top:11px;cursor:pointer;">🔁 이 현장 추가설치 ${cntLbl} <span style="color:var(--text-tertiary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">(${esc(stages)})</span><span style="margin-left:auto;color:var(--primary);flex-shrink:0;">보기 →</span></div>`;
   }
+  // ── 시안 1: 부분설치 딜은 오른쪽에 실매출(설치분)을 크게 + 계약 전체를 작게 ──
+  const _bts = getDealBatches(d.id);
+  const _totQ = dealTotalQty(d);
+  const _netQ = _bts.length ? Math.max(0, dealBatchDoneQty(d.id) - dealBatchCancelQty(d.id)) : 0;
+  const showRealized = installed && _bts.length && _totQ>0 && _netQ>0 && _netQ<_totQ;
+  const partialBadge = pdone ? ` <span class="pc-partial-badge">🟡 부분완료 ${pdone.net}/${pdone.total}</span>` : '';
+  let amtBlock;
+  if(showRealized){
+    amtBlock = `<div class="pc-amt" style="color:#15803d;">${fmtMoney(dealRealizedWon(d))}</div>
+        <div class="sub-amt">설치 ${_netQ}대분 · 실매출</div>
+        <div class="sub-amt contract">계약 ${_totQ}대 · ${d.amount?fmtMoney(d.amount):'-'}</div>`;
+  } else {
+    amtBlock = `<div class="pc-amt">${d.amount?fmtMoney(d.amount):'-'}</div>
+        <div class="pc-dt">${dtHtml}</div>`;
+  }
   return `
   <div class="project-card" onclick="openDetail(${d.id})"${isRepeatOrder(d)?' style="border-color:#c7d2fe;box-shadow:0 0 0 1px #e0e7ff;"':''}>
     ${extRibbon}
     <div class="pc-wrap">
       <div class="pc-left">
-        <div class="pc-coBig">${seqChip?seqChip+' ':''}🏢 ${d.co?`<span class="co-fin" data-co="${esc(d.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(d.co)}</span>`:'-'}${agencyBadge(d)}${asBadge(d)||''}</div>
+        <div class="pc-coBig">${seqChip?seqChip+' ':''}🏢 ${coHtml}${agencyBadge(d)}${asBadge(d)||''}${partialBadge}</div>
         <div class="pc-subsmall">${d.site?`<span class="pin">📍</span> ${esc(d.site)}`:''}${(d.site&&d.prod)?' · ':''}${d.prod?`<span class="prod">${esc(d.prod)}</span>`:''} · ${esc(d.person||'-')}</div>
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
@@ -6278,8 +6346,7 @@ function projectCardHtml(d, seq){
         </div>`; })()}
       </div>
       <div class="pc-right">
-        <div class="pc-amt">${d.amount?fmtMoney(d.amount):'-'}</div>
-        <div class="pc-dt">${dtHtml}</div>
+        ${amtBlock}
         ${payHtml}
       </div>
     </div>
