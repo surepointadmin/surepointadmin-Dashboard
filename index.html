@@ -6525,6 +6525,7 @@ function openDetail(id){
         ${REVENUE_STAGES.has(canonStage(d))
           ? `<button class="btn btn-secondary btn-sm" style="color:#c2410c;border-color:#fed7aa;background:#fff7ed;" onclick="openShipReqForDeal(${d.id})" title="이 프로젝트 제품의 출고를 요청해요 (잔디 전송 + 요청 이력 기록 · 출고 목록엔 추가 안 됨)">📨 출고 요청</button>`
           : `<button class="btn btn-secondary btn-sm" style="color:var(--text-tertiary);border-color:var(--border);background:#f5f6f8;cursor:not-allowed;" onclick="toast('설치중 단계부터 출고 요청할 수 있어요', true)" title="설치중 단계부터 출고 요청할 수 있어요">📨 출고 요청 <span style="font-size:10px;">🔒</span></button>`}
+        ${splitEligible(d)?`<button class="btn btn-secondary btn-sm" style="color:#15803d;border-color:#bfe3c9;background:#f1faf3;" onclick="splitInstalledPortion()" title="설치·세금계산서 끝난 수량은 '세금계산서발행 완료' 딜로, 남은 수량은 새 '잠재' 딜로 나눠요">✂️ 설치 완료분 분리</button>`:''}
         ${isRevenue(d)?`<button class="btn btn-secondary btn-sm" style="color:#4338ca;border-color:#c7d2fe;" onclick="openNewOrderModal()">🔁 추가 주문 등록</button>`:''}
         ${asEligible(d)?`<button class="btn btn-secondary btn-sm" style="color:#c2410c;border-color:#fed7aa;" onclick="openAsModal(undefined, ${d.id})">🔧 A/S 등록</button>`:''}
       </div>
@@ -8360,6 +8361,54 @@ function duplicateDeal(){
   initDealItemRows(d);
   renderDealItems();
   toast('내용을 복사해왔어요 · 바꿀 부분만 수정하고 등록하세요');
+}
+/* 설치 완료분 분리 가능 여부: 설치 완료(순설치)가 1대 이상, 전체 미만일 때 */
+function splitEligible(d){
+  if(!d || isLost(d)) return false;
+  const total = dealTotalQty(d);
+  const net = Math.max(0, dealBatchDoneQty(d.id) - dealBatchCancelQty(d.id));
+  return total>0 && net>0 && net<total;
+}
+/* 딜 분할 — 설치·세금계산서 끝난 순설치분은 '세금계산서발행 완료' 딜로 전환,
+   남은 수량은 새 '잠재' 딜로 만들어 원 딜과 연결 */
+async function splitInstalledPortion(){
+  const d = deals.find(x=>x.id===currentDealId);
+  if(!d){ toast('딜을 찾지 못했어요', true); return; }
+  const total = dealTotalQty(d);
+  const cancel = dealBatchCancelQty(d.id);
+  const net = Math.max(0, dealBatchDoneQty(d.id) - cancel);
+  if(!(total>0 && net>0 && net<total)){ toast('나눌 수 있는 상태가 아니에요 (설치 완료분이 1대 이상, 전체 미만이어야 해요)', true); return; }
+  const remain = total - net;
+  const amt = d.amount||0;
+  const perUnit = total>0 ? Math.round(amt/total) : 0;
+  const doneAmt = net*perUnit;
+  const remainAmt = Math.max(0, amt - doneAmt);
+  if(!confirm(`'${dealTitle(d)}'을(를) 둘로 나눕니다.\n\n• 설치 완료분 ${net}대 → 세금계산서발행 완료 (${fmtMoney(doneAmt)})\n   (이 딜을 완료분으로 바꾸고 세금계산서 발행 기록은 유지)\n• 남은 ${remain}대 → 새 '잠재' 딜 (${fmtMoney(remainAmt)})\n\n나눌까요?`)) return;
+  try{
+    // 1) 남은 수량 = 새 '잠재' 딜 생성
+    const body = {
+      name: `${dealTitle(d)} (잠재 ${remain}대)`,
+      co: d.co||null, site: d.site||null, person: d.person||null,
+      inflow: d.inflow||'direct', prod: d.prod||null,
+      qty: remain, unit_price: perUnit, amount: remainAmt,
+      stage: '잠재', close_date: null, delivery_date: null,
+      priority: false, created_at: new Date().toISOString()
+    };
+    const row = await sbPost('deals', body);
+    deals.unshift(row);
+    setDealItems(row.id, [{name:d.prod||'', qty:remain, unit:perUnit, fee:0}]);
+    orderLinks[row.id] = d.id; saveLinksLocal();        // 원 완료분 ↔ 남은 잠재분 연결
+    // 2) 원 딜 = 완료분(세금계산서발행 완료)으로 전환
+    await sbPatch('deals', d.id, { stage:'세금계산서발행 완료', qty:net, unit_price:perUnit, amount:doneAmt, updated_at:new Date().toISOString() });
+    d.stage='세금계산서발행 완료'; d.qty=net; d.unit_price=perUnit; d.amount=doneAmt;
+    setDealItems(d.id, [{name:d.prod||'', qty:net, unit:perUnit, fee:0}]);
+    // 완료분에는 설치 완료(done) 회차만 남김 (세금계산서 발행 기록 유지)
+    const keepBatches = getDealBatches(d.id).filter(b=>b.status==='done');
+    dealBatches[d.id] = keepBatches; saveDealBatches();
+    toast(`나눴어요 ✓ 완료분 ${net}대(세금계산서발행 완료) · 남은 ${remain}대(잠재)`);
+    renderProjects();
+    openDetail(d.id);
+  }catch(err){ toast(err.message, true); }
 }
 function ncAutoName(){
   if (ncNameDirty) return;
