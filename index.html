@@ -2197,7 +2197,7 @@
                     <div class="form-group">
                         <label class="form-label">시작 단계</label>
                         <select class="form-input" id="ncStage">
-                            <option selected>잠재발굴</option><option>미팅접촉</option><option>제안견적</option><option>구두합의</option><option>설치중</option><option>설치완료</option><option>세금계산서발행 전</option><option>세금계산서발행 완료</option>
+                            <option selected>잠재</option><option>미팅접촉</option><option>제안견적</option><option>구두합의</option><option>설치중</option><option>설치완료</option><option>세금계산서발행 전</option><option>세금계산서발행 완료</option>
                         </select>
                     </div>
                 </div>
@@ -2255,7 +2255,7 @@
             </div>
             <div class="modal-body">
                 <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">
-                    잠재발굴·미팅접촉 단계에서 <b>최초 등록 후 2달이 지난</b> 프로젝트 <b style="color:#ef4444;"><span id="autoHoldCount">0</span>건</b>을 <b>실패·보류</b> 단계로 옮겼어요.<br>
+                    잠재·미팅접촉 단계에서 <b>최초 등록 후 2달이 지난</b> 프로젝트 <span style="color:var(--text-tertiary);font-weight:500;">(설치 시작된 건 제외)</span> <b style="color:#ef4444;"><span id="autoHoldCount">0</span>건</b>을 <b>실패·보류</b> 단계로 옮겼어요.<br>
                     <span style="color:var(--text-tertiary);font-size:12px;">다시 진행할 건이면 각 프로젝트의 <b>정보 수정</b>에서 단계를 되돌릴 수 있어요.</span>
                 </div>
                 <div id="autoHoldList" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
@@ -3096,7 +3096,7 @@ const SB_URL = 'https://yxmxrjcmhguczrgyxgfo.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bXhyamNtaGd1Y3pyZ3l4Z2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMTY5NDUsImV4cCI6MjA4OTg5Mjk0NX0.xAUk_0J_5vC9emVFooAJEFBRDq7mJP5QGhIcBav6fh8';
 
 /* 표시 단계: 계약 완료는 설치에 합치고, 납품 완료 후 세금계산서 발행 건은 '세금계산서'로 이동 */
-const STAGES = ['잠재발굴','미팅접촉','제안견적','구두합의','설치중','설치완료','세금계산서발행 전','세금계산서발행 완료'];
+const STAGES = ['잠재','미팅접촉','제안견적','구두합의','설치중','설치완료','세금계산서발행 전','세금계산서발행 완료'];
 const LOST = '실패보류';
 const STAGE_BADGE = ['badge-pre','badge-pre','badge-quote','badge-verbal','badge-active','badge-active','badge-done','badge-contract'];
 const REVENUE_STAGES = new Set(['설치중','설치완료','세금계산서발행 전','세금계산서발행 완료']); // 설치중부터 매출 반영
@@ -3107,7 +3107,8 @@ const STAGE_ALIAS = {};
 [...STAGES, LOST].forEach(s => { STAGE_ALIAS[_stageNorm(s)] = s; });
 Object.assign(STAGE_ALIAS, {
   '계약완료':'설치중', '설치':'설치중', '납품완료':'설치완료', '세금계산서':'세금계산서발행 완료',
-  '세금계산서발행완료':'세금계산서발행 완료', '세금계산서발행전':'세금계산서발행 전'
+  '세금계산서발행완료':'세금계산서발행 완료', '세금계산서발행전':'세금계산서발행 전',
+  '잠재발굴':'잠재'   // 구버전 단계명 호환 (DB의 기존 '잠재발굴' 값을 '잠재'로 매핑)
 });
 function canonStage(d){
   const raw = (d && typeof d === 'object') ? d.stage : d;
@@ -3123,7 +3124,7 @@ const INFLOW = {
   dealer:  {label:'대리점',       color:'#6d28d9', bg:'#f5f3ff'},
 };
 const STAGE_COLORS = {
-  '잠재발굴':'#9ca3af','미팅접촉':'#3b82f6','제안견적':'#eab308','구두합의':'#c026d3',
+  '잠재':'#9ca3af','미팅접촉':'#3b82f6','제안견적':'#eab308','구두합의':'#c026d3',
   '설치중':'#f59e0b','설치완료':'#a855f7','세금계산서발행 전':'#0891b2','세금계산서발행 완료':'#22c55e','실패보류':'#ef4444'
 };
 const RECV_LABEL = {pending:'수금 대기', invoiced:'계산서 발행', received:'수금 완료', overdue:'연체'};
@@ -3854,7 +3855,7 @@ async function loadAll() {
     loadedAt = new Date();
     $('syncChip').innerHTML = `<b>실시간 연동됨</b><br>딜 ${deals.length}건 · 수금 ${recvList.length}건<br>${loadedAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 기준`;
     initAfterLoad();
-    await autoHoldStale();  // 잠재발굴·미팅접촉 2달 경과 건 자동 보류 + 팝업 알림
+    await autoHoldStale();  // 잠재·미팅접촉 2달 경과 건 자동 보류 + 팝업 알림
   } catch (err) {
     $('errorBanner').innerHTML = `<b>surepoint(프로젝트·매출) 데이터를 불러오지 못했어요.</b><br>` +
       `네트워크 연결을 확인한 뒤 새로고침해 주세요. <b>출고·납품 관리 탭은 운영툴 연동과 무관하게 계속 사용할 수 있어요.</b><br>` +
@@ -3868,14 +3869,16 @@ async function loadAll() {
   }
 }
 /* ── 오래된 프로젝트 자동 보류 ──
-   잠재발굴·미팅접촉 단계에서 최초 등록(created_at) 후 2달 지난 건을 실패·보류로 이동.
+   잠재·미팅접촉 단계에서 최초 등록(created_at) 후 2달 지난 건을 실패·보류로 이동.
+   단, 설치가 시작된(설치 회차 완료분이 있는) 건은 실제 진행 중이므로 자동 보류에서 제외.
    실제로 옮긴 건이 있을 때만 팝업으로 한 번 알림 (이미 옮긴 건은 다음 로드에서 재대상 아님). */
 async function autoHoldStale(){
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 2);   // 2달 전 시점
   const targets = deals.filter(d=>{
     const st = canonStage(d);
-    if (st !== '잠재발굴' && st !== '미팅접촉') return false;
+    if (st !== '잠재' && st !== '미팅접촉') return false;
+    if (dealBatchDoneQty(d.id) > 0) return false;   // 설치 시작된 실제 딜은 자동 보류 제외
     if (!d.created_at) return false;          // 등록일 없으면 판정 불가 → 건너뜀
     const c = new Date(d.created_at);
     if (isNaN(c.getTime())) return false;
@@ -4056,7 +4059,7 @@ function _todayStr(){ const t=new Date(); return t.getFullYear()+'-'+String(t.ge
 /* 딜의 실매출(실현) 금액
    - 설치완료 이후 단계: 전액
    - 설치중: 설치 시작일(close_date)이 오늘 이전(설치 시작됨)이면 → 분할 설치는 완료 수량 비율만, 단순 설치는 전액. 설치 시작 전이면 0
-   - 그 외(설치 전 단계): 0 */
+   - 그 외(설치 전 단계: 잠재·미팅접촉 등): 설치 회차 완료분이 있으면 그 순설치 수량만큼만 실매출로 인정 (예: 잠재로 옮긴 딜이라도 이미 설치된 7대는 실매출 유지) */
 function dealRealizedWon(d){
   if(isLost(d)) return 0;
   const st = canonStage(d), amt = d.amount||0;
@@ -4074,17 +4077,48 @@ function dealRealizedWon(d){
     }
     return Math.max(0, amt - cancelWon);                 // 단순 설치, 시작됨 → 전액 − 해체취소분
   }
+  // 설치 전 단계(잠재·미팅접촉·제안견적·구두합의)라도 설치 완료 회차가 있으면 그 순설치분만 실매출
+  const batches=getDealBatches(d.id);
+  if(batches.length && total>0){
+    const net = Math.max(0, dealBatchDoneQty(d.id) - cancel);
+    if(net>0) return Math.round(amt * Math.max(0, Math.min(1, net/total)));
+  }
   return 0;
 }
-/* 딜의 잠재매출 금액 = 제안견적 단계 이상에서 (아직 설치 안 됐고 취소도 아닌 미설치분).
-   잠재 = 전액 − 실매출(설치분) − 해체취소분 → 해체·취소분은 실매출·잠재매출 모두에서 제외 */
+/* 딜의 실매출(실현) 수량 = 설치 완료된 순수량(설치 시작 기준). 금액 계산과 동일한 규칙 */
+function dealRealizedQty(d){
+  if(isLost(d)) return 0;
+  const st = canonStage(d), total = dealTotalQty(d);
+  const cancel = dealBatchCancelQty(d.id);
+  const batches = getDealBatches(d.id);
+  if(st==='설치중'){
+    const start=(d.close_date||'').slice(0,10);
+    if(!start || start > _todayStr()) return 0;
+    if(batches.length) return Math.max(0, dealBatchDoneQty(d.id) - cancel);
+    return Math.max(0, total - cancel);                   // 단순 설치, 시작됨 → 전량
+  }
+  if(DELIVERED_STAGES.has(st)) return Math.max(0, total - cancel);
+  if(batches.length) return Math.max(0, dealBatchDoneQty(d.id) - cancel);  // 설치 전 단계라도 설치된 회차분
+  return 0;
+}
+/* 딜의 잠재매출 금액 = 잠재 단계 이상에서 (아직 설치 안 됐고 취소도 아닌 미설치분).
+   잠재 = 전액 − 실매출(설치분) − 해체취소분 → 해체·취소분은 실매출·잠재매출 모두에서 제외.
+   (잠재 단계부터 포함 — 앞으로 모든 잠재 건을 여기서 집계) */
 function dealPotentialWon(d){
   if(isLost(d)) return 0;
-  if(stageIdx(d) < 2) return 0;                          // 잠재발굴·미팅접촉 제외 (제안견적부터)
+  if(stageIdx(d) < 0) return 0;                          // 알 수 없는 단계만 제외 (잠재 단계부터 포함)
   const amt = d.amount||0, total = dealTotalQty(d);
   const cancel = dealBatchCancelQty(d.id);
   const cancelWon = (total>0) ? Math.round(amt * Math.min(1, cancel/total)) : 0;
   return Math.max(0, amt - dealRealizedWon(d) - cancelWon);
+}
+/* 딜의 잠재매출 수량 = 전체 − 실매출(설치완료) 수량 − 해체취소 수량 */
+function dealPotentialQty(d){
+  if(isLost(d)) return 0;
+  if(stageIdx(d) < 0) return 0;
+  const total = dealTotalQty(d);
+  const cancel = dealBatchCancelQty(d.id);
+  return Math.max(0, total - dealRealizedQty(d) - cancel);
 }
 /* 부분완료 판정: 설치중 단계인데 일부 회차가 설치+세금계산서까지 끝난 딜
    → 설치중 탭엔 '부분완료' 배지, 세금계산서완료 탭엔 '완료분만' 카드로 함께 표시
@@ -4104,17 +4138,17 @@ function partialDone(d){
 }
 /* 실매출(확정): 출고 완료 + 설치 시작 이후(분할 설치는 완료 수량만) */
 function realRevenueSplit(){
-  let deal=0, ship=0;
-  deals.forEach(d=>{ deal += dealRealizedWon(d); });
+  let deal=0, ship=0, dealQty=0;
+  deals.forEach(d=>{ deal += dealRealizedWon(d); dealQty += dealRealizedQty(d); });
   shipments.forEach(s=>{ if(shipDone(s)) ship += shipNet(s); });
-  return {deal:deal, ship:ship, total:deal+ship};
+  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty};
 }
 /* 잠재매출: 제안견적 단계 이상의 미실현분(설치 예정 수량 포함) + 출고 예정(미완료) */
 function potentialRevenueSplit(){
-  let deal=0, ship=0;
-  deals.forEach(d=>{ deal += dealPotentialWon(d); });
+  let deal=0, ship=0, dealQty=0;
+  deals.forEach(d=>{ deal += dealPotentialWon(d); dealQty += dealPotentialQty(d); });
   shipments.forEach(s=>{ if(!shipDone(s)) ship += shipNet(s); });
-  return {deal:deal, ship:ship, total:deal+ship};
+  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty};
 }
 function yearsInData(){
   const ys = new Set([new Date().getFullYear()]);
@@ -5232,16 +5266,16 @@ function renderDashboard(){
         <div class="rv2-val">${fmtMoney(rvReal.total)}</div>
         <div class="rv2-crit">출고 완료 + 설치 시작 이후 (분할 설치는 완료 수량만)</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (설치 시작·완료분)</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (설치 완료분)${rvReal.dealQty?` · ${rvReal.dealQty}대`:''}</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
           <div class="rv2-bk"><div class="k">출고 (출고 완료)</div><div class="v">${fmtMoney(rvReal.ship)}</div></div>
         </div>
       </div>
       <div class="rv2-card pot">
         <span class="rv2-tag">📦 잠재매출 · 예정</span>
         <div class="rv2-val">${fmtMoney(rvPot.total)}</div>
-        <div class="rv2-crit">제안견적 단계 이상 · 실매출 제외 (설치 예정 수량 포함)</div>
+        <div class="rv2-crit">잠재 단계 이상 · 실매출 제외 (미설치 예정 수량 포함)</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (제안견적~ 미설치분)</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (잠재~ 미설치분)${rvPot.dealQty?` · ${rvPot.dealQty}대`:''}</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
           <div class="rv2-bk" style="cursor:pointer;" onclick="showPage('ship')"><div class="k">출고 (출고 예정)</div><div class="v">${fmtMoney(rvPot.ship)}</div></div>
         </div>
       </div>
@@ -8296,7 +8330,7 @@ function openCreateModal(){
     personRoster().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   $('ncInflow').innerHTML = Object.entries(INFLOW).map(([k,v])=>`<option value="${k}" ${k==='direct'?'selected':''}>${v.label}</option>`).join('');
   ['ncCo','ncSite','ncName','ncClose','ncDelivery','ncNote'].forEach(i=>$(i).value='');
-  $('ncStage').value = '잠재발굴';
+  $('ncStage').value = '잠재';
   // 제품 구성 초기화 (빈 한 줄)
   initDealItemRows(null);
   bindDealItems('ncItemsRows','ncItemsTotal','ncItemsVat');
