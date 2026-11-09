@@ -9210,7 +9210,55 @@ loadAll();
   .sr-fbtn.on{background:var(--primary);border-color:var(--primary);color:#fff;}
   .sh-req-btn{background:#f97316 !important;border-color:#f97316 !important;color:#fff !important;position:relative;}
   .sh-req-btn .b{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;border-radius:10px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg-card);}
-  @media (max-width:860px){ .sr-grid,.sr-detail{grid-template-columns:1fr;} .sr-pv-wrap{position:static;} .sr-tabs{top:73px;} }
+  /* ── BOM 세트/부품 선택 ── */
+  .sr-pkmode{display:flex;gap:8px;margin-bottom:10px;}
+  .sr-pk{flex:1;border:1.5px solid var(--border);background:var(--bg-card);border-radius:var(--radius-md);padding:11px 12px;font-family:inherit;font-size:14px;font-weight:700;color:var(--text-secondary);cursor:pointer;}
+  .sr-pk.on{border-color:var(--primary);background:#eff6ff;color:#1d4ed8;}
+  .sr-pkbox{border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;background:var(--bg-main);margin-bottom:14px;}
+  .sr-pkbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .sr-chip{border:1px solid var(--border);background:var(--bg-card);border-radius:20px;padding:5px 11px;font-size:12px;font-weight:700;color:var(--text-secondary);cursor:pointer;font-family:inherit;}
+  .sr-chip.on{background:var(--text-primary);border-color:var(--text-primary);color:var(--bg-card);}
+  .sr-pkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:330px;overflow-y:auto;padding-right:2px;}
+  .sr-pkgrid.parts{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));}
+  .sr-scard{background:var(--bg-card);border:1.5px solid var(--border);border-radius:12px;padding:10px 11px;cursor:pointer;text-align:left;font-family:inherit;color:var(--text-primary);}
+  .sr-scard:hover,.sr-pcard:hover{border-color:var(--primary);box-shadow:0 2px 8px rgba(37,99,235,.12);}
+  .sr-scard .t{font-size:13px;font-weight:800;line-height:1.35;}
+  .sr-scard .m{font-size:11px;color:var(--text-tertiary);margin-top:3px;}
+  .sr-thumbs{display:flex;gap:3px;margin-top:8px;flex-wrap:nowrap;overflow:hidden;}
+  .sr-thumbs img,.sr-thumbs span{width:30px;height:30px;border-radius:6px;object-fit:contain;background:#fff;border:1px solid var(--border);flex:0 0 30px;}
+  .sr-thumbs span{display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:var(--text-tertiary);background:var(--bg-main);}
+  .sr-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:#eef1f4;color:#55606d;margin-right:3px;}
+  .sr-tag.gov{background:#eef2ff;color:#4338ca;}
+  .sr-tag.rec{background:#fff7ed;color:#c2410c;}
+  .sr-tag.clark{background:#ecfdf5;color:#047857;}
+  .sr-pcard{background:var(--bg-card);border:1.5px solid var(--border);border-radius:12px;padding:8px;cursor:pointer;text-align:center;font-family:inherit;color:var(--text-primary);position:relative;}
+  .sr-pcard .ph{width:100%;height:84px;border-radius:8px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+  .sr-pcard .ph img{max-width:100%;max-height:100%;object-fit:contain;}
+  .sr-pcard .zoom{position:absolute;right:4px;bottom:4px;width:22px;height:22px;border-radius:6px;background:rgba(15,23,42,.65);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;}
+  .sr-pcard .n{font-size:12px;font-weight:700;margin-top:6px;line-height:1.3;word-break:keep-all;}
+  .sr-pcard .c{font-size:10.5px;color:var(--text-tertiary);margin-top:2px;font-family:ui-monospace,Menlo,monospace;}
+  .sr-pcard .in{position:absolute;top:6px;left:6px;z-index:2;background:var(--primary);color:#fff;font-size:10.5px;font-weight:800;border-radius:10px;padding:1px 7px;}
+  .sr-line{display:flex;gap:10px;align-items:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:9px 10px;margin-bottom:8px;}
+  .sr-line .im{width:44px;height:44px;border-radius:8px;object-fit:contain;background:#fff;border:1px solid var(--border);flex:0 0 44px;cursor:zoom-in;}
+  .sr-line .im.ph{display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default;}
+  .sr-line .info{flex:1;min-width:0;}
+  .sr-line .info .t{font-size:13.5px;font-weight:800;line-height:1.35;}
+  .sr-line .info .s{font-size:11.5px;color:var(--text-tertiary);margin-top:2px;}
+  .sr-line .q{width:64px;padding:8px 6px;text-align:center;}
+  .sr-line .u{font-size:12px;color:var(--text-tertiary);width:24px;}
+  .sr-comp{margin:-4px 0 10px 54px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-card);}
+  .sr-comp table{width:100%;border-collapse:collapse;font-size:12px;}
+  .sr-comp td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .sr-comp tr:last-child td{border-bottom:none;}
+  .sr-comp img{width:34px;height:34px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid var(--border);cursor:zoom-in;display:block;}
+  .sr-empty{border:1.5px dashed var(--border);border-radius:12px;padding:16px;text-align:center;font-size:12.5px;color:var(--text-tertiary);margin-bottom:8px;}
+  .sr-lb{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;}
+  .sr-lb img{max-width:min(720px,92vw);max-height:76vh;background:#fff;border-radius:12px;object-fit:contain;}
+  .sr-lb div{color:#fff;font-size:15px;font-weight:700;margin-top:12px;text-align:center;}
+  .sr-hcomp{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .sr-hcomp .x{display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px 8px 4px 4px;font-size:11.5px;}
+  .sr-hcomp img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#fff;cursor:zoom-in;}
+  @media (max-width:860px){ .sr-grid,.sr-detail{grid-template-columns:1fr;} .sr-pv-wrap{position:static;} .sr-tabs{top:73px;} .sr-comp{margin-left:0;} }
 </style>
 
 <div class="modal-overlay" id="shipReqModal">
@@ -9250,9 +9298,17 @@ loadAll();
             <div class="form-group"><label class="form-label">수령자 연락처 *</label><input class="form-input" id="srPhone" inputmode="tel" placeholder="010-0000-0000"></div>
           </div>
 
-          <div class="sr-sec">📦 제품</div>
+          <div class="sr-sec">📦 제품 <span style="font-weight:500;color:var(--text-tertiary);">— 세트로 통째로, 또는 필요한 부품만 골라 담기</span></div>
+          <div class="sr-pkmode">
+            <button type="button" class="sr-pk on" id="srPkSet" onclick="srPick('set')">📦 세트 출고</button>
+            <button type="button" class="sr-pk" id="srPkPart" onclick="srPick('part')">🔩 부품만 출고</button>
+          </div>
+          <div class="sr-pkbox" id="srPicker"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <b style="font-size:13px;">🧺 담은 품목</b>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="srAddManual()" title="BOM에 없는 품목">+ 직접 입력</button>
+          </div>
           <div id="srProds"></div>
-          <button class="btn btn-secondary btn-sm" type="button" onclick="srAddProd()">+ 제품 추가</button>
           <div class="form-group" style="margin-top:14px;"><label class="form-label">지게차 모델</label><input class="form-input" id="srFork" placeholder="예: 디젤 3톤"></div>
 
           <div class="sr-sec">🚚 출고 / 배송</div>
@@ -9355,10 +9411,9 @@ function srLog(r, type, msg){ (r.log = r.log || []).push({ at:new Date().toISOSt
 
 /* ===== 열기/닫기/탭 ===== */
 function openShipReq(tab){
-  if (!srProds.length) srProds = [srNewProd()];
   if (!$('srRequester').value) $('srRequester').value = curUser();
   $('srCoList').innerHTML = (typeof companyCatalog!=='undefined'?companyCatalog:[]).map(c=>`<option value="${esc(c)}">`).join('');
-  srRenderProds(); srUpdate();
+  srRenderProds(); srRenderPicker(); srUpdate();
   $('shipReqModal').classList.add('active'); document.body.classList.add('modal-open');
   srTab(tab||'new');
   clearInterval(openShipReq.t); openShipReq.t = setInterval(()=>{ $('srNow').value = srStamp(new Date().toISOString()); }, 1000);
@@ -9404,25 +9459,218 @@ function srTab(t){
   if (t==='hist') srRenderHist();
 }
 
+
+/* ===== BOM (세이프가드플러스 BOM LIST) — 세트/부품 선택 ===== */
+let srBomCache = null, srPkMode = 'set', srSetM = '', srSetK = '', srPartM = '', srPartQ = '', srOpenComp = {};
+function srBom(){
+  if (srBomCache) return srBomCache;
+  const empty = { sets:[], imgs:{}, parts:[], pmap:{} };
+  try{
+    if (!window.__BOM_B64) return (srBomCache = empty);
+    const bin = atob(window.__BOM_B64), by = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) by[i] = bin.charCodeAt(i);
+    const html = new TextDecoder('utf-8').decode(by);
+    const a = html.indexOf('const DATA = '); if (a<0) return (srBomCache = empty);
+    const line = html.slice(a+13, html.indexOf('\n', a)).trim().replace(/;$/,'');
+    const D = JSON.parse(line);
+    const sets = (D.sets||[]).map((s,i)=>({ ...s, idx:i, model:(s.model||'').replace('AI-SO','AI-S0') }));
+    const pmap = {}, parts = [];
+    sets.forEach(s=>s.items.forEach(it=>{
+      const key = it.code || ('NAME:'+it.name);
+      let p = pmap[key];
+      if (!p){ p = pmap[key] = { key, code:it.code||'', name:it.name, img:it.img||'', models:new Set(), clarkOnly:true, clarkCode:'' }; parts.push(p); }
+      if (!p.img && it.img) p.img = it.img;
+      p.models.add(s.model);
+      if (!s.clark) p.clarkOnly = false;
+      if (it.clark && !p.clarkCode) p.clarkCode = it.clark;
+    }));
+    parts.forEach(p=>{ p.models = [...p.models].sort(); });
+    srBomCache = { sets, imgs: D.imgs||{}, parts, pmap };
+  }catch(e){ console.warn('BOM 파싱 실패', e); srBomCache = empty; }
+  return srBomCache;
+}
+const srImg = k => (k && srBom().imgs[k]) || '';
+const srNorm = s => String(s||'').replace(/\s+/g,'').toLowerCase();
+function srSetByKey(k){ return srBom().sets.find(s=>s.sheet===k) || null; }
+function srZoom(src, cap){
+  if (!src) return;
+  const d = document.createElement('div'); d.className = 'sr-lb';
+  d.innerHTML = `<img src="${src}" alt=""><div>${esc(cap||'')}</div>`;
+  d.onclick = () => d.remove();
+  document.body.appendChild(d);
+}
+function srZoomKey(k, cap){ srZoom(srImg(k), cap); }
+function srZoomEl(el){ srZoom(el.getAttribute('src'), el.dataset.cap||''); }
+function srAddSetIdx(i){ const s=srBom().sets[i]; if(s) srAddSet(s.sheet); }
+function srAddPartIdx(i){ const p=srBom().parts[i]; if(p) srAddPart(p.key); }
+
+/* 고르기 패널 */
+function srPick(m){ srPkMode = m; srRenderPicker(); }
+function srRenderPicker(){
+  const box = $('srPicker'); if (!box) return;
+  $('srPkSet').classList.toggle('on', srPkMode==='set'); $('srPkPart').classList.toggle('on', srPkMode==='part');
+  const B = srBom();
+  if (!B.sets.length){ box.innerHTML = `<div class="sr-empty">BOM 데이터를 불러오지 못했어요 · 아래 '직접 입력'으로 추가해 주세요</div>`; return; }
+  const chip = (cur, val, label, fn) => `<button type="button" class="sr-chip ${cur===val?'on':''}" onclick="${fn}('${val}')">${label}</button>`;
+  const models = ['AI-S0','AI-S1','AI-S2','AI-S3'];
+  if (srPkMode==='set'){
+    const co = srNorm($('srCo') ? $('srCo').value : '');
+    const rec = s => !!(co && s.cust && (srNorm(s.cust).includes(co) || co.includes(srNorm(s.cust)) || co.includes(srNorm(s.cust).slice(0,2))));
+    const list = B.sets.filter(s=>(!srSetM || s.model===srSetM) && (!srSetK || s.kind===srSetK))
+      .sort((a,b)=>(rec(b)-rec(a)) || (a.idx-b.idx));
+    box.innerHTML = `<div class="sr-pkbar">${chip(srSetM,'','전체','srSetModel')}${models.map(m=>chip(srSetM,m,m,'srSetModel')).join('')}
+        <span style="width:1px;height:18px;background:var(--border);margin:0 4px;"></span>
+        ${chip(srSetK,'','전체','srSetKind')}${chip(srSetK,'일반','일반','srSetKind')}${chip(srSetK,'정부지원','🏛️ 정부지원','srSetKind')}</div>
+      <div class="sr-pkgrid">${list.map(s=>{
+        const tot = s.items.reduce((a,i)=>a+(Number(i.qty)||0),0);
+        const th = s.items.filter(i=>i.img).slice(0,7).map(i=>`<img src="${srImg(i.img)}" alt="" title="${esc(i.name)}">`).join('');
+        const more = s.items.length>7 ? `<span>+${s.items.length-7}</span>` : '';
+        return `<button type="button" class="sr-scard" onclick="srAddSetIdx(${s.idx})">
+          <div>${rec(s)?'<span class="sr-tag rec">추천</span>':''}<span class="sr-tag ${s.kind==='정부지원'?'gov':''}">${esc(s.kind)}</span>${s.clark?'<span class="sr-tag clark">클라크품번</span>':''}</div>
+          <div class="t" style="margin-top:4px;">${esc(s.label)}</div>
+          <div class="m">${s.items.length}종 · 부품 ${tot}개${s.cust?' · '+esc(s.cust):''}</div>
+          <div class="sr-thumbs">${th}${more}</div></button>`;
+      }).join('') || '<div class="sr-empty" style="grid-column:1/-1">조건에 맞는 세트가 없어요</div>'}</div>`;
+  } else {
+    const q = srPartQ.trim().toLowerCase();
+    const inCart = {}; srProds.forEach(p=>{ if (p.type==='part') inCart[p.pkey] = (inCart[p.pkey]||0) + (p.qty||0); });
+    const list = B.parts.filter(p=>(!srPartM || p.models.includes(srPartM)) && (!q || [p.name,p.code,p.clarkCode].join(' ').toLowerCase().includes(q)));
+    box.innerHTML = `<div class="sr-pkbar">${chip(srPartM,'','전체','srPartModel')}${models.map(m=>chip(srPartM,m,m+' 부품','srPartModel')).join('')}
+        <input class="form-input" id="srPartQ" placeholder="부품명·품번 검색 (예: 카메라, 연장선)" value="${esc(srPartQ)}" style="flex:1;min-width:160px;padding:7px 11px;font-size:13px;"
+          oninput="srPartQ=this.value;srRenderPicker();const e=$('srPartQ');e.focus();e.setSelectionRange(e.value.length,e.value.length)"></div>
+      <div class="sr-pkgrid parts">${list.map(p=>{
+        const src = srImg(p.img), pi = B.parts.indexOf(p);
+        return `<button type="button" class="sr-pcard" onclick="srAddPartIdx(${pi})">
+          ${inCart[p.key]?`<span class="in">담음 ${inCart[p.key]}</span>`:''}
+          <div class="ph">${src?`<img src="${src}" alt=""><span class="zoom" title="크게 보기" onclick="event.stopPropagation();srZoomKey('${esc(p.img)}', srBom().parts[${pi}].name)">🔍</span>`:'<span style="font-size:11px;color:var(--text-tertiary)">사진 없음</span>'}</div>
+          <div class="n">${esc(p.name)}</div>
+          <div class="c">${p.code?esc(p.code):'품번 확인 필요'}</div>
+          <div style="margin-top:4px;">${p.clarkOnly?'<span class="sr-tag clark">클라크용</span>':''}<span class="sr-tag">${p.models.map(m=>m.replace('AI-','')).join('·')}</span></div>
+        </button>`;
+      }).join('') || '<div class="sr-empty" style="grid-column:1/-1">검색 결과가 없어요</div>'}</div>`;
+  }
+}
+function srSetModel(v){ srSetM = v; srRenderPicker(); }
+function srSetKind(v){ srSetK = v; srRenderPicker(); }
+function srPartModel(v){ srPartM = v; srRenderPicker(); }
+function srAddSet(sheet){
+  const ex = srProds.find(p=>p.type==='set' && p.set===sheet);
+  if (ex) ex.qty = (ex.qty||0)+1; else srProds.push({ type:'set', set:sheet, qty:1 });
+  srRenderProds(); srUpdate(); toast('세트를 담았어요 · 아래에서 수량 조절');
+}
+function srAddPart(key){
+  const ex = srProds.find(p=>p.type==='part' && p.pkey===key);
+  if (ex) ex.qty = (ex.qty||0)+1; else srProds.push({ type:'part', pkey:key, qty:1 });
+  srRenderProds(); srUpdate(); srRenderPicker();
+}
+function srAddManual(){ srProds.push({ model:'AI-S3', custom:'', gov:false, qty:1 }); srRenderProds(); srUpdate(); }
+function srToggleComp(i){ srOpenComp[i] = !srOpenComp[i]; srRenderProds(); }
+
+/* 담은 품목 1줄 → 요청 데이터 */
+function srItem(p){
+  if (p.type==='set'){
+    const s = srSetByKey(p.set);
+    if (!s) return { kind:'set', name:p.set, set:p.set, model:'', gov:false, qty:p.qty||0, parts:[] };
+    return { kind:'set', name:s.label, set:s.sheet, model:s.model, gov:s.kind==='정부지원', qty:p.qty||0,
+      parts: s.items.map(it=>({ code:it.code||'', clark:it.clark||'', name:it.name, per:Number(it.qty)||0, qty:(Number(it.qty)||0)*(p.qty||0), img:it.img||'' })) };
+  }
+  if (p.type==='part'){
+    const b = srBom().pmap[p.pkey] || { name:p.pkey.replace(/^NAME:/,''), code:'', img:'' };
+    return { kind:'part', name:b.name, code:b.code, model:'', gov:false, qty:p.qty||0, img:b.img||'' };
+  }
+  return { kind:'model', name:srProdName(p), model:p.model==='기타'?(p.custom||'').trim():p.model, gov:p.model!=='기타' && !!p.gov, qty:p.qty||0 };
+}
+
+/* 패킹리스트 인쇄 */
+function srPrint(id){
+  const r = shipReqs.find(x=>x.id===id); if (!r) return;
+  const rows = [];
+  (r.items||[]).forEach(i=>{
+    if (i.kind==='set'){
+      rows.push(`<tr class="grp"><td colspan="6">📦 ${esc(i.name)} × ${i.qty} set</td></tr>`);
+      (i.parts||[]).forEach((p,k)=>rows.push(`<tr><td>${k+1}</td><td class="ph">${srImg(p.img)?`<img src="${srImg(p.img)}">`:''}</td><td class="cd">${esc(p.code||'-')}${p.clark?`<br><small>클라크 ${esc(p.clark)}</small>`:''}</td><td>${esc(p.name)}</td><td class="q">${p.per} × ${i.qty} = <b>${p.qty}</b></td><td class="ck">□</td></tr>`));
+    }
+  });
+  const parts = (r.items||[]).filter(i=>i.kind==='part');
+  if (parts.length){
+    rows.push(`<tr class="grp"><td colspan="6">🔩 개별 부품</td></tr>`);
+    parts.forEach((p,k)=>rows.push(`<tr><td>${k+1}</td><td class="ph">${srImg(p.img)?`<img src="${srImg(p.img)}">`:''}</td><td class="cd">${esc(p.code||'-')}</td><td>${esc(p.name)}</td><td class="q"><b>${p.qty}</b></td><td class="ck">□</td></tr>`));
+  }
+  (r.items||[]).filter(i=>!i.kind || i.kind==='model').forEach(i=>rows.push(`<tr class="grp"><td colspan="5">${esc(i.name)} × ${i.qty} (구성 미지정)</td><td class="ck">□</td></tr>`));
+  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>패킹리스트 ${esc(r.customer)}</title><style>
+    *{box-sizing:border-box;font-family:'Pretendard','Malgun Gothic',sans-serif}body{margin:24px;color:#111;font-size:12.5px}
+    h1{font-size:20px;margin:0 0 4px}.sub{color:#666;margin-bottom:14px}
+    .info{width:100%;border-collapse:collapse;margin-bottom:14px}.info td{border:1px solid #ccc;padding:6px 8px}.info td.h{background:#f3f4f6;font-weight:700;width:90px}
+    table.l{width:100%;border-collapse:collapse}.l th,.l td{border:1px solid #ccc;padding:5px 7px;vertical-align:middle}.l th{background:#f3f4f6}
+    .l tr.grp td{background:#eef2ff;font-weight:800;font-size:13px}.ph{width:58px;text-align:center}.ph img{width:46px;height:46px;object-fit:contain}
+    .cd{font-family:monospace;font-size:11.5px}.q{text-align:center;white-space:nowrap}.ck{width:44px;text-align:center;font-size:18px}
+    .sign{margin-top:20px;display:flex;gap:20px}.sign div{flex:1;border:1px solid #ccc;height:60px;padding:6px;color:#666}
+    @media print{body{margin:10mm}.np{display:none}}</style></head><body>
+    <button class="np" onclick="print()" style="float:right;padding:8px 14px;font-size:13px">인쇄</button>
+    <h1>출고 패킹리스트</h1><div class="sub">요청 ${srStampS(r.requested_at)} · ${esc(r.requester||'')}${r.order_no?' · 발주번호 <b>'+esc(r.order_no)+'</b>':''}</div>
+    <table class="info"><tr><td class="h">발주사</td><td>${esc(r.customer||'')}</td><td class="h">현장명</td><td>${esc(r.site||'')}</td></tr>
+    <tr><td class="h">수령자</td><td>${esc(r.manager||'')} ${esc(r.phone||'')}</td><td class="h">출고 희망</td><td>${r.asap?'최대한 빠르게':esc(r.hope_date||'')}</td></tr>
+    <tr><td class="h">납품 주소</td><td colspan="3">${esc(r.address||'')}</td></tr>
+    <tr><td class="h">운임/배송</td><td>${esc([r.freight,r.delivery].filter(Boolean).join(' / '))}</td><td class="h">지게차</td><td>${esc(r.forklift||'')}</td></tr>
+    ${r.notes?`<tr><td class="h">특이사항</td><td colspan="3">${esc(r.notes)}</td></tr>`:''}</table>
+    <table class="l"><thead><tr><th style="width:34px">No</th><th>사진</th><th>관리품번</th><th>제품명</th><th>수량</th><th>확인</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+    <div class="sign"><div>포장 확인</div><div>출고 확인</div></div></body></html>`;
+  const w = window.open('', '_blank');
+  if (!w){ toast('팝업이 차단됐어요 — 팝업 허용 후 다시 눌러주세요', true); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+/* 요청 이력 상세 — 구성 사진 */
+function srHistComp(r){
+  const chips = [];
+  (r.items||[]).forEach(i=>{
+    if (i.kind==='set') chips.push(`<div class="x"><b>📦 ${esc(i.name)} × ${i.qty}</b></div>`);
+    if (i.kind==='part') chips.push(`<div class="x">${srImg(i.img)?`<img src="${srImg(i.img)}" data-cap="${esc(i.name)}" onclick="event.stopPropagation();srZoomEl(this)">`:''}${esc(i.name)} × ${i.qty}</div>`);
+  });
+  return chips.length ? `<div class="sr-hcomp">${chips.join('')}</div>` : '';
+}
+
 /* ===== 제품 행 ===== */
 function srNewProd(){ return { model:'AI-S3', custom:'', gov:false, qty:1 }; }
 function srAddProd(){ srProds.push(srNewProd()); srRenderProds(); srUpdate(); }
-function srDelProd(i){ srProds.splice(i,1); if(!srProds.length) srProds.push(srNewProd()); srRenderProds(); srUpdate(); }
+function srDelProd(i){ srProds.splice(i,1); srOpenComp = {}; srRenderProds(); srUpdate(); srRenderPicker(); }
 function srRenderProds(){
-  $('srProds').innerHTML = srProds.map((p,i)=>`
-    <div class="sr-prod">
-      <select class="form-input" style="padding:10px 12px;" onchange="srProds[${i}].model=this.value;srRenderProds();srUpdate()">
-        ${SR_MODELS.map(m=>`<option ${p.model===m?'selected':''}>${m}</option>`).join('')}<option value="기타" ${p.model==='기타'?'selected':''}>기타(직접입력)</option>
-      </select>
-      ${p.model==='기타'
-        ? `<input class="form-input" style="padding:10px 12px;" placeholder="제품명" value="${esc(p.custom)}" oninput="srProds[${i}].custom=this.value;srUpdate()">`
-        : `<label class="sr-chk"><input type="checkbox" ${p.gov?'checked':''} onchange="srProds[${i}].gov=this.checked;srUpdate()"> 🏛️ 정부지원</label>`}
-      <input class="form-input" style="padding:10px 8px;text-align:center;" type="number" min="1" value="${p.qty}" oninput="srProds[${i}].qty=parseInt(this.value)||0;srUpdate()">
-      <button class="modal-close" type="button" style="width:34px;height:34px;font-size:15px;" title="삭제" onclick="srDelProd(${i})">×</button>
-    </div>`).join('');
+  if (!srProds.length){ $('srProds').innerHTML = `<div class="sr-empty">위에서 <b>세트</b>나 <b>부품</b>을 눌러 담아주세요</div>`; return; }
+  $('srProds').innerHTML = srProds.map((p,i)=>{
+    const qty = `<input class="form-input q" type="number" min="1" value="${p.qty}" oninput="srProds[${i}].qty=parseInt(this.value)||0;srUpdate();srRenderCompOnly(${i})">`;
+    const del = `<button class="modal-close" type="button" style="width:32px;height:32px;font-size:15px;flex:0 0 32px;" title="빼기" onclick="srDelProd(${i})">×</button>`;
+    if (p.type==='set'){
+      const it = srItem(p), s = srSetByKey(p.set), first = s && s.items.find(x=>x.img);
+      const img = first ? `<img class="im" src="${srImg(first.img)}" data-cap="${esc(it.name)}" onclick="srZoomEl(this)">` : `<div class="im ph">📦</div>`;
+      const open = !!srOpenComp[i];
+      return `<div class="sr-line">${img}<div class="info"><div class="t">${esc(it.name)}</div>
+          <div class="s"><span class="sr-tag ${it.gov?'gov':''}">${it.gov?'정부지원':'일반'} 세트</span>${it.parts.length}종 · <a href="javascript:void 0" onclick="srToggleComp(${i})" style="color:var(--primary);font-weight:700;">구성품 ${open?'접기 ▴':'보기 ▾'}</a></div></div>
+          ${qty}<span class="u">set</span>${del}</div>
+        <div id="srComp${i}">${open?srCompHtml(it):''}</div>`;
+    }
+    if (p.type==='part'){
+      const it = srItem(p);
+      const img = srImg(it.img) ? `<img class="im" src="${srImg(it.img)}" data-cap="${esc(it.name)}" onclick="srZoomEl(this)">` : `<div class="im ph">🔩</div>`;
+      return `<div class="sr-line">${img}<div class="info"><div class="t">${esc(it.name)}</div><div class="s"><span class="sr-tag">부품</span>${esc(it.code||'품번 확인 필요')}</div></div>${qty}<span class="u">개</span>${del}</div>`;
+    }
+    return `<div class="sr-line"><div class="im ph">✏️</div><div class="info" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select class="form-input" style="padding:8px 10px;width:auto;" onchange="srProds[${i}].model=this.value;srRenderProds();srUpdate()">
+          ${SR_MODELS.map(m=>`<option ${p.model===m?'selected':''}>${m}</option>`).join('')}<option value="기타" ${p.model==='기타'?'selected':''}>기타(직접입력)</option></select>
+        ${p.model==='기타'
+          ? `<input class="form-input" style="padding:8px 10px;flex:1;min-width:120px;" placeholder="품목명" value="${esc(p.custom||'')}" oninput="srProds[${i}].custom=this.value;srUpdate()">`
+          : `<label class="sr-chk"><input type="checkbox" ${p.gov?'checked':''} onchange="srProds[${i}].gov=this.checked;srUpdate()"> 🏛️ 정부지원</label>`}
+      </div>${qty}<span class="u">대</span>${del}</div>`;
+  }).join('');
 }
-const srProdName = p => p.model==='기타' ? (p.custom.trim()||'(제품명)') : p.model + (p.gov?' (정부지원)':'');
-const srTotal = () => srProds.reduce((a,p)=>a+(p.qty||0),0);
+function srCompHtml(it){
+  return `<div class="sr-comp"><table>${it.parts.map(x=>`<tr>
+    <td style="width:46px">${srImg(x.img)?`<img src="${srImg(x.img)}" data-cap="${esc(x.name)}" onclick="srZoomEl(this)">`:''}</td>
+    <td style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-tertiary);white-space:nowrap;">${esc(x.code||'-')}</td>
+    <td>${esc(x.name)}</td><td style="text-align:right;white-space:nowrap;color:var(--text-tertiary);">${x.per} × ${it.qty} = <b style="color:var(--text-primary)">${x.qty}</b></td></tr>`).join('')}</table></div>`;
+}
+function srRenderCompOnly(i){ const el=$('srComp'+i); if (el && srOpenComp[i]) el.innerHTML = srCompHtml(srItem(srProds[i])); }
+const srProdName = p => p.model==='기타' ? ((p.custom||'').trim()||'(제품명)') : p.model + (p.gov?' (정부지원)':'');
+const srTotal = () => srProds.reduce((a,p)=>a+(p.type==='part'?0:(p.qty||0)),0);
+const srPartTotal = () => srProds.reduce((a,p)=>a+(p.type==='part'?(p.qty||0):0),0);
 
 /* ===== 수집 / 문구 ===== */
 function srCollect(){
@@ -9430,8 +9678,8 @@ function srCollect(){
   const hope = document.querySelector('input[name=srHope]:checked').value;
   return {
     requester: v('srRequester'), customer: v('srCo'), site: v('srSite'), manager: v('srMgr'), phone: v('srPhone'), receiver: '',
-    items: srProds.map(p=>({ name: srProdName(p), model: p.model==='기타'?p.custom.trim():p.model, gov: p.model!=='기타' && p.gov, qty: p.qty||0 })),
-    total_qty: srTotal(), forklift: v('srFork'),
+    items: srProds.map(srItem),
+    total_qty: srTotal(), parts_qty: srPartTotal(), forklift: v('srFork'),
     asap: hope==='asap', hope_date: hope==='date' ? $('srHopeDate').value : '',
     address: v('srAddr'), freight: document.querySelector('input[name=srFreight]:checked').value, delivery: $('srDelivery').value,
     box_label: $('srBox').checked, order_no: v('srOrderNo'), notes: v('srNotes'), memo: v('srMemo')
@@ -9441,8 +9689,13 @@ function srText(d){
   const L = ['[출고 요청]',''];
   L.push('■ 발주사 : '+d.customer, '■ 현장명 : '+d.site, '■ 수령자 : '+d.manager, '■ 수령자 연락처 : '+d.phone);
   L.push('');
-  if (d.items.length===1){ L.push('■ 제품명 : '+d.items[0].name, '■ 수량 : '+d.items[0].qty+' set'); }
-  else { L.push('■ 제품 :'); d.items.forEach(i=>L.push('   - '+i.name+' / '+i.qty+' set')); L.push('■ 총 수량 : '+d.total_qty+' set'); }
+  const _sets = d.items.filter(i=>i.kind!=='part'), _parts = d.items.filter(i=>i.kind==='part');
+  if (!d.items.length) L.push('■ 제품 : (선택 안 함)');
+  else if (_sets.length===1 && !_parts.length){ L.push('■ 제품명 : '+_sets[0].name, '■ 수량 : '+_sets[0].qty+' set'); }
+  else {
+    if (_sets.length){ L.push('■ 세트 :'); _sets.forEach(i=>L.push('   - '+i.name+' × '+i.qty+' set')); }
+    if (_parts.length){ L.push('■ 부품 :'); _parts.forEach(i=>L.push('   - '+i.name+(i.code?' ('+i.code+')':'')+' × '+i.qty+'개')); }
+  }
   if (d.forklift) L.push('■ 지게차 모델 : '+d.forklift);
   L.push('');
   L.push('■ 출고 희망일 : '+(d.asap ? '최대한 빠르게 부탁드립니다.' : (d.hope_date||'(날짜 선택)')));
@@ -9459,8 +9712,8 @@ function srUpdate(){
   if (!srOrderEdited){
     // 발주번호는 '박스에 발주번호 표기'를 체크했을 때만 자동 생성 (국일 등 필요한 건만)
     if ($('srBox') && $('srBox').checked){
-      const f = srProds.find(p=>p.model!=='기타');
-      $('srOrderNo').value = 'SP-'+(f?f.model.replace('AI-',''):'ETC')+'-'+srToday().replace(/-/g,'')+'-'+srTotal();
+      const f = srProds.map(srItem).find(i=>i.kind!=='part' && /^AI-/.test(i.model||''));
+      $('srOrderNo').value = 'SP-'+(f?f.model.replace('AI-',''):'P')+'-'+srToday().replace(/-/g,'')+'-'+(srTotal()||srPartTotal());
     } else {
       $('srOrderNo').value = '';
     }
@@ -9476,7 +9729,7 @@ async function srSubmit(){
   if (!d.requester) miss.push('요청자'); if (!d.customer) miss.push('고객사'); if (!d.site) miss.push('현장명');
   if (!d.manager) miss.push('담당자'); if (!d.phone) miss.push('연락처'); if (!d.address) miss.push('납품 주소');
   if (!d.asap && !d.hope_date) miss.push('출고 희망일');
-  if (d.items.some(i=>!i.qty || !i.model)) miss.push('제품/수량');
+  if (!d.items.length || d.items.some(i=>!i.qty || !(i.model||i.name))) miss.push('제품(세트/부품)·수량');
   if (miss.length) { toast('필수 항목 확인: '+miss.join(', '), true); return; }
 
   srSending = true; $('srSendBtn').disabled = true; $('srSendBtn').textContent = '보내는 중...';
@@ -9485,7 +9738,11 @@ async function srSubmit(){
   const reqId = Date.now();
   const anyGov = d.items.some(i=>i.gov);
   const p0 = d.items[0];
-  const autoName = d.customer+' '+(p0.model||p0.name)+(anyGov?' 정부지원':'')+' '+d.total_qty+'대 출고'+(d.site && d.site!==d.customer ? ' ('+d.site+')' : '');
+  const _s0 = d.items.find(i=>i.kind!=='part'), _pp = d.items.filter(i=>i.kind==='part');
+  const autoName = (_s0
+      ? d.customer+' '+(_s0.model||_s0.name)+(anyGov?' 정부지원':'')+' '+d.total_qty+'대 출고'+(_pp.length?' +부품':'')
+      : d.customer+' 부품 출고 ('+_pp[0].name+(_pp.length>1?` 외 ${_pp.length-1}종`:'')+')')
+    + (d.site && d.site!==d.customer ? ' ('+d.site+')' : '');
 
   const isDealReq = (srMode==='deal' && srDealId!=null);
   let shipId = null;
@@ -9498,12 +9755,13 @@ async function srSubmit(){
       addr: d.address || null, receiver: d.receiver || d.manager, receiver_phone: d.phone, receiver_email: null,
       products: d.items.map(i=>({ name:i.name, qty:i.qty, unit:0 })),
       prod: p0.name + (d.items.length>1 ? ` 외 ${d.items.length-1}건` : ''),
-      qty: d.total_qty, unit_price: 0, amount: 0,
+      qty: d.total_qty || d.parts_qty, unit_price: 0, amount: 0,
       ship_date: d.asap ? srToday() : d.hope_date,
       ship_status: 'request', tax_invoice_issued: false, tax_invoice_date: null, collected: false,
       memo: [d.order_no, d.site && d.site!==d.customer ? '현장 '+d.site : '', d.forklift ? '지게차 '+d.forklift : '', d.notes, d.memo].filter(Boolean).join(' · ') || null,
       gov_support: anyGov, gov_order: null, gov_invoice_to: null, gov_install_site: null, returned: false,
-      request_id: reqId, requested_at: nowIso, requested_by: d.requester
+      request_id: reqId, requested_at: nowIso, requested_by: d.requester,
+      bom: d.items.filter(i=>i.kind==='set'||i.kind==='part').map(i=>({ kind:i.kind, name:i.name, set:i.set||'', code:i.code||'', qty:i.qty }))
     });
     if (typeof addCompany === 'function') addCompany(d.customer);
     saveShipLocal();
@@ -9563,7 +9821,7 @@ function srReset(keepTab){
   ['srCo','srSite','srMgr','srPhone','srFork','srAddr','srOrderNo','srNotes','srMemo','srHopeDate'].forEach(id=>$(id).value='');
   document.querySelector('input[name=srHope][value=asap]').checked = true; $('srHopeDate').disabled = true;
   document.querySelector('input[name=srFreight][value=선불]').checked = true; $('srDelivery').value=''; $('srBox').checked = false;
-  srProds = [srNewProd()]; srOrderEdited = false; srRenderProds(); srUpdate();
+  srProds = []; srOpenComp = {}; srOrderEdited = false; srRenderProds(); srRenderPicker(); srUpdate();
 }
 
 /* ===== 요청 이력 ===== */
@@ -9619,7 +9877,9 @@ function srRenderHist(){
               ${s?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srGoShip(${r.id})">출고 목록에서 보기 →</button>`:''}
               ${r.jandi.status!=='sent'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srResend(${r.id})">💬 잔디 재전송</button>`:''}
               <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();srCopy(shipReqs.find(x=>x.id===${r.id}).text)">문구 복사</button>
+              <button class="btn btn-secondary btn-sm" style="color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff;" onclick="event.stopPropagation();srPrint(${r.id})">📋 패킹리스트 인쇄</button>
             </div>
+            ${srHistComp(r)}
           </div>
           <div><div style="font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;">💬 보낸 메시지</div><div class="sr-pv" style="min-height:0;font-size:12.5px;">${esc(r.text)}</div></div>
         </div></td></tr>` : ''}`;
@@ -9660,6 +9920,7 @@ document.addEventListener('input', e=>{
   if (!e.target.closest || !e.target.closest('#srNew')) return;
   if (e.target.id==='srPhone'){ const n=e.target.value.replace(/\D/g,'').slice(0,11); e.target.value = n.length<4?n:n.length<8?n.slice(0,3)+'-'+n.slice(3):n.slice(0,3)+'-'+n.slice(3,n.length-4)+'-'+n.slice(-4); }
   if (e.target.id==='srOrderNo') srOrderEdited = e.target.value.trim()!=='';
+  if (e.target.id==='srCo' && srPkMode==='set') srRenderPicker();
   srUpdate();
 });
 document.addEventListener('change', e=>{
