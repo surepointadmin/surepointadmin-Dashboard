@@ -9341,6 +9341,7 @@ loadAll();
   .sr-hcomp{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .sr-hcomp .x{display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px 8px 4px 4px;font-size:11.5px;}
   .sr-hcomp img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#fff;cursor:zoom-in;}
+  .sr-iline{line-height:1.5;min-height:19.5px;}
   .sr-stsel{font-size:11.5px;font-weight:800;padding:4px 8px;border-radius:8px;cursor:pointer;font-family:inherit;}
   .sr-stsel.req{border:1px solid #d97706;color:#b45309;background:#fff7ed;}
   .sr-stsel.done{border:1px solid #16a34a;color:#15803d;background:#dcfce7;}
@@ -9964,7 +9965,7 @@ function srRenderHist(){
   const jp = r => r.jandi.status==='sent' ? `<span class="sr-pill ok">💬 전송</span>` : r.jandi.status==='failed' ? `<span class="sr-pill fail">⚠ 실패</span>` : r.jandi.status==='off' ? `<span class="sr-pill off">미연결</span>` : `<span class="sr-pill off">전송 중</span>`;
   const icon = { request:'', jandi_sent:'', jandi_off:'', jandi_fail:'fail', done:'done', returned:'ret', reverted:'' };
   $('srHistTbl').innerHTML = `
-    <thead><tr><th>요청 일시</th><th>요청자</th><th>고객사 / 현장</th><th>제품 · 수량</th><th>출고 희망</th><th>잔디</th><th>출고 상태</th></tr></thead>
+    <thead><tr><th>요청 일시</th><th>요청자</th><th>고객사 / 현장</th><th>제품</th><th style="text-align:right;">수량</th><th>출고 희망</th><th>잔디</th><th>출고 상태</th></tr></thead>
     <tbody>${list.length ? list.map(r=>{
       const st = srState(r), s = srShipOf(r), open = srOpenId===r.id;
       const doneAt = s && s.done_at ? `<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(s.done_at)}</div>` : '';
@@ -9973,11 +9974,12 @@ function srRenderHist(){
         <td class="sr-ts" style="font-weight:700;white-space:nowrap;">${srStamp(r.requested_at)}</td>
         <td>${esc(r.requester||'-')}</td>
         <td><b>${esc(r.customer)}</b>${r.site&&r.site!==r.customer?`<div style="font-size:11.5px;color:var(--text-tertiary);">${esc(r.site)}</div>`:''}${r.deal_id?`<div><span class="sr-deal" title="프로젝트(딜)에서 보낸 출고 요청 · 출고 목록엔 없고 여기서만 상태 변경">🔧 프로젝트딜${srDealName(r)}</span></div>`:''}</td>
-        <td>${r.items.map(i=>esc(i.name)+' ×'+i.qty).join('<br>')}${r.order_no?`<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${esc(r.order_no)}</div>`:''}</td>
+        <td>${r.items.map(i=>`<div class="sr-iline">${esc(i.name)}</div>`).join('')}${r.order_no?`<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${esc(r.order_no)}</div>`:''}</td>
+        <td style="text-align:right;white-space:nowrap;">${r.items.map(i=>`<div class="sr-iline"><b>${Number(i.qty)||0}</b> <span style="font-size:11.5px;color:var(--text-tertiary);">${i.kind==='part'?'개':'set'}</span></div>`).join('')}</td>
         <td style="white-space:nowrap;">${r.asap?'최대한 빠르게':fmtDate(r.hope_date)}</td>
         <td>${jp(r)}</td>
         <td onclick="event.stopPropagation();">${srStatusSel(r, st)}${doneIso?`<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(doneIso)}</div>`:''}</td>
-      </tr>${open ? `<tr class="open"><td colspan="7">
+      </tr>${open ? `<tr class="open"><td colspan="8">
         <div class="sr-detail">
           <div>
             <div style="font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;">🕒 기록</div>
@@ -9992,7 +9994,7 @@ function srRenderHist(){
           </div>
           <div><div style="font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;">💬 보낸 메시지</div><div class="sr-pv" style="min-height:0;font-size:12.5px;">${esc(r.text)}</div></div>
         </div></td></tr>` : ''}`;
-    }).join('') : `<tr><td colspan="7"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">출고 요청 이력이 없어요</div><div class="empty-desc">'요청 작성' 탭에서 보내면 여기 일시와 함께 쌓여요</div></div></td></tr>`}</tbody>`;
+    }).join('') : `<tr><td colspan="8"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">출고 요청 이력이 없어요</div><div class="empty-desc">'요청 작성' 탭에서 보내면 여기 일시와 함께 쌓여요</div></div></td></tr>`}</tbody>`;
   srBadge();
 }
 let srHistQ = '';
