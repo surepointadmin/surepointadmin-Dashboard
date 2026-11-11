@@ -9485,16 +9485,27 @@ async function loadShipReqRemote(){
   srBadge();
 }
 const srKey = iso => { const d=new Date(iso); return d.getFullYear()+'-'+srPad(d.getMonth()+1)+'-'+srPad(d.getDate())+' '+srPad(d.getHours())+':'+srPad(d.getMinutes())+':'+srPad(d.getSeconds()); };
-function srRow(r){
+/* 구글시트용 — 품목 1개 = 1줄 (제품명·수량 칸 분리 → 필터·집계 가능). 요청키 = 요청일시#순번 */
+function srItemRowsBase(r){
+  const its = (r.items && r.items.length) ? r.items : [{ kind:'model', name:'(품목 없음)', qty:0 }];
+  return its.map((i,n)=>({
+    key: srKey(r.requested_at)+'#'+(n+1),
+    kind: i.kind==='set' ? '세트' : i.kind==='part' ? '부품' : '기타',
+    name: i.name||'', code: i.code||'', qty: Number(i.qty)||0, unit: i.kind==='part' ? '개' : 'set'
+  }));
+}
+function srRows(r){
   const s = shipments.find(x=>x.id===r.shipment_id);
-  return {
-    '요청일시': srKey(r.requested_at), '요청자': r.requester||'', '고객사': r.customer||'', '현장명': r.site||'',
-    '담당자': r.manager||'', '연락처': r.phone||'', '수령인': r.receiver||'',
-    '제품': (r.items||[]).map(i=>i.name+' ×'+i.qty).join(', '), '총수량': r.total_qty||0, '지게차모델': r.forklift||'',
-    '출고희망일': r.asap ? '최대한 빠르게' : (r.hope_date||''), '납품주소': r.address||'', '운임': r.freight||'', '배송방법': r.delivery||'',
-    '발주번호': r.box_label ? (r.order_no||'') : '', '특이사항': r.notes||'', '참고메모': r.memo||'',
-    '진행상태': '출고 요청', '출고완료일시': '', '처리자': '', '건명': s ? (s.name||'') : ''
-  };
+  return srItemRowsBase(r).map((it,n,all)=>({
+    '요청키': it.key, '요청일시': srKey(r.requested_at), '품목순번': (n+1)+'/'+all.length,
+    '요청자': r.requester||'', '발주사': r.customer||'', '현장명': r.site||'',
+    '수령자': r.manager||'', '연락처': r.phone||'',
+    '구분': it.kind, '제품명': it.name, '품번': it.code, '수량': it.qty, '단위': it.unit,
+    '지게차모델': r.forklift||'', '출고희망일': r.asap ? '최대한 빠르게' : (r.hope_date||''),
+    '납품주소': r.address||'', '운임': r.freight||'', '배송방법': r.delivery||'',
+    '발주번호': r.box_label ? (r.order_no||'') : (r.order_no||''), '특이사항': r.notes||'', '참고메모': r.memo||'',
+    '프로젝트딜': r.deal_id ? 'Y' : '', '진행상태': '출고 요청', '출고완료일시': '', '처리자': '', '건명': s ? (s.name||'') : ''
+  }));
 }
 function srLog(r, type, msg){ (r.log = r.log || []).push({ at:new Date().toISOString(), type, by:curUser(), msg }); }
 
@@ -9889,7 +9900,7 @@ async function srSendJandi(r){
   }
   try {
     const { log, jandi, ...payload } = r;
-    payload.req_key = srKey(r.requested_at); payload.row = srRow(r);
+    payload.req_key = srKey(r.requested_at); payload.rows = srRows(r);
     const res = await fetch(SHIP_REQ_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP '+res.status);
     r.jandi = { ...r.jandi, status:'sent', at:new Date().toISOString(), err:null };
@@ -10049,7 +10060,7 @@ async function srPushStatus(r, s, val){
   const payload = { req_key: srKey(r.requested_at), status: val, notify: true, deal: !!r.deal_id,
     jandi_text: srStatusText(r, val, s && s.done_at),
     customer: r.customer, site: r.site, items: r.items, total_qty: r.total_qty, order_no: r.order_no, by: curUser(),
-    row: { '요청일시': srKey(r.requested_at), '진행상태': label, '출고완료일시': val==='done' && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() } };
+    rows: srItemRowsBase(r).map(it=>({ '요청키': it.key, '진행상태': label, '출고완료일시': val==='done' && s && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() })) };
   try {
     const res = await fetch(SHIP_REQ_UPDATE_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP '+res.status);
