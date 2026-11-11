@@ -9341,6 +9341,12 @@ loadAll();
   .sr-hcomp{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .sr-hcomp .x{display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px 8px 4px 4px;font-size:11.5px;}
   .sr-hcomp img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#fff;cursor:zoom-in;}
+  .sr-stsel{font-size:11.5px;font-weight:800;padding:4px 8px;border-radius:8px;cursor:pointer;font-family:inherit;}
+  .sr-stsel.req{border:1px solid #d97706;color:#b45309;background:#fff7ed;}
+  .sr-stsel.done{border:1px solid #16a34a;color:#15803d;background:#dcfce7;}
+  .sr-stsel.ret{border:1px solid #dc2626;color:#b91c1c;background:#fdecec;}
+  .sr-deal{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;background:#f5f0ff;color:#6d28d9;border:1px solid #ddd0fb;margin-top:4px;white-space:nowrap;}
+  tr.row.is-deal td:first-child{box-shadow:inset 3px 0 0 #8b5cf6;}
   @media (max-width:860px){ .sr-grid,.sr-detail{grid-template-columns:1fr;} .sr-pv-wrap{position:static;} .sr-tabs{top:73px;} .sr-comp{margin-left:0;} }
 </style>
 
@@ -9910,7 +9916,12 @@ function srReset(keepTab){
 /* ===== 요청 이력 ===== */
 function srShipOf(r){ return shipments.find(s=>s.id===r.shipment_id) || null; }
 function srState(r){
-  if (r.deal_id){ const d=(typeof deals!=='undefined')?deals.find(x=>x.id===r.deal_id):null; return { k:'deal', label:d?'🔧 프로젝트딜':'🔧 프로젝트딜 (삭제됨)', cls:'off' }; }
+  if (r.deal_id){
+    const st = r.ship_status || 'request';
+    if (st==='returned') return { k:'ret', label:'🔄 반품', cls:'ret', deal:true };
+    if (st==='done') return { k:'done', label:'✅ 출고 완료', cls:'done', deal:true };
+    return { k:'req', label:'📦 출고 대기', cls:'req', deal:true };
+  }
   const s = srShipOf(r);
   if (!s) return { k:'del', label:'목록에서 삭제됨', cls:'off' };
   if (s.returned) return { k:'ret', label:'🔄 반품', cls:'ret' };
@@ -9929,13 +9940,14 @@ function srGoShip(id){
   closeShipReq(); $('shipSearch').value = s.name || s.co || ''; renderShip();
 }
 function srRenderHist(){
-  const cnt = k => shipReqs.filter(r=>k==='all'||srState(r).k===k).length;
+  const fOk = (r,k) => k==='all' || (k==='deal' ? !!r.deal_id : srState(r).k===k);
+  const cnt = k => shipReqs.filter(r=>fOk(r,k)).length;
   const fb = (k,l) => `<button class="sr-fbtn ${srF===k?'on':''}" onclick="srSetF('${k}')">${l} ${cnt(k)}</button>`;
-  $('srFilter').innerHTML = fb('all','전체')+fb('req','📦 출고 대기')+fb('done','✅ 출고 완료')
+  $('srFilter').innerHTML = fb('all','전체')+fb('req','📦 출고 대기')+fb('done','✅ 출고 완료')+fb('deal','🔧 프로젝트딜')
     + `<a class="btn btn-secondary btn-sm" href="${SHIP_SHEET_URL}" target="_blank" rel="noopener" style="color:#15803d;border-color:#bfe3c9;background:#f0fdf4;text-decoration:none;">📊 구글시트에서 출고내역 보기</a>`
     + `<input class="form-input" id="srQ" placeholder="고객사·현장·발주번호 검색" style="max-width:240px;padding:7px 12px;font-size:13px;margin-left:auto;" value="${esc(srHistQ||'')}" oninput="srHistQ=this.value;srRenderHist();this.focus();this.setSelectionRange(this.value.length,this.value.length)">`;
   const q = (srHistQ||'').toLowerCase();
-  const list = shipReqs.filter(r=>(srF==='all'||srState(r).k===srF) && (!q || [r.customer,r.site,r.order_no,r.requester,r.manager].join(' ').toLowerCase().includes(q)));
+  const list = shipReqs.filter(r=>fOk(r,srF) && (!q || [r.customer,r.site,r.order_no,r.requester,r.manager].join(' ').toLowerCase().includes(q)));
   const jp = r => r.jandi.status==='sent' ? `<span class="sr-pill ok">💬 전송</span>` : r.jandi.status==='failed' ? `<span class="sr-pill fail">⚠ 실패</span>` : r.jandi.status==='off' ? `<span class="sr-pill off">미연결</span>` : `<span class="sr-pill off">전송 중</span>`;
   const icon = { request:'', jandi_sent:'', jandi_off:'', jandi_fail:'fail', done:'done', returned:'ret', reverted:'' };
   $('srHistTbl').innerHTML = `
@@ -9943,14 +9955,15 @@ function srRenderHist(){
     <tbody>${list.length ? list.map(r=>{
       const st = srState(r), s = srShipOf(r), open = srOpenId===r.id;
       const doneAt = s && s.done_at ? `<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(s.done_at)}</div>` : '';
-      return `<tr class="row ${open?'open':''}" onclick="srToggle(${r.id})">
+      const doneIso = r.deal_id ? r.done_at : (s && s.done_at);
+      return `<tr class="row ${open?'open':''} ${r.deal_id?'is-deal':''}" onclick="srToggle(${r.id})">
         <td class="sr-ts" style="font-weight:700;white-space:nowrap;">${srStamp(r.requested_at)}</td>
         <td>${esc(r.requester||'-')}</td>
-        <td><b>${esc(r.customer)}</b>${r.site&&r.site!==r.customer?`<div style="font-size:11.5px;color:var(--text-tertiary);">${esc(r.site)}</div>`:''}</td>
+        <td><b>${esc(r.customer)}</b>${r.site&&r.site!==r.customer?`<div style="font-size:11.5px;color:var(--text-tertiary);">${esc(r.site)}</div>`:''}${r.deal_id?`<div><span class="sr-deal" title="프로젝트(딜)에서 보낸 출고 요청 · 출고 목록엔 없고 여기서만 상태 변경">🔧 프로젝트딜${srDealName(r)}</span></div>`:''}</td>
         <td>${r.items.map(i=>esc(i.name)+' ×'+i.qty).join('<br>')}${r.order_no?`<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">${esc(r.order_no)}</div>`:''}</td>
         <td style="white-space:nowrap;">${r.asap?'최대한 빠르게':fmtDate(r.hope_date)}</td>
         <td>${jp(r)}</td>
-        <td><span class="sr-pill ${st.cls}">${st.label}</span>${doneAt}</td>
+        <td onclick="event.stopPropagation();">${srStatusSel(r, st)}${doneIso?`<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(doneIso)}</div>`:''}</td>
       </tr>${open ? `<tr class="open"><td colspan="7">
         <div class="sr-detail">
           <div>
@@ -9971,6 +9984,55 @@ function srRenderHist(){
 }
 let srHistQ = '';
 
+/* ===== 요청 이력에서 출고 상태 변경 (일반 출고 + 프로젝트딜) ===== */
+function srDealName(r){
+  const d = (typeof deals!=='undefined') ? deals.find(x=>x.id===r.deal_id) : null;
+  return d ? '' : ' (딜 삭제됨)';
+}
+function srStatusSel(r, st){
+  const s = srShipOf(r);
+  if (!r.deal_id && !s) return `<span class="sr-pill off">${st.label}</span>`;   // 출고 목록에서 지워진 건
+  const cur = st.k==='ret' ? 'returned' : (st.k==='done' ? 'done' : 'request');
+  const cls = st.k==='ret' ? 'ret' : (st.k==='done' ? 'done' : 'req');
+  return `<select class="sr-stsel ${cls}" onchange="srChangeStatus(${r.id}, this.value, this)" title="바꾸면 잔디 출고방에 알림이 가요">
+    <option value="request" ${cur==='request'?'selected':''}>📦 출고 대기</option>
+    <option value="done" ${cur==='done'?'selected':''}>✅ 출고 완료</option>
+    <option value="returned" ${cur==='returned'?'selected':''}>🔄 반품 완료</option>
+  </select>`;
+}
+function srChangeStatus(id, val, el){
+  const r = shipReqs.find(x=>x.id===id); if (!r) return;
+  const label = val==='done' ? '출고 완료' : val==='returned' ? '반품 완료' : '출고 대기';
+  if (!confirm(`${r.customer}${r.deal_id?' (프로젝트딜)':''} 건을 '${label}'(으)로 바꾸고 잔디 출고방에 알릴까요?`)){ srRenderHist(); return; }
+  if (r.deal_id){
+    // 프로젝트딜 건: 출고 목록에 없으니 요청 이력에만 상태 저장
+    r.ship_status = val;
+    if (val==='done' && !r.done_at) r.done_at = new Date().toISOString();
+    if (val==='request') r.done_at = null;
+    srLog(r, val==='done'?'done':val==='returned'?'returned':'reverted', (val==='done'?'출고 완료 처리':val==='returned'?'반품 처리':'출고 대기로 되돌림')+' (프로젝트딜)');
+    saveShipReqs();
+    if (typeof addActivity==='function'){ try{ addActivity(r.deal_id, '출고 '+label, `${label} · ${(r.items||[]).map(i=>i.name+' ×'+i.qty).join(', ')}`, {source:'issue'}); }catch(e){} }
+    srPushStatus(r, { done_at:r.done_at }, val);
+    toast(`${label}(으)로 변경했어요 ✓ 잔디 알림 전송`);
+  } else {
+    const s = srShipOf(r); if (!s) return;
+    setShipStatus(s.id, val);          // 출고 목록과 같은 경로 → 기록·시트·잔디 알림까지 같이
+  }
+  srRenderHist();
+  if ($('detailPage') && $('detailPage').classList.contains('active') && typeof renderInfo==='function'){ try{ renderInfo(); }catch(e){} }
+}
+function srStatusText(r, val, doneIso){
+  const head = val==='done' ? '[출고 완료]' : val==='returned' ? '[반품 완료]' : '[출고 대기로 변경]';
+  const L = [head + (r.deal_id ? ' 🔧 프로젝트딜' : '')];
+  L.push('■ 발주사 : '+(r.customer||'') + (r.site && r.site!==r.customer ? ' / '+r.site : ''));
+  L.push('■ 제품 : '+(r.items||[]).map(i=>i.name+' × '+i.qty+(i.kind==='part'?'개':' set')).join(', '));
+  if (r.order_no) L.push('■ 발주번호 : '+r.order_no);
+  L.push('■ 요청 : '+srStamp(r.requested_at)+' ('+(r.requester||'-')+')');
+  if (val==='done' && doneIso) L.push('■ 완료 : '+srStamp(doneIso)+' ('+curUser()+')');
+  else L.push('■ 변경 : '+srStamp(new Date().toISOString())+' ('+curUser()+')');
+  return L.join('\n');
+}
+
 /* 출고 단계 변경 시 요청 이력에 일시 기록 (setShipStatus에서 호출) */
 function onShipStatusLog(s, val){
   if (val==='done' && !s.done_at) s.done_at = new Date().toISOString();
@@ -9984,7 +10046,8 @@ function onShipStatusLog(s, val){
 async function srPushStatus(r, s, val){
   if (!SHIP_REQ_UPDATE_WEBHOOK) return;
   const label = val==='done' ? '출고 완료' : val==='returned' ? '반품' : '출고 요청';
-  const payload = { req_key: srKey(r.requested_at), status: val, notify: val==='done',
+  const payload = { req_key: srKey(r.requested_at), status: val, notify: true, deal: !!r.deal_id,
+    jandi_text: srStatusText(r, val, s && s.done_at),
     customer: r.customer, site: r.site, items: r.items, total_qty: r.total_qty, order_no: r.order_no, by: curUser(),
     row: { '요청일시': srKey(r.requested_at), '진행상태': label, '출고완료일시': val==='done' && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() } };
   try {
