@@ -9455,6 +9455,7 @@ loadAll();
 /* ===== 출고 요청 — 설정 ===== */
 const SHIP_REQ_WEBHOOK        = 'https://nfrnd.app.n8n.cloud/webhook/surepoint-shipping';         // 요청 등록: 잔디 전송 + 시트 기록 (비우면 '미연결')
 const SHIP_REQ_UPDATE_WEBHOOK = 'https://nfrnd.app.n8n.cloud/webhook/surepoint-shipping-update';  // 출고 단계 변경 → 시트 갱신 (+완료 시 잔디 알림)
+const SHIP_SHEET_BACKFILL_WEBHOOK = 'https://nfrnd.app.n8n.cloud/webhook/surepoint-shipping-backfill';  // 예전 요청 시트 다시 채우기 (잔디 알림 없음)
 const SHIP_SHEET_URL          = 'https://docs.google.com/spreadsheets/d/1dtoB8fr0a1EB5yGYnTAh_hSwA5lhXSVRnmeHOat8Sc4/edit#gid=664889698';  // '출고' 탭 열고 주소창 #gid=... 까지 복사해서 바꾸면 바로 그 탭으로 열려요
 const SHIP_REQ_LS_KEY  = 'sp_ship_requests_v1';
 const SHIP_REQ_KV      = 'ship_requests';  // sp_kv 공유 키
@@ -9956,6 +9957,7 @@ function srRenderHist(){
   const fb = (k,l) => `<button class="sr-fbtn ${srF===k?'on':''}" onclick="srSetF('${k}')">${l} ${cnt(k)}</button>`;
   $('srFilter').innerHTML = fb('all','전체')+fb('req','📦 출고 대기')+fb('done','✅ 출고 완료')+fb('deal','🔧 프로젝트딜')
     + `<a class="btn btn-secondary btn-sm" href="${SHIP_SHEET_URL}" target="_blank" rel="noopener" style="color:#15803d;border-color:#bfe3c9;background:#f0fdf4;text-decoration:none;">📊 구글시트에서 출고내역 보기</a>`
+    + `<button class="btn btn-secondary btn-sm" id="srBackfillBtn" onclick="srBackfillSheet()" title="지금까지의 요청 전체를 시트 '출고' 탭에 품목별로 다시 채워요 (잔디 알림 없음 · 여러 번 눌러도 중복 안 생김)">🔄 시트 다시 채우기</button>`
     + `<input class="form-input" id="srQ" placeholder="고객사·현장·발주번호 검색" style="max-width:240px;padding:7px 12px;font-size:13px;margin-left:auto;" value="${esc(srHistQ||'')}" oninput="srHistQ=this.value;srRenderHist();this.focus();this.setSelectionRange(this.value.length,this.value.length)">`;
   const q = (srHistQ||'').toLowerCase();
   const list = shipReqs.filter(r=>fOk(r,srF) && (!q || [r.customer,r.site,r.order_no,r.requester,r.manager].join(' ').toLowerCase().includes(q)));
@@ -9994,6 +9996,36 @@ function srRenderHist(){
   srBadge();
 }
 let srHistQ = '';
+
+/* ===== 예전 요청 → 시트 '출고' 탭 다시 채우기 (잔디 X, 요청키 기준이라 중복 없음) ===== */
+function srCurRowState(r){
+  const st = srState(r);
+  const label = st.k==='done' ? '출고 완료' : st.k==='ret' ? '반품' : st.k==='del' ? '목록에서 삭제됨' : '출고 요청';
+  const s = srShipOf(r);
+  const doneIso = r.deal_id ? r.done_at : (s && s.done_at);
+  return { label, done: (st.k==='done' && doneIso) ? srKey(doneIso) : '' };
+}
+async function srBackfillSheet(){
+  if (!SHIP_SHEET_BACKFILL_WEBHOOK){ toast('시트 채우기 웹훅이 설정되지 않았어요', true); return; }
+  const reqs = shipReqs.slice().sort((a,b)=>new Date(a.requested_at)-new Date(b.requested_at));
+  const rows = [];
+  reqs.forEach(r=>{ const c = srCurRowState(r); srRows(r).forEach(x=>{ x['진행상태']=c.label; x['출고완료일시']=c.done; rows.push(x); }); });
+  if (!rows.length){ toast('채울 요청이 없어요'); return; }
+  if (!confirm(`요청 ${reqs.length}건 (품목 ${rows.length}줄)을 시트 '출고' 탭에 채울까요?\n\n· 잔디 알림은 가지 않아요\n· 이미 있는 줄은 덮어쓰고, 없는 줄만 새로 추가돼요`)) return;
+  const btn = $('srBackfillBtn'); if (btn){ btn.disabled = true; }
+  const CH = 40; let ok = 0, fail = 0;
+  for (let i=0; i<rows.length; i+=CH){
+    if (btn) btn.textContent = `🔄 채우는 중... ${Math.min(i+CH, rows.length)}/${rows.length}`;
+    try {
+      const res = await fetch(SHIP_SHEET_BACKFILL_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rows: rows.slice(i, i+CH) }) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      ok += Math.min(CH, rows.length-i);
+    } catch(e){ fail += Math.min(CH, rows.length-i); }
+    await new Promise(r=>setTimeout(r, 1500));   // 구글시트 쓰기 한도 여유
+  }
+  if (btn){ btn.disabled = false; btn.textContent = '🔄 시트 다시 채우기'; }
+  toast(fail ? `시트 채우기: ${ok}줄 완료 · ${fail}줄 실패 — 한 번 더 누르면 다시 채워요 (중복 안 생김)` : `시트에 ${ok}줄 채웠어요 ✓`, !!fail);
+}
 
 /* ===== 요청 이력에서 출고 상태 변경 (일반 출고 + 프로젝트딜) ===== */
 function srDealName(r){
