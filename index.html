@@ -157,6 +157,25 @@
         .user-name { font-weight: 600; font-size: 14px; }
         .user-role { font-size: 12px; color: var(--text-tertiary); }
 
+        /* ── 사이드바 컴팩트 + 메뉴 스크롤 ── */
+        .sidebar { padding: 18px 12px 14px; }
+        .sidebar-logo { padding: 0 10px 14px; margin-bottom: 12px; }
+        .logo-brand { height: 22px; }
+        .logo-sub { font-size: 11px; }
+        .nav-menu { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 0 -6px; padding: 0 6px; scrollbar-width: thin; scrollbar-color: #d6dbe1 transparent; }
+        .nav-menu::-webkit-scrollbar { width: 5px; }
+        .nav-menu::-webkit-scrollbar-thumb { background: #d6dbe1; border-radius: 5px; }
+        .nav-menu::-webkit-scrollbar-track { background: transparent; }
+        .nav-item { padding: 8px 12px; gap: 10px; font-size: 13.5px; margin-bottom: 2px; border-radius: 10px; }
+        .nav-item svg { width: 17px; height: 17px; }
+        .nav-label { font-size: 10.5px; padding: 6px 12px; }
+        .nav-divider { margin: 10px 10px; }
+        .sync-chip { margin: 6px 6px 0; padding: 8px 10px; font-size: 11.5px; }
+        .user-profile { padding: 10px 12px; gap: 10px; margin-top: 10px; flex-shrink: 0; }
+        .user-avatar { width: 34px; height: 34px; font-size: 12px; }
+        .user-name { font-size: 13px; }
+        .user-role { font-size: 11px; }
+
         /* ===== Main ===== */
         .main-content { flex: 1; min-width: 0; margin-left: 260px; padding: 24px 32px; min-height: 100vh; }
         .page-header {
@@ -1770,22 +1789,28 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">출고·납품 관리</h1>
-                        <p class="page-subtitle">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · <b>📨 출고 요청</b>은 잔디 출고방 전송 + 목록에 자동 추가돼요</p>
+                        <p class="page-subtitle">출고건(설치 없이 제품만 출고)과 설치건(프로젝트 딜 출고)을 나눠서 관리해요 · 상태가 바뀌면 잔디 출고방에 자동으로 알려요</p>
+                        <p class="page-subtitle" style="display:none">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · <b>📨 출고 요청</b>은 잔디 출고방 전송 + 목록에 자동 추가돼요</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-secondary btn-sm" id="shExcelBtn" style="color:#15803d;border-color:#bfe3c9;" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
-                        <button class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">백업 ↓</button>
-                        <button class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
-                        <button class="btn btn-primary sh-req-btn" onclick="srMode='ship';srDealId=null;openShipReq()" title="잔디 출고방 전송 + 목록 자동 추가">📨 출고 요청<span class="b" id="shReqBadge" style="display:none">0</span></button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" id="shExcelBtn" style="color:#15803d;border-color:#bfe3c9;" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">백업 ↓</button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
+                        <button data-sx="ship" class="btn btn-primary sh-req-btn" onclick="srMode='ship';srDealId=null;openShipReq()" title="잔디 출고방 전송 + 목록 자동 추가">📨 출고 요청<span class="b" id="shReqBadge" style="display:none">0</span></button>
                         <button class="btn btn-secondary btn-sm" style="color:#0369a1;border-color:#bae6fd;background:#f0f9ff;" onclick="openBomList()" title="세이프가드플러스 BOM LIST 바로가기 (새 탭에서 열려요)">🔗 세이프가드플러스 BOM</button>
-                        <button class="btn btn-secondary" onclick="srMode='ship';srDealId=null;srOpenId=null;openShipReq('hist')">🕒 요청 이력</button>
-                        <button class="btn btn-primary" onclick="openShipModal()" title="카톡 등 다른 경로로 받은 건을 수기로 등록">
+                        <a class="btn btn-secondary btn-sm" href="javascript:void 0" onclick="window.open(SHIP_SHEET_URL,'_blank')" style="color:#15803d;border-color:#bfe3c9;background:#f0fdf4;text-decoration:none;">📊 구글시트</a>
+                        <button class="btn btn-secondary btn-sm" id="srBackfillBtn" onclick="srBackfillSheet()" title="지금까지의 요청 전체를 시트 '출고' 탭에 품목별로 다시 채워요 (잔디 알림 없음 · 중복 안 생김)">🔄 시트 다시 채우기</button>
+                        <button data-sx="inst" class="btn btn-primary" style="background:var(--sx-inst);border-color:var(--sx-inst);display:none;" onclick="sxPickDeal()">🔧 설치건 출고 요청</button>
+                        <button data-sx="ship" class="btn btn-primary" onclick="openShipModal()" title="카톡 등 다른 경로로 받은 건을 수기로 등록">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             직접 등록
                         </button>
                         <input type="file" id="shipImportInput" hidden accept=".json">
                     </div>
                 </div>
+                <div class="sx-bigtabs" id="sxBigTabs"></div>
+                <div class="sx-wrap ship" id="sxWrap">
+                <div id="sxShipPanel">
                 <div class="stats-grid" id="shipStats"></div>
                 <div class="filter-bar">
                     <div class="search-box">
@@ -1794,9 +1819,20 @@
                     </div>
                 </div>
                 <div id="shipGovTabs" style="margin:4px 0 14px;"></div>
-                <div id="shipChips" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+                <div id="shipChips" style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;"></div>
+                <div id="sxShipSub"></div>
                 <div style="overflow-x:auto;" class="section-card">
-                    <table class="data-table" id="shipTable"></table>
+                    <table class="data-table sx-ship-t" id="shipTable"></table>
+                </div>
+                </div>
+                <div id="sxInstPanel" style="display:none">
+                    <div class="sx-kpis" id="sxInstKpis"></div>
+                    <div id="sxInstSub"></div>
+                    <div style="overflow-x:auto;" class="section-card">
+                        <table class="data-table sx-inst-t" id="sxInstTable"></table>
+                    </div>
+                    <div class="sx-guide">💡 <span>설치건 출고 요청은 <b>프로젝트(딜) 상세 → 📨 출고 요청</b>에서 보내도 여기로 모여요. 매출·계산서는 딜에서 관리하고, 이 탭에서는 <b>출고 상태만</b> 관리해요.</span></div>
+                </div>
                 </div>
             </div>
 
@@ -7757,14 +7793,14 @@ function renderShip(){
   });
   // 검색어만 적용한 기준 목록 (칩 건수 계산용)
   const base = shipScope.filter(s=>{
+    if (!sxShipMonthOk(s)) return false;
     if (q) { const pn = Array.isArray(s.products)?s.products.map(p=>p.name||'').join(' '):''; const hay = `${s.name||''} ${s.co||''} ${s.prod||''} ${pn} ${s.person||''}`.toLowerCase(); if (!hay.includes(q)) return false; }
     return true;
   });
 
   // 칩 필터 적용
   let list = base.filter(s=>{
-    if (shipStatusF === 'done' && !shipDone(s)) return false;
-    if (shipStatusF === 'request' && shipDone(s)) return false;
+    if (!sxStatusOk(s)) return false;
     if (shipInvF === 'issued' && !s.tax_invoice_issued) return false;
     if (shipInvF === 'unissued' && s.tax_invoice_issued) return false;
     if (shipCollF === 'collected' && !s.collected) return false;
@@ -7785,8 +7821,7 @@ function renderShip(){
     </div>`;
   // 세금계산서 (현재 출고 단계까지 적용한 부분집합에서 건수)
   const invScope = base.filter(s=>{
-    if (shipStatusF === 'done' && !shipDone(s)) return false;
-    if (shipStatusF === 'request' && shipDone(s)) return false;
+    if (!sxStatusOk(s)) return false;
     return true;
   });
   const nIssued = invScope.filter(s=>s.tax_invoice_issued).length, nUniss = invScope.length - nIssued;
@@ -7806,7 +7841,7 @@ function renderShip(){
     </div>`;
   // ── 필터 접기/펼치기 (시안 A 동작 · B 링크 모양) ──
   const shipActive = [];
-  if (shipStatusF==='request') shipActive.push('📦 출고 요청'); else if (shipStatusF==='done') shipActive.push('✅ 출고 완료');
+  if (shipStatusF==='request') shipActive.push('📦 출고 대기'); else if (shipStatusF==='done') shipActive.push('✅ 출고 완료'); else if (shipStatusF==='returned') shipActive.push('🔄 반품');
   if (shipInvF==='unissued') shipActive.push('미발행'); else if (shipInvF==='issued') shipActive.push('발행');
   if (shipCollF==='uncollected') shipActive.push('💰 수금 전'); else if (shipCollF==='collected') shipActive.push('✅ 수금 완료');
   const shipSummary = shipActive.length
@@ -7816,11 +7851,12 @@ function renderShip(){
       <span style="font-size:12px;color:var(--text-tertiary);">${shipFilterOpen ? '' : shipSummary}</span>
       <span onclick="toggleShipFilter()" style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">${shipFilterOpen ? '필터 숨기기 ▲' : '필터 보기 ▼'}</span>
     </div>`;
-  $('shipChips').innerHTML = shipToggleBar + (shipFilterOpen ? statusRow + invRow + collRow : '');
+  $('shipChips').innerHTML = shipToggleBar + (shipFilterOpen ? invRow + collRow : '');
+  sxRenderShipSub(base);
 
   // KPI
   const now = new Date();
-  const thisMonth = now.toISOString().slice(0,7);
+  const thisMonth = (sxShipBasis==='ship' && sxShipMonth) ? sxShipMonth : now.toISOString().slice(0,7);
   const thisYear = String(now.getFullYear());
   const monthAmt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).reduce((a,s)=>a+shipNet(s),0);
   const monthCnt = shipScope.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(thisMonth)).length;
@@ -7829,14 +7865,14 @@ function renderShip(){
   const reqCnt = shipScope.filter(s=>!shipDone(s)).length;
   const reqAmt = shipScope.filter(s=>!shipDone(s)).reduce((a,s)=>a+(s.amount||0),0);
   $('shipStats').innerHTML = `
-    <div class="stat-card"><div class="stat-label">이번 달 출고 매출 (완료)</div><div class="stat-value">${fmtWon(monthAmt)}원</div><div class="stat-sub">출고 완료 ${monthCnt}건 · ${thisMonth.replace('-','.')}</div></div>
+    <div class="stat-card"><div class="stat-label">${(sxShipBasis==='ship' && sxShipMonth) ? sxMonthLabel(sxShipMonth) : '이번 달'} 출고 매출 (완료)</div><div class="stat-value">${fmtWon(monthAmt)}원</div><div class="stat-sub">출고 완료 ${monthCnt}건 · ${thisMonth.replace('-','.')}</div></div>
     <div class="stat-card"><div class="stat-label">${thisYear}년 누적 출고 매출 (완료)</div><div class="stat-value">${fmtWon(yearAmt)}원</div><div class="stat-sub">출고 완료 ${yearCnt}건 · 매출 대시보드에 반영됨</div></div>
-    <div class="stat-card"><div class="stat-label">출고 요청 대기</div><div class="stat-value" style="color:${reqCnt?'#b45309':'inherit'}">${reqCnt}<span class="unit">건</span></div><div class="stat-sub">${fmtWon(reqAmt)}원 · 완료로 바꿔야 매출 반영</div></div>
+    <div class="stat-card"><div class="stat-label">출고 대기</div><div class="stat-value" style="color:${reqCnt?'#b45309':'inherit'}">${reqCnt}<span class="unit">건</span></div><div class="stat-sub">${fmtWon(reqAmt)}원 · 완료로 바꿔야 매출 반영</div></div>
     <div class="stat-card"><div class="stat-label">세금계산서 미발행</div><div class="stat-value" style="color:${shipScope.filter(s=>!s.tax_invoice_issued).length?'var(--status-critical)':'inherit'}">${shipScope.filter(s=>!s.tax_invoice_issued).length}<span class="unit">건</span></div><div class="stat-sub">전체 ${shipScope.length}건 중 · 발행 ${shipScope.filter(s=>s.tax_invoice_issued).length}건</div></div>`;
 
   window._shipRenderedIds = list.map(s=>s.id);
   $('shipTable').innerHTML = `
-    <thead><tr><th style="width:30px;text-align:center;"><input type="checkbox" id="shSelAll" onclick="toggleShipSelAll(this.checked)" title="전체 선택"></th><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th>수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 단계</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
+    <thead><tr><th style="width:30px;text-align:center;"><input type="checkbox" id="shSelAll" onclick="toggleShipSelAll(this.checked)" title="전체 선택"></th><th>출고일</th><th>건명</th><th>고객사</th><th>제품</th><th style="text-align:right;">수량</th><th>금액(공급가)</th><th>VAT 포함</th><th>출고 상태</th><th>진행 (계산서·수금)</th><th>담당</th></tr></thead>
     <tbody>${list.length ? list.map(s=>{
       const inv = s.tax_invoice_issued
         ? `<span class="status-badge badge-paid" style="font-size:11px;padding:3px 9px;">발행 ${s.tax_invoice_date?fmtDate(s.tax_invoice_date):''}</span>`
@@ -7848,25 +7884,26 @@ function renderShip(){
                             : 'border:1px solid #d97706;color:#b45309;background:#fff7ed;');
       const shipStage = `<select onclick="event.stopPropagation();" onchange="event.stopPropagation();setShipStatus(${s.id}, this.value)"
         style="font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:8px;cursor:pointer;${stStyle}">
-        <option value="request" ${stState==='request'?'selected':''}>📦 출고 요청</option>
+        <option value="request" ${stState==='request'?'selected':''}>📦 출고 대기</option>
         <option value="done" ${stState==='done'?'selected':''}>✅ 출고 완료</option>
         <option value="returned" ${stState==='returned'?'selected':''} style="color:#dc2626;">🔄 반품 완료</option>
       </select>`;
       return `
-      <tr style="cursor:pointer" onclick="openShipModal(${s.id})">
+      <tr style="cursor:pointer" onclick="sxOpen('ship',${s.id})">
         <td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" class="sh-chk" ${shipSelected.has(s.id)?'checked':''} onclick="event.stopPropagation();toggleShipSel(${s.id},this.checked)"></td>
         <td class="td-num" style="font-weight:700;">${fmtDate(s.ship_date)}</td>
         <td style="font-weight:600">${esc(s.name||'-')}${typeof shipReqTag==='function'?shipReqTag(s):''}${shipReturned(s)?` <span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecec;color:var(--status-critical);">🔄 반품${s.return_qty?` ${esc(s.return_qty)}대`:''}</span>`:''}${shipReturned(s)&&s.return_reason?`<div style="font-size:11px;color:var(--status-critical);font-weight:400;margin-top:2px;">↩ ${esc(s.return_date?fmtDate(s.return_date)+' · ':'')}${esc(s.return_reason)}</div>`:''}${s.memo?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📝 ${esc(s.memo)}</div>`:''}${(s.gov_support&&(s.gov_order||s.gov_invoice_to||s.gov_install_site))?`<div style="font-size:11px;color:#4338ca;font-weight:600;margin-top:3px;background:#f2f4ff;border:1px solid #d5dbf7;border-radius:6px;padding:4px 7px;line-height:1.55;">🏛️ ${[s.gov_order?'발주 '+esc(s.gov_order):'',s.gov_invoice_to?'계산서 '+esc(s.gov_invoice_to):'',s.gov_install_site?'설치사 '+esc(s.gov_install_site):''].filter(Boolean).join(' · ')}</div>`:''}</td>
         <td>${s.co?`<span class="co-fin" data-co="${esc(s.co)}" onclick="event.stopPropagation();openCoFinPop(this.dataset.co,event)">${esc(s.co)}</span>`:'-'}${s.addr?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">📍 ${esc(s.addr)}</div>`:''}${(s.receiver||s.receiver_phone)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">👤 ${esc(s.receiver||'-')}${s.receiver_phone?` · ${esc(s.receiver_phone)}`:''}</div>`:''}${s.receiver_email?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:1px;">✉️ ${esc(s.receiver_email)}</div>`:''}</td>
-        <td>${esc(s.prod||'-')}${(Array.isArray(s.products)&&s.products.length>1)?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px;">${s.products.map(p=>esc(p.name||'제품')+(p.qty?` ×${p.qty}`:'')).join(', ')}</div>`:''}</td>
-        <td class="td-num">${s.qty||0}</td>
+        <td>${sxProdCell(s)}</td>
+        <td class="td-num" style="text-align:right;">${sxQtyCell(s)}</td>
         <td class="td-num" style="font-weight:700;">${shipReturned(s)?`<span style="color:var(--status-critical);">${fmtWon(shipNet(s))}</span><div style="font-size:11px;color:var(--text-tertiary);font-weight:600;text-decoration:line-through;">${fmtWon(s.amount||0)}</div>`:fmtWon(s.amount||0)}</td>
         <td class="td-num td-muted">${fmtWon(Math.round(shipNet(s)*1.1))}</td>
-        <td>${shipStage}</td>
+        <td onclick="event.stopPropagation();">${shipStage}${sxShipMeta(s)}</td>
         <td>${shipStepper(s)}</td>
         <td>${esc(s.person||'-')}</td>
-      </tr>`;}).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">등록된 출고·납품 건이 없어요</div><div class="empty-desc">오른쪽 위 "새 출고 등록"으로 추가하면 출고일 기준으로 매출에 반영돼요</div></div></td></tr>`}</tbody>`;
+      </tr>`;}).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">등록된 출고·납품 건이 없어요</div><div class="empty-desc">오른쪽 위 "📨 출고 요청"이나 "직접 등록"으로 추가하면 출고일 기준으로 매출에 반영돼요</div></div></td></tr>`}</tbody>${sxShipFoot(list)}`;
   updateShipSelUI();
+  if (typeof sxAfterShip==='function') sxAfterShip();
 }
 function onShipYear(){ renderShip(); }
 function setShipStatus(id, val){
@@ -8118,6 +8155,7 @@ function updateShipSelUI(){
   if(all){ all.checked = ids.length>0 && selInView===ids.length; all.indeterminate = selInView>0 && selInView<ids.length; }
   const btn = $('shExcelBtn');
   if(btn){ const n = shipSelected.size; btn.textContent = n>0 ? `📥 엑셀 다운로드 (${n}건)` : '📥 엑셀 다운로드'; }
+  if (typeof sxRenderShipSel==='function') sxRenderShipSel();
 }
 function shipStatusLabel(s){ return shipReturned(s) ? '반품 완료' : (s.ship_status==='done' ? '출고 완료' : '출고 요청'); }
 function shipRowForExcel(s){
@@ -9433,6 +9471,98 @@ loadAll();
 })();
 </script>
 
+
+<style>
+/* ═══════ 출고·납품 A안 — 출고건 / 설치건 (초콜릿 × 로즈핑크) ═══════ */
+:root{--sx-ship:#5a2e12;--sx-ship-l:#f1e4da;--sx-ship-b:#7a4524;--sx-ship-g:#faf5f1;--sx-ship-p:#dcc3b2;
+      --sx-inst:#a8505a;--sx-inst-l:#f8e6e6;--sx-inst-b:#d99a9c;--sx-inst-g:#fdf6f6;--sx-inst-p:#eccaca;}
+.sx-bigtabs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 14px;}
+.sx-bigtab{border:2px solid var(--border);background:var(--bg-card);border-radius:18px;padding:16px 18px;text-align:left;display:flex;align-items:center;gap:14px;position:relative;cursor:pointer;font-family:inherit;color:var(--text-primary);transition:border-color .15s;}
+.sx-bigtab:hover{border-color:#cbd5e1;}
+.sx-bigtab .ic{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 50px;}
+.sx-bigtab .t{font-size:17px;font-weight:900;}
+.sx-bigtab .s{font-size:12px;color:var(--text-tertiary);margin-top:3px;line-height:1.45;}
+.sx-bigtab .nums{margin-left:auto;display:flex;gap:16px;text-align:right;}
+.sx-bigtab .nums b{font-size:22px;font-weight:900;display:block;line-height:1.1;}
+.sx-bigtab .nums span{font-size:11px;color:var(--text-tertiary);font-weight:600;}
+.sx-bigtab.ship .ic{background:var(--sx-ship-l);} .sx-bigtab.inst .ic{background:var(--sx-inst-l);}
+.sx-bigtab.ship.on{border-color:var(--sx-ship-b);background:linear-gradient(180deg,var(--sx-ship-g),var(--bg-card));}
+.sx-bigtab.inst.on{border-color:var(--sx-inst-b);background:linear-gradient(180deg,var(--sx-inst-g),var(--bg-card));}
+.sx-bigtab.on::after{content:'';position:absolute;left:50%;bottom:-9px;width:16px;height:16px;transform:translateX(-50%) rotate(45deg);background:var(--bg-card);border-right:2px solid;border-bottom:2px solid;}
+.sx-bigtab.ship.on::after{border-color:var(--sx-ship-b);} .sx-bigtab.inst.on::after{border-color:var(--sx-inst-b);}
+.sx-late{color:#dc2626 !important;}
+.sx-wrap{border:2px solid var(--border);border-radius:20px;padding:16px 18px 18px;background:var(--bg-card);}
+.sx-wrap.ship{border-color:var(--sx-ship-p);} .sx-wrap.inst{border-color:var(--sx-inst-p);}
+.sx-sub{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:6px 0 10px;}
+.sx-subtabs{display:flex;gap:20px;}
+.sx-subtabs button{border:none;background:none;padding:11px 2px;font-size:14px;font-weight:600;color:var(--text-tertiary);border-bottom:2.5px solid transparent;margin-bottom:-1px;cursor:pointer;font-family:inherit;}
+.sx-subtabs button.on{color:var(--text-primary);font-weight:800;border-bottom-color:var(--text-primary);}
+.sx-subtabs button em{font-style:normal;font-size:12px;margin-left:3px;color:var(--text-tertiary);font-weight:700;}
+.sx-subtabs button.on em{color:var(--text-primary);}
+.sx-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;}
+.sx-tools input{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;width:220px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
+.sx-mf{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:3px 4px 3px 9px;font-size:13px;}
+.sx-mf select{border:none;background:transparent;font-weight:700;color:#1d4ed8;padding:4px;font-size:12.5px;font-family:inherit;cursor:pointer;}
+.sx-mf .msel{background:#fff;border:1px solid #bfdbfe;border-radius:7px;padding:4px 8px;}
+.sx-selbar{display:flex;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px 12px;margin:0 0 10px;font-size:12.5px;font-weight:700;color:#1d4ed8;flex-wrap:wrap;}
+.sx-ship-t tbody tr td:first-child{box-shadow:inset 3px 0 0 var(--sx-ship-b);}
+.sx-inst-t tbody tr td:first-child{box-shadow:inset 3px 0 0 var(--sx-inst-b);}
+.sx-il{line-height:1.5;min-height:19.5px;}
+.sx-unit{font-size:11.5px;color:var(--text-tertiary);font-weight:500;}
+.sx-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px;}
+.sx-kpi{background:var(--bg-main);border-radius:14px;padding:12px 14px;}
+.sx-kpi .l{font-size:12px;color:var(--text-tertiary);font-weight:700;} .sx-kpi .v{font-size:22px;font-weight:900;margin-top:3px;}
+.sx-kpi .v small{font-size:12px;color:var(--text-tertiary);font-weight:600;margin-left:2px;} .sx-kpi .s{font-size:11.5px;color:var(--text-tertiary);margin-top:2px;}
+.sx-deal{color:var(--sx-inst);font-weight:800;cursor:pointer;}
+.sx-deal:hover{text-decoration:underline;}
+.sx-stage{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:6px;background:#e0f2f4;color:#1a6b7c;margin-left:4px;}
+.sx-prog{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-secondary);margin-top:4px;}
+.sx-prog .pb{width:70px;height:5px;border-radius:5px;background:var(--sx-inst-l);overflow:hidden;} .sx-prog .pb i{display:block;height:100%;background:var(--sx-inst-b);}
+.sx-guide{display:flex;gap:10px;align-items:center;background:var(--sx-inst-g);border:1px solid var(--sx-inst-p);border-radius:12px;padding:10px 14px;margin-top:12px;font-size:12.5px;color:var(--sx-inst);}
+.sx-jd{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;background:#eff6ff;color:#1d4ed8;white-space:nowrap;}
+.sx-jd.fail{background:#fdecec;color:#b91c1c;} .sx-jd.off{background:#f2f4f6;color:#6b7684;}
+.data-table tfoot tr.sx-tot td{background:#f1f5f9;border-top:2px solid #94a3b8;font-size:13px;padding:13px 10px;cursor:default;}
+.data-table tfoot tr.sx-tot td:first-child{box-shadow:none !important;}
+.sx-tl2{font-size:12px;color:var(--text-secondary);font-weight:600;margin-left:6px;}
+.sx-brkt{font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;white-space:nowrap;}
+.data-table tfoot tr.sx-brk td{background:#f8fafc;padding:4px 10px 14px;}
+.sx-brkbox{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;}
+.sx-brkh{grid-column:1/-1;font-size:12px;font-weight:800;color:var(--text-secondary);margin:6px 0 2px;}
+.sx-brkl{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;}
+.sx-brkl span:first-child{flex:1;min-width:0;}
+/* 상세 패널 */
+.sx-dim{position:fixed;inset:0;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;transition:.2s;z-index:1500;}
+.sx-dim.on{opacity:1;pointer-events:auto;}
+.sx-drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--bg-card);z-index:1600;transform:translateX(100%);transition:.25s;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.14);}
+.sx-drawer.on{transform:none;}
+.sx-dh{padding:18px 22px 14px;border-bottom:1px solid var(--border);}
+.sx-dh h2{font-size:18px;margin-top:6px;letter-spacing:-.3px;}
+.sx-x{width:34px;height:34px;border-radius:50%;border:none;background:var(--bg-main);font-size:17px;color:var(--text-secondary);flex:0 0 34px;cursor:pointer;}
+.sx-db{flex:1;overflow-y:auto;padding:16px 22px 26px;}
+.sx-sec{font-size:12.5px;font-weight:800;color:var(--text-secondary);margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.sx-sec:first-child{margin-top:0;}
+.sx-info{display:grid;grid-template-columns:92px 1fr;gap:7px 10px;font-size:13px;background:var(--bg-main);border-radius:12px;padding:12px 14px;}
+.sx-info b{color:var(--text-tertiary);font-weight:700;}
+.sx-comp{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.sx-comp .ln{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;}
+.sx-comp .ln:last-child{border-bottom:none;}
+.sx-comp .ln.hd{background:#eef2ff;font-weight:800;color:#4338ca;}
+.sx-comp img{width:34px;height:34px;border-radius:7px;object-fit:contain;background:#fff;border:1px solid var(--border);flex:0 0 34px;cursor:zoom-in;}
+.sx-comp .ph{width:34px;height:34px;border-radius:7px;background:var(--bg-main);display:flex;align-items:center;justify-content:center;flex:0 0 34px;}
+.sx-comp .q{margin-left:auto;font-weight:800;white-space:nowrap;}
+.sx-msg{background:#fffbe6;border:1px solid #f1e3a0;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:#191f28;}
+.sx-reqs{border:1px solid var(--sx-inst-p);border-radius:12px;overflow:hidden;}
+.sx-reqs .r{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--sx-inst-l);font-size:12.5px;cursor:pointer;}
+.sx-reqs .r:last-child{border-bottom:none;} .sx-reqs .r.cur{background:var(--sx-inst-g);}
+.sx-foot{display:flex;gap:7px;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--border);}
+.sx-pick-item{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;}
+.sx-pick-item:hover{border-color:var(--sx-inst-b);background:var(--sx-inst-g);}
+@media (max-width:900px){ .sx-bigtabs{grid-template-columns:1fr;} .sx-bigtab .nums{gap:10px;} .sx-kpis{grid-template-columns:repeat(2,1fr);} .sx-tools input{width:100%;} }
+@media (max-width:560px){ .sx-bigtab .nums{display:none;} }
+</style>
+<div class="sx-dim" id="sxDim" onclick="sxClose()"></div>
+<div class="sx-drawer" id="sxDrawer"></div>
+
 <!-- ═══════════ 출고 요청 (요청 작성 + 요청 이력) ═══════════ -->
 <style>
   #shipReqModal .modal{max-width:1040px;width:96vw;}
@@ -9556,7 +9686,7 @@ loadAll();
     </div>
     <div class="sr-tabs">
       <button class="sr-tab on" id="srTabNew" onclick="srTab('new')">요청 작성</button>
-      <button class="sr-tab" id="srTabHist" onclick="srTab('hist')">요청 이력<span class="cnt" id="srHistCnt">0</span></button>
+      <button class="sr-tab" id="srTabHist" style="display:none" onclick="srTab('hist')">요청 이력<span class="cnt" id="srHistCnt">0</span></button>
     </div>
 
     <!-- ── 요청 작성 ── -->
@@ -9679,6 +9809,7 @@ async function loadShipReqRemote(){
     else if (shipReqs.length) { await sbUpsert(KV_TABLE, [{k:SHIP_REQ_KV, data:shipReqs}], 'k'); }
   } catch(e){}
   srBadge();
+  try { if (typeof sxAfterShip==='function') sxAfterShip(); } catch(e){}
 }
 const srKey = iso => { const d=new Date(iso); return d.getFullYear()+'-'+srPad(d.getMonth()+1)+'-'+srPad(d.getDate())+' '+srPad(d.getHours())+':'+srPad(d.getMinutes())+':'+srPad(d.getSeconds()); };
 /* 구글시트용 — 품목 1개 = 1줄 (제품명·수량 칸 분리 → 필터·집계 가능). 요청키 = 요청일시#순번 */
@@ -10085,7 +10216,7 @@ async function srSubmit(){
   }
   srMode='ship'; srDealId=null;
   srReset(true);
-  srOpenId = r.id; srTab('hist');
+  closeShipReq(); sxTab = isDealReq ? 'inst' : 'ship'; try{ localStorage.setItem('sp_sx_tab', sxTab); }catch(e){} sxRenderAll(); sxOpen('req', r.id);
 }
 async function srSendJandi(r){
   r.jandi.tries = (r.jandi.tries||0)+1;
@@ -10231,9 +10362,9 @@ function srDoneAtHtml(r, st, doneIso){
   if (st.k!=='done') return r.status_at ? `<div class="sr-ts" style="${meta}">변경 ${srStamp(r.status_at)} · ${esc(r.status_by||'')}</div>` : '';
   if (srEditDoneId===r.id){
     return `<div class="sr-doneed"><input type="datetime-local" id="srDoneIn" value="${doneIso?srLocalInput(doneIso):srLocalInput(new Date().toISOString())}">
-      <div><button class="ok" onclick="srSaveDone(${r.id})">저장</button><button onclick="srEditDoneId=null;srRenderHist()">취소</button></div></div>`;
+      <div><button class="ok" onclick="event.stopPropagation();srSaveDone(${r.id})">저장</button><button onclick="event.stopPropagation();srEditDoneId=null;srRenderHist();if(typeof sxRenderAll==='function')sxRenderAll()">취소</button></div></div>`;
   }
-  return `<div><span class="sr-doneat sr-ts" title="눌러서 출고 완료 일시 수정" onclick="srEditDoneId=${r.id};srRenderHist();setTimeout(()=>{const e=$('srDoneIn');if(e)e.focus();},0)">${doneIso?srStamp(doneIso):'일시 입력'}${r.done_by?' · '+esc(r.done_by):''} ✎</span></div>`
+  return `<div><span class="sr-doneat sr-ts" title="눌러서 출고 완료 일시 수정" onclick="event.stopPropagation();srEditDoneId=${r.id};srRenderHist();if(typeof sxRenderAll==='function')sxRenderAll();setTimeout(()=>{const e=$('srDoneIn');if(e)e.focus();},0)">${doneIso?srStamp(doneIso):'일시 입력'}${r.done_by?' · '+esc(r.done_by):''} ✎</span></div>`
     + (r.done_edit ? `<div class="sr-ts" style="${meta}color:#b45309;">✎ ${srStamp(r.done_edit.at)} ${esc(r.done_edit.by||'')} 수정</div>` : '');
 }
 function srSaveDone(id){
@@ -10257,7 +10388,7 @@ function srSaveDone(id){
   srPushStatus(r, { done_at: iso }, 'done', { silent:true });   // 시트만 갱신, 잔디 알림 X
   srEditDoneId = null;
   srRenderHist();
-  if (!r.deal_id && typeof renderShip==='function') renderShip();
+  if (typeof sxRenderAll==='function') sxRenderAll();
   toast('출고 완료 일시를 수정했어요 ✓');
 }
 
@@ -10280,7 +10411,7 @@ function srStatusSel(r, st){
 function srChangeStatus(id, val, el){
   const r = shipReqs.find(x=>x.id===id); if (!r) return;
   const label = val==='done' ? '출고 완료' : val==='returned' ? '반품 완료' : '출고 대기';
-  if (!confirm(`${r.customer}${r.deal_id?' (프로젝트딜)':''} 건을 '${label}'(으)로 바꾸고 잔디 출고방에 알릴까요?`)){ srRenderHist(); return; }
+  if (!confirm(`${r.customer}${r.deal_id?' (프로젝트딜)':''} 건을 '${label}'(으)로 바꾸고 잔디 출고방에 알릴까요?`)){ srRenderHist(); if (typeof sxRenderAll==='function') sxRenderAll(); return; }
   if (r.deal_id){
     // 프로젝트딜 건: 출고 목록에 없으니 요청 이력에만 상태 저장
     r.ship_status = val;
@@ -10297,6 +10428,7 @@ function srChangeStatus(id, val, el){
     setShipStatus(s.id, val);          // 출고 목록과 같은 경로 → 기록·시트·잔디 알림까지 같이
   }
   srRenderHist();
+  if (typeof sxRenderAll==='function') sxRenderAll();
   if ($('detailPage') && $('detailPage').classList.contains('active') && typeof renderInfo==='function'){ try{ renderInfo(); }catch(e){} }
 }
 function srStatusText(r, val, doneIso){
@@ -10325,7 +10457,7 @@ function onShipStatusLog(s, val){
 async function srPushStatus(r, s, val, opt){
   if (!SHIP_REQ_UPDATE_WEBHOOK) return;
   const label = val==='done' ? '출고 완료' : val==='returned' ? '반품' : '출고 요청';
-  const payload = { req_key: srKey(r.requested_at), status: val, notify: !(opt && opt.silent), deal: !!r.deal_id,
+  const payload = { req_key: srKey(r.requested_at), status: val, notify: !(opt && opt.silent) && !(typeof sxQuiet!=='undefined' && sxQuiet), deal: !!r.deal_id,
     jandi_text: srStatusText(r, val, s && s.done_at),
     customer: r.customer, site: r.site, items: r.items, total_qty: r.total_qty, order_no: r.order_no, by: curUser(),
     rows: srItemRowsBase(r).map(it=>({ '요청키': it.key, '진행상태': label, '출고완료일시': val==='done' && s && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() })) };
@@ -10337,7 +10469,7 @@ async function srPushStatus(r, s, val, opt){
 /* 목록 건명 아래 '요청' 표시 */
 function shipReqTag(s){
   if (!s.request_id) return '';
-  return `<div style="font-size:11px;font-weight:700;color:#c2410c;margin-top:3px;cursor:pointer;" onclick="event.stopPropagation();srOpenId=${s.request_id};openShipReq('hist')">📨 요청 ${s.requested_at?srStamp(s.requested_at):''} · ${esc(s.requested_by||'')}</div>`;
+  return `<div style="font-size:11px;font-weight:700;color:#c2410c;margin-top:3px;cursor:pointer;" onclick="event.stopPropagation();sxOpen('req',${s.request_id})">📨 요청 ${s.requested_at?srStamp(s.requested_at):''} · ${esc(s.requested_by||'')}</div>`;
 }
 
 /* ===== 이벤트 ===== */
@@ -10354,6 +10486,335 @@ document.addEventListener('change', e=>{
   srUpdate();
 });
 $('shipReqModal').addEventListener('click', e=>{ if (e.target.id==='shipReqModal') closeShipReq(); });
+
+/* ═══════════ 출고·납품 A안 — 출고건(단순 출고) / 설치건(프로젝트딜 출고) ═══════════ */
+let sxTab = 'ship';
+try { const t = localStorage.getItem('sp_sx_tab'); if (t==='inst' || t==='ship') sxTab = t; } catch(e){}
+let sxShipMonth = '', sxShipBasis = 'ship', sxShipBrk = false;
+let sxInstSub = 'all', sxInstMonth = '', sxInstBasis = 'done', sxInstQ = '', sxInstBrk = false;
+let sxInstSel = new Set(), sxOpenRef = null, sxQuiet = false;
+
+const sxPad = n => String(n).padStart(2,'0');
+const sxLocalMonth = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return String(iso).slice(0,7); return d.getFullYear()+'-'+sxPad(d.getMonth()+1); };
+const sxMonthLabel = m => m ? (m.slice(0,4)+'년 '+Number(m.slice(5,7))+'월') : '전체 기간';
+const sxIsPart = (s, name) => Array.isArray(s.bom) && s.bom.some(b=>b.kind==='part' && b.name===name);
+const sxUnitOf = i => i.kind==='part' ? '개' : 'set';
+
+function sxSetTab(t){
+  sxTab = t; try { localStorage.setItem('sp_sx_tab', t); } catch(e){}
+  sxClose(true); sxRenderAll();
+}
+function sxRenderAll(){
+  if (typeof renderShip === 'function') renderShip();   // → sxAfterShip()에서 탭·설치건까지 갱신
+  else sxAfterShip();
+}
+function sxAfterShip(){
+  sxRenderTabs();
+  const sp = $('sxShipPanel'), ip = $('sxInstPanel'), w = $('sxWrap');
+  if (sp) sp.style.display = sxTab==='ship' ? '' : 'none';
+  if (ip) ip.style.display = sxTab==='inst' ? '' : 'none';
+  if (w) w.className = 'sx-wrap ' + sxTab;
+  document.querySelectorAll('#shipPage [data-sx]').forEach(el=>{ el.style.display = (el.dataset.sx===sxTab) ? '' : 'none'; });
+  if (sxTab==='inst') sxRenderInst();
+  if (sxOpenRef) sxRenderDrawer();
+}
+
+/* ── 큰 탭 ── */
+function sxDealReqs(){ return (typeof shipReqs!=='undefined' ? shipReqs : []).filter(r=>r.deal_id); }
+function sxReqState(r){ const st = srState(r); return st.k==='done' ? 'done' : st.k==='ret' ? 'ret' : st.k==='req' ? 'req' : 'other'; }
+function sxLateDays(iso){ return Math.floor((Date.now() - new Date(iso)) / 86400000); }
+function sxRenderTabs(){
+  const box = $('sxBigTabs'); if (!box) return;
+  const thisM = sxLocalMonth(new Date().toISOString());
+  const shipReq = shipments.filter(s=>!shipDone(s));
+  const shipLate = shipReq.filter(s=>s.requested_at && sxLateDays(s.requested_at)>=2).length;
+  const shipDoneM = shipments.filter(s=>shipDone(s) && !shipReturned(s) && String(s.ship_date||'').slice(0,7)===thisM).length;
+  const dr = sxDealReqs();
+  const instReq = dr.filter(r=>sxReqState(r)==='req');
+  const instLate = instReq.filter(r=>sxLateDays(r.requested_at)>=2).length;
+  const dealsN = new Set(dr.filter(r=>sxReqState(r)==='req' || sxLocalMonth(r.done_at)===thisM).map(r=>r.deal_id)).size;
+  box.innerHTML = `
+    <button class="sx-bigtab ship ${sxTab==='ship'?'on':''}" onclick="sxSetTab('ship')"><div class="ic">📦</div>
+      <div><div class="t">출고건</div><div class="s">설치 없이 제품만 나가는 건<br>매출 = 출고일 기준 · 계산서·수금 관리</div></div>
+      <div class="nums"><div><b>${shipReq.length}</b><span>출고 대기</span></div><div><b class="${shipLate?'sx-late':''}">${shipLate}</b><span>지연</span></div><div><b>${shipDoneM}</b><span>이번 달 완료</span></div></div></button>
+    <button class="sx-bigtab inst ${sxTab==='inst'?'on':''}" onclick="sxSetTab('inst')"><div class="ic">🔧</div>
+      <div><div class="t">설치건</div><div class="s">프로젝트(딜)에서 요청한 출고<br>매출 = 딜 기준 · 여기선 출고 상태만 관리</div></div>
+      <div class="nums"><div><b>${instReq.length}</b><span>출고 대기</span></div><div><b class="${instLate?'sx-late':''}">${instLate}</b><span>지연</span></div><div><b>${dealsN}</b><span>진행 딜</span></div></div></button>`;
+}
+
+/* ── 출고건 탭 (기존 renderShip에서 호출) ── */
+function sxShipKey(s){ return sxShipBasis==='req' ? sxLocalMonth(s.requested_at || s.created_at) : String(s.ship_date||'').slice(0,7); }
+function sxShipMonthOk(s){ return !sxShipMonth || sxShipKey(s)===sxShipMonth; }
+function sxStatusOk(s){
+  if (shipStatusF==='request') return !shipDone(s);
+  if (shipStatusF==='done') return shipDone(s) && !shipReturned(s);
+  if (shipStatusF==='returned') return shipReturned(s);
+  return true;
+}
+function sxMonthOptions(keys, cur){
+  const set = new Set(keys.filter(Boolean)); set.add(sxLocalMonth(new Date().toISOString()));
+  return [...set].sort().reverse().map(m=>`<option value="${m}" ${cur===m?'selected':''}>${sxMonthLabel(m)}</option>`).join('');
+}
+function sxRenderShipSub(base){
+  const box = $('sxShipSub'); if (!box) return;
+  const n = { '':base.length, request:base.filter(s=>!shipDone(s)).length, done:base.filter(s=>shipDone(s)&&!shipReturned(s)).length, returned:base.filter(shipReturned).length };
+  const tb = (v,l) => `<button class="${shipStatusF===v?'on':''}" onclick="setShipStatusF('${v}')">${l}<em>${n[v]}</em></button>`;
+  const keys = shipments.map(s=>sxShipBasis==='req' ? sxLocalMonth(s.requested_at||s.created_at) : String(s.ship_date||'').slice(0,7));
+  box.innerHTML = `<div class="sx-sub"><div class="sx-subtabs">${tb('','전체')}${tb('request','📦 출고 대기')}${tb('done','✅ 출고 완료')}${tb('returned','🔄 반품')}</div>
+    <div class="sx-tools"><span class="sx-mf">📅 <select onchange="sxShipBasis=this.value;renderShip()" title="어느 날짜로 월을 나눌지">
+        <option value="ship" ${sxShipBasis==='ship'?'selected':''}>출고일 기준</option><option value="req" ${sxShipBasis==='req'?'selected':''}>요청일 기준</option></select>
+      <select class="msel" onchange="sxShipMonth=this.value;renderShip()"><option value="">전체 기간</option>${sxMonthOptions(keys, sxShipMonth)}</select></span></div></div>
+    <div id="sxShipSel"></div>`;
+  sxRenderShipSel();
+}
+function sxRenderShipSel(){
+  const box = $('sxShipSel'); if (!box) return;
+  const ids = [...shipSelected].filter(id=>{ const s = shipments.find(x=>x.id===id); return s && !shipDone(s); });
+  box.innerHTML = shipSelected.size ? `<div class="sx-selbar">${shipSelected.size}건 선택됨
+      ${ids.length?`<button class="btn btn-secondary btn-sm" onclick="sxBulkShipDone()">✅ 출고 대기 ${ids.length}건 일괄 출고 완료</button>`:''}
+      <button class="btn btn-secondary btn-sm" onclick="exportShipExcel()">📥 엑셀</button>
+      <button class="btn btn-secondary btn-sm" onclick="shipSelected.clear();renderShip()">선택 해제</button></div>` : '';
+}
+function sxProdCell(s){
+  const ps = Array.isArray(s.products) && s.products.length ? s.products : [{ name:s.prod||'-', qty:s.qty }];
+  return ps.map(p=>`<div class="sx-il">${esc(p.name||'제품')}</div>`).join('');
+}
+function sxQtyCell(s){
+  const ps = Array.isArray(s.products) && s.products.length ? s.products : [{ name:s.prod||'', qty:s.qty }];
+  return ps.map(p=>{
+    const u = Array.isArray(s.bom) ? (sxIsPart(s, p.name) ? '개' : 'set') : '';
+    return `<div class="sx-il"><b>${Number(p.qty)||0}</b>${u?` <span class="sx-unit">${u}</span>`:''}</div>`;
+  }).join('');
+}
+function sxShipMeta(s){
+  const r = s.request_id ? shipReqs.find(x=>x.id===s.request_id) : null;
+  if (r) return srDoneAtHtml(r, srState(r), s.done_at);
+  if (shipDone(s) && s.done_at) return `<div class="sr-ts" style="font-size:10.5px;color:var(--text-tertiary);margin-top:3px;">${srStamp(s.done_at)}</div>`;
+  if (!shipDone(s) && s.requested_at && sxLateDays(s.requested_at)>=2) return `<div style="font-size:11px;font-weight:800;color:#dc2626;margin-top:3px;">⚠ ${sxLateDays(s.requested_at)}일째 대기</div>`;
+  return '';
+}
+function sxProdBreak(rows){   // rows: [{name, qty, unit}]
+  const by = {}; rows.forEach(x=>{ const k = x.name+'|'+(x.unit||''); by[k] = (by[k]||0) + (Number(x.qty)||0); });
+  return Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,q])=>{ const [n,u] = k.split('|'); return `<div class="sx-brkl"><span>${esc(n)}</span><b>${q}</b>${u?`<span class="sx-unit">${u}</span>`:''}</div>`; }).join('');
+}
+function sxShipFoot(list){
+  if (!list.length) return '';
+  const qty = list.reduce((a,s)=>a+(Number(s.qty)||0),0);
+  const amt = list.reduce((a,s)=>a+shipNet(s),0);
+  const c = { req:list.filter(s=>!shipDone(s)).length, done:list.filter(s=>shipDone(s)&&!shipReturned(s)).length, ret:list.filter(shipReturned).length };
+  const label = sxShipMonth ? sxMonthLabel(sxShipMonth) : '전체 기간';
+  const rows = []; list.forEach(s=>{ (Array.isArray(s.products)&&s.products.length ? s.products : [{name:s.prod||'-', qty:s.qty}]).forEach(p=>rows.push({ name:p.name||'제품', qty:p.qty, unit: Array.isArray(s.bom) ? (sxIsPart(s,p.name)?'개':'set') : '' })); });
+  return `<tfoot><tr class="sx-tot"><td></td><td colspan="3"><b>합계</b><span class="sx-tl2">${label} · ${list.length}건</span></td>
+      <td><span class="sx-brkt" onclick="sxShipBrk=!sxShipBrk;renderShip()">제품별 합계 ${sxShipBrk?'접기 ▴':'보기 ▾'}</span></td>
+      <td class="td-num" style="text-align:right;"><b>${qty}</b></td>
+      <td class="td-num" style="font-weight:800;">${fmtWon(amt)}</td><td class="td-num" style="font-weight:700;">${fmtWon(Math.round(amt*1.1))}</td>
+      <td colspan="3" style="font-size:12px;">✅ 완료 <b>${c.done}</b> · 📦 대기 <b>${c.req}</b>${c.ret?` · 🔄 반품 <b>${c.ret}</b>`:''} <span style="color:var(--text-tertiary);">(반품은 금액에서 차감)</span></td></tr>
+    ${sxShipBrk?`<tr class="sx-brk"><td></td><td colspan="10"><div class="sx-brkbox"><div class="sx-brkh">제품별 합계 · ${label}</div>${sxProdBreak(rows)}</div></td></tr>`:''}</tfoot>`;
+}
+
+/* ── 설치건 탭 ── */
+function sxDealOf(r){ return (typeof deals!=='undefined') ? deals.find(x=>x.id===r.deal_id) : null; }
+function sxRound(r){ const same = sxDealReqs().filter(x=>x.deal_id===r.deal_id).sort((a,b)=>new Date(a.requested_at)-new Date(b.requested_at)); return (same.findIndex(x=>x.id===r.id)+1)+'차'; }
+function sxInstKey(r){ return sxInstBasis==='req' ? sxLocalMonth(r.requested_at) : sxLocalMonth(r.done_at); }
+function sxInstMonthOk(r){ return !sxInstMonth || sxInstKey(r)===sxInstMonth; }
+function sxSetQty(r){ return (r.items||[]).filter(i=>i.kind!=='part').reduce((a,i)=>a+(Number(i.qty)||0),0); }
+function sxInstProgress(d){
+  if (!d) return null;
+  const total = (typeof dealTotalQty==='function') ? dealTotalQty(d) : 0; if (!total) return null;
+  const done = (typeof dealRealizedQty==='function') ? dealRealizedQty(d) : ((typeof dealBatchDoneQty==='function') ? dealBatchDoneQty(d.id) : 0);
+  return { done: Math.min(done, total), total };
+}
+function sxRenderInst(){
+  const all = sxDealReqs();
+  const q = sxInstQ.trim().toLowerCase();
+  const base = all.filter(r=>sxInstMonthOk(r) && (!q || [r.customer, r.site, r.order_no, r.requester, (sxDealOf(r)||{}).co, (sxDealOf(r)||{}).site, ...(r.items||[]).map(i=>i.name)].join(' ').toLowerCase().includes(q)));
+  const subOk = r => sxInstSub==='all' || sxReqState(r)===sxInstSub;
+  const list = base.filter(subOk).sort((a,b)=>new Date(b.requested_at)-new Date(a.requested_at));
+  const L = sxInstMonth ? sxMonthLabel(sxInstMonth) : '전체 기간';
+  // KPI
+  const reqAll = all.filter(r=>sxReqState(r)==='req');
+  const M = all.filter(sxInstMonthOk);
+  const doneM = M.filter(r=>sxReqState(r)==='done');
+  const notInst = M.filter(r=>{ if (sxReqState(r)!=='done') return false; const p = sxInstProgress(sxDealOf(r)); return p && p.done < p.total; }).length;
+  $('sxInstKpis').innerHTML = `
+    <div class="sx-kpi"><div class="l">현재 출고 대기</div><div class="v" style="color:#b45309">${reqAll.length}<small>건</small></div><div class="s">${reqAll.reduce((a,r)=>a+sxSetQty(r),0)}대 준비 필요 · 월 필터와 무관</div></div>
+    <div class="sx-kpi"><div class="l">${L} 출고 완료</div><div class="v">${doneM.length}<small>건</small></div><div class="s">${doneM.reduce((a,r)=>a+sxSetQty(r),0)}대 출고</div></div>
+    <div class="sx-kpi"><div class="l">${L} 출고한 딜</div><div class="v">${new Set(M.map(r=>r.deal_id)).size}<small>개</small></div><div class="s">딜 이름 누르면 프로젝트 상세</div></div>
+    <div class="sx-kpi"><div class="l">출고됐는데 설치 전</div><div class="v" style="color:var(--sx-inst)">${notInst}<small>건</small></div><div class="s">현장 설치 일정 확인 필요</div></div>`;
+  // 하위 탭 + 도구
+  const n = k => base.filter(r=>k==='all' || sxReqState(r)===k).length;
+  const tb = (v,l) => `<button class="${sxInstSub===v?'on':''}" onclick="sxInstSub='${v}';sxInstSel.clear();sxRenderInst()">${l}<em>${n(v)}</em></button>`;
+  const keys = all.map(r=>sxInstBasis==='req' ? sxLocalMonth(r.requested_at) : sxLocalMonth(r.done_at));
+  $('sxInstSub').innerHTML = `<div class="sx-sub"><div class="sx-subtabs">${tb('all','전체')}${tb('req','📦 출고 대기')}${tb('done','✅ 출고 완료')}${tb('ret','🔄 반품')}</div>
+    <div class="sx-tools"><input id="sxInstQ" placeholder="딜·현장·제품 검색" value="${esc(sxInstQ)}" oninput="sxInstQ=this.value;sxRenderInst();const e=$('sxInstQ');e.focus();e.setSelectionRange(e.value.length,e.value.length)">
+      <span class="sx-mf">📅 <select onchange="sxInstBasis=this.value;sxRenderInst()"><option value="done" ${sxInstBasis==='done'?'selected':''}>출고 완료일 기준</option><option value="req" ${sxInstBasis==='req'?'selected':''}>요청일 기준</option></select>
+      <select class="msel" onchange="sxInstMonth=this.value;sxInstSel.clear();sxRenderInst()"><option value="">전체 기간</option>${sxMonthOptions(keys, sxInstMonth)}</select></span></div></div>
+    ${sxInstSel.size?`<div class="sx-selbar">${sxInstSel.size}건 선택됨 <button class="btn btn-secondary btn-sm" onclick="sxBulkInstDone()">✅ 일괄 출고 완료</button><button class="btn btn-secondary btn-sm" onclick="sxInstSel.clear();sxRenderInst()">선택 해제</button></div>`:''}`;
+  // 표
+  const jp = r => r.jandi && r.jandi.status==='sent' ? '<span class="sx-jd">💬 전송</span>' : r.jandi && r.jandi.status==='failed' ? '<span class="sx-jd fail">⚠ 실패</span>' : '<span class="sx-jd off">미연결</span>';
+  const allChecked = list.length && list.every(r=>sxInstSel.has(r.id));
+  const rows = list.map(r=>{
+    const d = sxDealOf(r), st = srState(r), p = sxInstProgress(d);
+    const doneIso = r.done_at;
+    return `<tr style="cursor:pointer" onclick="sxOpen('req',${r.id})">
+      <td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" ${sxInstSel.has(r.id)?'checked':''} onclick="event.stopPropagation();this.checked?sxInstSel.add(${r.id}):sxInstSel.delete(${r.id});sxRenderInst()"></td>
+      <td style="white-space:nowrap;"><b>${srStamp(r.requested_at).slice(5)}</b><div style="font-size:11.5px;color:var(--text-tertiary);">${esc(r.requester||'')}</div></td>
+      <td>${d?`<span class="sx-deal" onclick="event.stopPropagation();openDetail(${d.id})">${esc(d.co||r.customer||'')}${d.site&&d.site!==d.co?' · '+esc(d.site):''} ↗</span><span class="sx-stage">${esc(canonStage(d))}</span>`:`<b>${esc(r.customer||'')}</b> <span style="font-size:11px;color:var(--text-tertiary);">(딜 삭제됨)</span>`}
+        <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:2px;">${esc(r.customer||'')} · ${sxRound(r)} 출고</div>
+        ${p?`<div class="sx-prog"><span class="pb"><i style="width:${Math.round(p.done/p.total*100)}%"></i></span>설치 ${p.done}/${p.total}대</div>`:''}</td>
+      <td>${esc(r.site||'-')}</td>
+      <td>${(r.items||[]).map(i=>`<div class="sx-il">${esc(i.name)}</div>`).join('')}${r.order_no?`<div style="font-size:11px;color:var(--text-tertiary);">${esc(r.order_no)}</div>`:''}</td>
+      <td class="td-num" style="text-align:right;">${(r.items||[]).map(i=>`<div class="sx-il"><b>${Number(i.qty)||0}</b> <span class="sx-unit">${sxUnitOf(i)}</span></div>`).join('')}</td>
+      <td onclick="event.stopPropagation();">${srStatusSel(r, st)}${srDoneAtHtml(r, st, doneIso)}${sxReqState(r)==='req'&&sxLateDays(r.requested_at)>=2?`<div style="font-size:11px;font-weight:800;color:#dc2626;margin-top:3px;">⚠ ${sxLateDays(r.requested_at)}일째 대기</div>`:''}</td>
+      <td>${jp(r)}</td></tr>`;
+  }).join('');
+  const foot = list.length ? (()=>{
+    const sets = list.reduce((a,r)=>a+(r.items||[]).filter(i=>i.kind!=='part').reduce((b,i)=>b+(Number(i.qty)||0),0),0);
+    const parts = list.reduce((a,r)=>a+(r.items||[]).filter(i=>i.kind==='part').reduce((b,i)=>b+(Number(i.qty)||0),0),0);
+    const c = k => list.filter(r=>sxReqState(r)===k).length;
+    const br = []; list.forEach(r=>(r.items||[]).forEach(i=>br.push({ name:i.name, qty:i.qty, unit:sxUnitOf(i) })));
+    return `<tfoot><tr class="sx-tot"><td></td><td colspan="3"><b>합계</b><span class="sx-tl2">${L} · ${list.length}건 · 딜 ${new Set(list.map(r=>r.deal_id)).size}개</span></td>
+      <td><span class="sx-brkt" onclick="sxInstBrk=!sxInstBrk;sxRenderInst()">제품별 합계 ${sxInstBrk?'접기 ▴':'보기 ▾'}</span></td>
+      <td class="td-num" style="text-align:right;"><div><b>${sets}</b> <span class="sx-unit">set</span></div>${parts?`<div><b>${parts}</b> <span class="sx-unit">개</span></div>`:''}</td>
+      <td colspan="2" style="font-size:12px;">✅ 완료 <b>${c('done')}</b> · 📦 대기 <b>${c('req')}</b>${c('ret')?` · 🔄 반품 <b>${c('ret')}</b>`:''}</td></tr>
+      ${sxInstBrk?`<tr class="sx-brk"><td></td><td colspan="7"><div class="sx-brkbox"><div class="sx-brkh">제품별 합계 · ${L}</div>${sxProdBreak(br)}</div></td></tr>`:''}</tfoot>`;
+  })() : '';
+  $('sxInstTable').innerHTML = `<thead><tr><th style="width:30px;text-align:center;"><input type="checkbox" ${allChecked?'checked':''} onclick="${list.map(r=>r.id).join(',') ? `[${list.map(r=>r.id).join(',')}].forEach(id=>this.checked?sxInstSel.add(id):sxInstSel.delete(id));sxRenderInst()` : ''}"></th>
+      <th>요청 일시</th><th>프로젝트(딜)</th><th>설치 현장</th><th>제품</th><th style="text-align:right;">수량</th><th>출고 상태</th><th>잔디</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="8"><div class="empty-state" style="padding:30px;"><div class="empty-title" style="font-size:15px;">해당하는 설치건 출고 요청이 없어요</div><div class="empty-desc">프로젝트(딜) 상세의 📨 출고 요청이나 위쪽 '설치건 출고 요청'으로 보내면 여기 모여요</div></div></td></tr>`}</tbody>${foot}`;
+}
+
+/* ── 일괄 출고 완료 (잔디 알림은 묶어서 1번) ── */
+async function sxBulkNotify(lines){
+  if (!SHIP_REQ_UPDATE_WEBHOOK || !lines.length) return;
+  const text = `[일괄 출고 완료] ${lines.length}건\n${lines.map(l=>'- '+l).join('\n')}\n\n■ 처리 : ${curUser()} · ${srStamp(new Date().toISOString())}`;
+  try { await fetch(SHIP_REQ_UPDATE_WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'done', notify:true, rows:[], jandi_text:text, customer:'일괄', by:curUser() }) }); } catch(e){}
+}
+async function sxBulkShipDone(){
+  const ss = [...shipSelected].map(id=>shipments.find(x=>x.id===id)).filter(s=>s && !shipDone(s));
+  if (!ss.length) return;
+  if (!confirm(`출고 대기 ${ss.length}건을 출고 완료로 바꿀까요?\n잔디 출고방에는 한 번에 묶어서 알려요.`)) return;
+  sxQuiet = true;
+  const lines = [];
+  try { ss.forEach(s=>{ setShipStatus(s.id, 'done'); lines.push(`${s.co||''} · ${(Array.isArray(s.products)&&s.products.length?s.products:[{name:s.prod,qty:s.qty}]).map(p=>(p.name||'')+' ×'+(p.qty||0)).join(', ')}`); }); }
+  finally { sxQuiet = false; }
+  shipSelected.clear(); renderShip();
+  await sxBulkNotify(lines);
+  toast(`${ss.length}건 출고 완료 ✓ 잔디에 묶어서 알렸어요`);
+}
+function sxSetDealStatus(r, val){
+  r.ship_status = val;
+  r.status_by = curUser(); r.status_at = new Date().toISOString(); if (val==='done') r.done_by = curUser();
+  if (val==='done' && !r.done_at) r.done_at = new Date().toISOString();
+  if (val==='request') r.done_at = null;
+  srLog(r, val==='done'?'done':val==='returned'?'returned':'reverted', (val==='done'?'출고 완료 처리':val==='returned'?'반품 처리':'출고 대기로 되돌림')+' (프로젝트딜)');
+  if (typeof addActivity==='function'){ try{ addActivity(r.deal_id, '출고 '+(val==='done'?'출고 완료':val==='returned'?'반품 완료':'출고 대기'), (r.items||[]).map(i=>i.name+' ×'+i.qty).join(', '), {source:'issue'}); }catch(e){} }
+  srPushStatus(r, { done_at:r.done_at }, val);
+}
+async function sxBulkInstDone(){
+  const rs = [...sxInstSel].map(id=>shipReqs.find(x=>x.id===id)).filter(r=>r && sxReqState(r)!=='done');
+  if (!rs.length){ toast('이미 모두 출고 완료예요'); return; }
+  if (!confirm(`설치건 ${rs.length}건을 출고 완료로 바꿀까요?\n잔디 출고방에는 한 번에 묶어서 알려요.`)) return;
+  sxQuiet = true;
+  try { rs.forEach(r=>sxSetDealStatus(r,'done')); } finally { sxQuiet = false; }
+  saveShipReqs();
+  sxInstSel.clear(); sxRenderAll();
+  await sxBulkNotify(rs.map(r=>`🔧 ${r.customer||''}${r.site&&r.site!==r.customer?' / '+r.site:''} · ${(r.items||[]).map(i=>i.name+' ×'+i.qty).join(', ')}`));
+  toast(`${rs.length}건 출고 완료 ✓ 잔디에 묶어서 알렸어요`);
+}
+
+/* ── 설치건 출고 요청: 딜 고르기 ── */
+let sxPickList = [];
+function sxPickDraw(q){
+  q = (q||'').toLowerCase();
+  return sxPickList.filter(d=>!q || [d.co,d.site,d.prod].join(' ').toLowerCase().includes(q)).map(d=>`
+    <div class="sx-pick-item" onclick="$('sxPickModal').classList.remove('active');openShipReqForDeal(${d.id})"><div><b>${esc(d.co||'')}</b>${d.site?` · ${esc(d.site)}`:''}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">${esc(d.prod||'')} ${d.qty?'· '+esc(d.qty)+'대':''}</div></div><span class="sx-stage" style="align-self:center;">${esc(canonStage(d))}</span></div>`).join('')
+    || '<div style="padding:24px;text-align:center;color:var(--text-tertiary);">설치중 이후 단계의 딜이 없어요</div>';
+}
+function sxPickDeal(){
+  sxPickList = (typeof deals!=='undefined' ? deals : []).filter(d=>REVENUE_STAGES.has(canonStage(d)) && !(typeof isLost==='function' && isLost(d)));
+  let ov = $('sxPickModal');
+  if (!ov){ ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'sxPickModal'; document.body.appendChild(ov); ov.addEventListener('click', e=>{ if (e.target===ov) ov.classList.remove('active'); }); }
+  ov.innerHTML = `<div class="modal" style="max-width:520px;"><div class="modal-header"><div><h2 class="modal-title">🔧 설치건 출고 요청</h2><div style="font-size:12.5px;color:var(--text-tertiary);margin-top:3px;">출고할 프로젝트(딜)를 골라주세요 · 설치중 단계부터 가능</div></div><button class="modal-close" onclick="$('sxPickModal').classList.remove('active')">×</button></div>
+    <div class="modal-body"><input class="form-input" placeholder="고객사·현장·제품 검색" style="margin-bottom:12px;" oninput="$('sxPickList').innerHTML=sxPickDraw(this.value)">
+    <div id="sxPickList">${sxPickDraw('')}</div></div></div>`;
+  ov.classList.add('active');
+}
+
+/* ── 상세 패널 ── */
+function sxOpen(kind, id){ sxOpenRef = { kind, id }; sxRenderDrawer(); $('sxDrawer').classList.add('on'); $('sxDim').classList.add('on'); }
+function sxClose(silent){ sxOpenRef = null; const d=$('sxDrawer'), m=$('sxDim'); if (d) d.classList.remove('on'); if (m) m.classList.remove('on'); }
+function sxCompHtml(r, s){
+  if (r && r.items && r.items.length){
+    return r.items.map(i=>{
+      if (i.kind==='set'){
+        const ps = (i.parts||[]);
+        return `<div class="ln hd">📦 ${esc(i.name)} × ${i.qty} set</div>` + (ps.length ? ps.map(p=>`<div class="ln">${srImg(p.img)?`<img src="${srImg(p.img)}" data-cap="${esc(p.name)}" onclick="srZoomEl(this)">`:'<span class="ph">📦</span>'}<span>${esc(p.name)}<div style="font-size:11px;color:var(--text-tertiary);">${esc(p.code||'')}</div></span><span class="q">${p.per} × ${i.qty} = ${p.qty}</span></div>`).join('') : '');
+      }
+      if (i.kind==='part') return `<div class="ln">${srImg(i.img)?`<img src="${srImg(i.img)}" data-cap="${esc(i.name)}" onclick="srZoomEl(this)">`:'<span class="ph">🔩</span>'}<span>${esc(i.name)} <span style="font-size:11px;color:var(--text-tertiary);">(부품)</span><div style="font-size:11px;color:var(--text-tertiary);">${esc(i.code||'')}</div></span><span class="q">${i.qty} 개</span></div>`;
+      return `<div class="ln"><span class="ph">✏️</span><span>${esc(i.name)} <span style="font-size:11px;color:var(--text-tertiary);">(구성 미지정)</span></span><span class="q">${i.qty}</span></div>`;
+    }).join('');
+  }
+  const ps = s && Array.isArray(s.products) && s.products.length ? s.products : (s ? [{name:s.prod||'-', qty:s.qty}] : []);
+  return ps.map(p=>`<div class="ln"><span class="ph">📦</span><span>${esc(p.name||'제품')}</span><span class="q">${p.qty||0}</span></div>`).join('');
+}
+function sxRenderDrawer(){
+  const ref = sxOpenRef; if (!ref) return;
+  let r = null, s = null;
+  if (ref.kind==='ship'){ s = shipments.find(x=>x.id===ref.id); if (s && s.request_id) r = shipReqs.find(x=>x.id===s.request_id) || null; }
+  else { r = shipReqs.find(x=>x.id===ref.id); if (r && r.shipment_id) s = shipments.find(x=>x.id===r.shipment_id) || null; }
+  if (!r && !s){ sxClose(); return; }
+  const isInst = !!(r && r.deal_id);
+  const d = isInst ? sxDealOf(r) : null;
+  const tag = isInst ? '<span class="sx-jd" style="background:var(--sx-inst-l);color:var(--sx-inst);">🔧 설치건</span>' : '<span class="sx-jd" style="background:var(--sx-ship-l);color:var(--sx-ship);">📦 출고건</span>';
+  const title = isInst ? `${d ? (d.co||'')+(d.site&&d.site!==d.co?' · '+d.site:'') : (r.customer||'')} · ${sxRound(r)} 출고` : (s ? (s.name||s.co||'출고 건') : (r.customer||''));
+  let stHtml = '';
+  if (s){
+    const stState = shipReturned(s) ? 'returned' : (s.ship_status==='done' ? 'done' : 'request');
+    const sty = stState==='returned' ? 'border:1px solid #dc2626;color:#b91c1c;background:#fdecec;' : stState==='done' ? 'border:1px solid #16a34a;color:#15803d;background:#dcfce7;' : 'border:1px solid #d97706;color:#b45309;background:#fff7ed;';
+    stHtml = `<select onchange="setShipStatus(${s.id}, this.value)" style="font-size:12px;font-weight:700;padding:5px 9px;border-radius:8px;cursor:pointer;${sty}">
+      <option value="request" ${stState==='request'?'selected':''}>📦 출고 대기</option><option value="done" ${stState==='done'?'selected':''}>✅ 출고 완료</option><option value="returned" ${stState==='returned'?'selected':''}>🔄 반품 완료</option></select>${sxShipMeta(s)}`;
+  } else if (r){ const st = srState(r); stHtml = srStatusSel(r, st) + srDoneAtHtml(r, st, r.done_at); }
+  const same = isInst ? sxDealReqs().filter(x=>x.deal_id===r.deal_id).sort((a,b)=>new Date(a.requested_at)-new Date(b.requested_at)) : [];
+  const p = isInst ? sxInstProgress(d) : null;
+  const icon = { request:'', jandi_sent:'', jandi_off:'', jandi_fail:'fail', done:'done', returned:'ret', reverted:'' };
+  $('sxDrawer').innerHTML = `
+    <div class="sx-dh"><div style="display:flex;justify-content:space-between;gap:10px;"><div>${tag} ${(r&&r.order_no)?`<span style="font-size:12px;color:var(--text-tertiary);margin-left:4px;">${esc(r.order_no)}</span>`:''}<h2>${esc(title)}</h2></div><button class="sx-x" onclick="sxClose()">×</button></div>
+      <div style="margin-top:10px;">${stHtml}</div></div>
+    <div class="sx-db">
+      ${isInst?`<div class="sx-sec">🗂️ 연결된 프로젝트(딜) ${d?`<span class="sx-deal" style="font-size:12px;" onclick="sxClose();openDetail(${d.id})">딜 열기 ↗</span>`:''}</div>
+        <div class="sx-info"><b>딜</b><span>${d?esc((d.co||'')+(d.site?' · '+d.site:''))+` <span class="sx-stage">${esc(canonStage(d))}</span>`:'(삭제된 딜)'}</span>
+          ${p?`<b>설치 진행</b><span>${p.done} / ${p.total}대</span>`:''}<b>매출</b><span style="color:var(--text-tertiary);">딜에서 관리 (여기선 출고 상태만)</span></div>
+        <div class="sx-sec">📨 이 딜의 출고 요청 (${same.length}회)</div>
+        <div class="sx-reqs">${same.map((x,i)=>`<div class="r ${x.id===r.id?'cur':''}" onclick="sxOpen('req',${x.id})"><b style="white-space:nowrap;">${i+1}차</b><span style="white-space:nowrap;">${srStamp(x.requested_at).slice(5)}</span><span style="flex:1;">${(x.items||[]).map(it=>esc(it.name)+' '+it.qty+sxUnitOf(it)).join(', ')}</span>${sxReqState(x)==='done'?'<span class="sx-jd" style="background:#dcfce7;color:#15803d;">완료</span>':sxReqState(x)==='ret'?'<span class="sx-jd fail">반품</span>':'<span class="sx-jd" style="background:#fff7ed;color:#b45309;">대기</span>'}</div>`).join('')}</div>`:''}
+      <div class="sx-sec">📋 출고 정보 ${s?`<button class="btn btn-secondary btn-sm" onclick="sxClose();openShipModal(${s.id})">✏️ 수정 (금액·계산서·수금)</button>`:''}</div>
+      <div class="sx-info">
+        <b>발주사</b><span>${esc((r&&r.customer)||(s&&s.co)||'-')}</span>
+        <b>현장</b><span>${esc((r&&r.site)||'-')}</span>
+        <b>수령자</b><span>${esc((r&&[r.manager,r.phone].filter(Boolean).join(' '))||(s&&[s.receiver,s.receiver_phone].filter(Boolean).join(' '))||'-')}</span>
+        <b>납품 주소</b><span>${esc((r&&r.address)||(s&&s.addr)||'-')}</span>
+        ${s?`<b>공급가</b><span>${s.amount?fmtWon(s.amount)+'원 <span style="color:var(--text-tertiary);font-size:12px;">(VAT 포함 '+fmtWon(Math.round(shipNet(s)*1.1))+'원)</span>':'<span style="color:#dc2626;font-weight:700;">미입력</span>'}</span>
+          <b>계산서·수금</b><span>${s.tax_invoice_issued?'계산서 발행':'계산서 미발행'} · ${s.collected?'수금 완료':'수금 전'}</span>
+          <b>출고일</b><span>${fmtDate(s.ship_date)}</span>`:''}
+        ${r?`<b>요청</b><span>${srStampS(r.requested_at)} · ${esc(r.requester||'')}</span>`:''}
+        ${(r&&r.notes)?`<b>특이사항</b><span>${esc(r.notes)}</span>`:''}
+        ${(s&&s.memo&&!r)?`<b>메모</b><span>${esc(s.memo)}</span>`:''}
+      </div>
+      <div class="sx-sec">📦 구성 ${r?`<button class="btn btn-secondary btn-sm" onclick="srPrint(${r.id})">📋 패킹리스트</button>`:''}</div>
+      <div class="sx-comp">${sxCompHtml(r, s)}</div>
+      ${r?`<div class="sx-sec">🕒 기록 <span style="font-weight:500;color:var(--text-tertiary);">누가 · 언제</span></div>
+        <ul class="sr-tl">${(r.log||[]).slice().reverse().map(l=>`<li class="${icon[l.type]||''}"><div>${esc(l.msg)}</div><div class="t sr-ts">${srStampS(l.at)} · ${esc(l.by||'-')}</div></li>`).join('')}</ul>
+        <div class="sx-sec">💬 잔디로 보낸 메시지</div><div class="sx-msg">${esc(r.text||'')}</div>`
+      :`<div class="sx-sec">🕒 기록</div><div style="font-size:12.5px;color:var(--text-tertiary);">직접 등록한 건이라 요청 기록이 없어요</div>`}
+    </div>
+    <div class="sx-foot">
+      ${r?`<button class="btn btn-secondary btn-sm" onclick="srResend(${r.id}).then(()=>sxRenderAll())">💬 잔디 재전송</button>
+        <button class="btn btn-secondary btn-sm" onclick="srCopy(shipReqs.find(x=>x.id===${r.id}).text)">문구 복사</button>`:''}
+      ${s?`<button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="sxClose();openShipModal(${s.id})">✏️ 출고 건 수정</button>`:''}
+    </div>`;
+}
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && sxOpenRef) sxClose(); });
+
 srBadge();
 </script>
 
