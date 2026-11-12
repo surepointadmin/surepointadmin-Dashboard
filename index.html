@@ -160,21 +160,21 @@
         /* ── 사이드바 컴팩트 + 메뉴 스크롤 ── */
         .sidebar { padding: 18px 12px 14px; }
         .sidebar-logo { padding: 0 10px 14px; margin-bottom: 12px; }
-        .logo-brand { height: 22px; }
-        .logo-sub { font-size: 11px; }
+        .logo-brand { height: 25px; }
+        .logo-sub { font-size: 12.5px; }
         .nav-menu { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 0 -6px; padding: 0 6px; scrollbar-width: thin; scrollbar-color: #d6dbe1 transparent; }
         .nav-menu::-webkit-scrollbar { width: 5px; }
         .nav-menu::-webkit-scrollbar-thumb { background: #d6dbe1; border-radius: 5px; }
         .nav-menu::-webkit-scrollbar-track { background: transparent; }
-        .nav-item { padding: 8px 12px; gap: 10px; font-size: 13.5px; margin-bottom: 2px; border-radius: 10px; }
-        .nav-item svg { width: 17px; height: 17px; }
-        .nav-label { font-size: 10.5px; padding: 6px 12px; }
-        .nav-divider { margin: 10px 10px; }
-        .sync-chip { margin: 6px 6px 0; padding: 8px 10px; font-size: 11.5px; }
-        .user-profile { padding: 10px 12px; gap: 10px; margin-top: 10px; flex-shrink: 0; }
-        .user-avatar { width: 34px; height: 34px; font-size: 12px; }
-        .user-name { font-size: 13px; }
-        .user-role { font-size: 11px; }
+        .nav-item { padding: 10px 13px; gap: 11px; font-size: 15px; margin-bottom: 3px; border-radius: 10px; }
+        .nav-item svg { width: 19px; height: 19px; }
+        .nav-label { font-size: 12px; padding: 7px 13px; letter-spacing: 0.4px; }
+        .nav-divider { margin: 11px 10px; }
+        .sync-chip { margin: 7px 6px 0; padding: 9px 11px; font-size: 12.5px; }
+        .user-profile { padding: 11px 12px; gap: 10px; margin-top: 10px; flex-shrink: 0; }
+        .user-avatar { width: 36px; height: 36px; font-size: 13px; }
+        .user-name { font-size: 14px; }
+        .user-role { font-size: 12px; }
 
         /* ===== Main ===== */
         .main-content { flex: 1; min-width: 0; margin-left: 260px; padding: 24px 32px; min-height: 100vh; }
@@ -9482,9 +9482,11 @@ loadAll();
 .sx-bigtab .ic{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 50px;}
 .sx-bigtab .t{font-size:17px;font-weight:900;}
 .sx-bigtab .s{font-size:12px;color:var(--text-tertiary);margin-top:3px;line-height:1.45;}
-.sx-bigtab .nums{margin-left:auto;display:flex;gap:16px;text-align:right;}
-.sx-bigtab .nums b{font-size:22px;font-weight:900;display:block;line-height:1.1;}
-.sx-bigtab .nums span{font-size:11px;color:var(--text-tertiary);font-weight:600;}
+.sx-bigtab .nums{margin-left:auto;display:flex;flex-direction:column;gap:3px;min-width:138px;flex-shrink:0;}
+.sx-bigtab .nums .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:3px 0;border-bottom:1px dashed var(--border);}
+.sx-bigtab .nums .r:last-child{border-bottom:none;}
+.sx-bigtab .nums b{font-size:18px;font-weight:900;line-height:1;}
+.sx-bigtab .nums span{font-size:12px;color:var(--text-tertiary);font-weight:600;white-space:nowrap;}
 .sx-bigtab.ship .ic{background:var(--sx-ship-l);} .sx-bigtab.inst .ic{background:var(--sx-inst-l);}
 .sx-bigtab.ship.on{border-color:var(--sx-ship-b);background:linear-gradient(180deg,var(--sx-ship-g),var(--bg-card));}
 .sx-bigtab.inst.on{border-color:var(--sx-inst-b);background:linear-gradient(180deg,var(--sx-inst-g),var(--bg-card));}
@@ -9543,6 +9545,7 @@ loadAll();
 .sx-sec:first-child{margin-top:0;}
 .sx-info{display:grid;grid-template-columns:92px 1fr;gap:7px 10px;font-size:13px;background:var(--bg-main);border-radius:12px;padding:12px 14px;}
 .sx-info b{color:var(--text-tertiary);font-weight:700;}
+.sx-info>span{white-space:pre-wrap;word-break:break-word;min-width:0;}
 .sx-comp{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
 .sx-comp .ln{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;}
 .sx-comp .ln:last-child{border-bottom:none;}
@@ -10536,10 +10539,10 @@ function sxRenderTabs(){
   box.innerHTML = `
     <button class="sx-bigtab ship ${sxTab==='ship'?'on':''}" onclick="sxSetTab('ship')"><div class="ic">📦</div>
       <div><div class="t">출고건</div><div class="s">설치 없이 제품만 나가는 건<br>매출 = 출고일 기준 · 계산서·수금 관리</div></div>
-      <div class="nums"><div><b>${shipReq.length}</b><span>출고 대기</span></div><div><b class="${shipLate?'sx-late':''}">${shipLate}</b><span>지연</span></div><div><b>${shipDoneM}</b><span>이번 달 완료</span></div></div></button>
+      <div class="nums"><div class="r"><span>출고 대기</span><b>${shipReq.length}</b></div><div class="r"><span>지연</span><b class="${shipLate?'sx-late':''}">${shipLate}</b></div><div class="r"><span>이번 달 완료</span><b>${shipDoneM}</b></div></div></button>
     <button class="sx-bigtab inst ${sxTab==='inst'?'on':''}" onclick="sxSetTab('inst')"><div class="ic">🔧</div>
       <div><div class="t">설치건</div><div class="s">프로젝트(딜)에서 요청한 출고<br>매출 = 딜 기준 · 여기선 출고 상태만 관리</div></div>
-      <div class="nums"><div><b>${instReq.length}</b><span>출고 대기</span></div><div><b class="${instLate?'sx-late':''}">${instLate}</b><span>지연</span></div><div><b>${dealsN}</b><span>진행 딜</span></div></div></button>`;
+      <div class="nums"><div class="r"><span>출고 대기</span><b>${instReq.length}</b></div><div class="r"><span>지연</span><b class="${instLate?'sx-late':''}">${instLate}</b></div><div class="r"><span>진행 딜</span><b>${dealsN}</b></div></div></button>`;
 }
 
 /* ── 출고건 탭 (기존 renderShip에서 호출) ── */
