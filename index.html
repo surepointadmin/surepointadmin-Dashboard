@@ -1124,10 +1124,11 @@
         <div class="gate-card">
             <div class="gate-logo">SP</div>
             <div class="gate-title">surepoint 대시보드</div>
-            <div class="gate-sub">팀 공용 비밀번호를 입력해 주세요</div>
+            <div class="gate-sub">본인 아이디와 비밀번호로 로그인해 주세요</div>
+            <input type="text" id="gateId" class="gate-input" placeholder="아이디 (예: kde)" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')$('gatePw').focus()" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false">
             <input type="password" id="gatePw" class="gate-input" placeholder="비밀번호" onkeydown="if(event.key==='Enter')checkGate()" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" name="sp_gate_pw_x" readonly onfocus="this.removeAttribute('readonly')">
-            <div class="gate-err" id="gateErr">비밀번호가 올바르지 않아요</div>
-            <button class="gate-btn" onclick="checkGate()">들어가기</button>
+            <div class="gate-err" id="gateErr">아이디 또는 비밀번호가 올바르지 않아요</div>
+            <button class="gate-btn" onclick="checkGate()">로그인</button>
         </div>
     </div>
     <div class="loading-overlay" id="loadingOverlay">
@@ -1193,10 +1194,10 @@
                 <div class="sync-chip" id="syncChip">데이터 로드 대기 중...</div>
             </nav>
             <div class="user-profile">
-                <div class="user-avatar">SP</div>
+                <div class="user-avatar" id="spUserAvatar">SP</div>
                 <div class="user-info">
-                    <div class="user-name">surepoint</div>
-                    <div class="user-role">실시간 연동 · 딜 수정 가능</div>
+                    <div class="user-name" id="spUserName">surepoint</div>
+                    <div class="user-role" id="spUserRole">실시간 연동 · 딜 수정 가능</div>
                 </div>
             </div>
         </aside>
@@ -3666,7 +3667,7 @@ let activityLog = {};  // { dealId: [ {id,type,text,person,at,source} ] }  sourc
 function loadActivityLocal(){ try { activityLog = JSON.parse(localStorage.getItem(ACT_LS_KEY) || '{}') || {}; } catch(e){ activityLog = {}; } }
 function saveActivity(){ try { localStorage.setItem(ACT_LS_KEY, JSON.stringify(activityLog)); } catch(e){} syncKv('activity_log', activityLog); }
 const CURUSER_LS_KEY = 'sp_cur_user';
-function curUser(){ try { return (localStorage.getItem(CURUSER_LS_KEY) || '김다은'); } catch(e){ return '김다은'; } }
+function curUser(){ try { const a = (typeof authUser==='function') ? authUser() : null; if (a) return a.name; return (localStorage.getItem(CURUSER_LS_KEY) || '김다은'); } catch(e){ return '김다은'; } }
 function setCurUser(v){ try { localStorage.setItem(CURUSER_LS_KEY, (v||'').trim() || '김다은'); } catch(e){} }
 function addActivity(dealId, type, text, opts){
   opts = opts || {};
@@ -8855,26 +8856,57 @@ function initAfterLoad(){
 }
 /* ===== 접근 비밀번호 게이트 ===== */
 /* ▼▼ 팀에게 공유할 비밀번호를 여기서 바꾸세요 ▼▼ */
-const APP_PASSWORD = 'sp03322';
-/* ▲▲ (주의: 공개 저장소에 올리면 소스에서 이 값이 보여요 — 캐주얼 접근 차단용) ▲▲ */
-function checkGate(){
-  if (($('gatePw').value||'').trim() === APP_PASSWORD){
-    try { localStorage.setItem('sp_gate','1'); } catch(e){}
-    try { sessionStorage.setItem('sp_gate','1'); } catch(e){}
+/* ===== 개인 로그인 — 누가 처리했는지 기록용 (비밀번호는 SHA-256+salt 해시로만 보관) ===== */
+const SP_USERS = {"lsh": {"name": "이수훈", "salt": "cfa9be9766b70256", "hash": "ff5faad72fcfc9d24c97f5f435a0d2418b6c8378fa8eff1f6819f3d112fb5cd6"}, "ljh": {"name": "이재훈", "salt": "4a770887d56bb885", "hash": "5f3df465ea7074ee33542747034fb3da9201f38f866c22855879cfc3509bff94"}, "kde": {"name": "김다은", "salt": "bdc4a1259a59b153", "hash": "a57d1c9c69be34733e0ea2d12f5c667af18c03247208b45d59f88e8ea12582ca"}, "lsj": {"name": "이서진", "salt": "b190084dda59dfa9", "hash": "d9894f282a301d9931050591d1c47130812c4b8134c169f3b61caa3164b36556"}, "pjs": {"name": "박정수", "salt": "ace6752ad1c5563c", "hash": "1eb02dc69cb4c1f33c4b1d2a94bf0bbb6e439dedf02b5106c17a2f0e58265236"}, "psj": {"name": "박상준", "salt": "ed46bf90c46bc4ba", "hash": "376561293c545f14ca269c75858fcea47ecb11aca3f2d1abb45b89be64a97db6"}, "lww": {"name": "이원웅", "salt": "609802e1b25aa6f7", "hash": "3b65a5cea5dd5db66c183c7935bdfed017dd0f59bc79ac5e81cad0f153df4cc3"}};
+const AUTH_LS_KEY = 'sp_auth_user';
+async function spHash(s){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function authUser(){
+  let id = null;
+  try { id = localStorage.getItem(AUTH_LS_KEY) || sessionStorage.getItem(AUTH_LS_KEY); } catch(e){}
+  return (id && SP_USERS[id]) ? { id, name: SP_USERS[id].name } : null;
+}
+function updateUserBadge(){
+  const u = authUser(); if (!u) return;
+  try {
+    $('spUserName').textContent = u.name;
+    $('spUserAvatar').textContent = u.name.slice(-2);
+    $('spUserRole').innerHTML = `${esc(u.id)} · <a href="javascript:void 0" onclick="spLogout()" style="color:var(--primary);font-weight:700;">로그아웃</a>`;
+  } catch(e){}
+}
+async function checkGate(){
+  const id = ($('gateId').value||'').trim().toLowerCase();
+  const pw = ($('gatePw').value||'').trim();
+  const u = SP_USERS[id];
+  let ok = false;
+  try { ok = !!u && (await spHash(u.salt + pw)) === u.hash; } catch(e){ ok = false; }
+  if (ok){
+    try { localStorage.setItem(AUTH_LS_KEY, id); } catch(e){}
+    try { sessionStorage.setItem(AUTH_LS_KEY, id); } catch(e){}
+    try { localStorage.removeItem('sp_gate'); sessionStorage.removeItem('sp_gate'); } catch(e){}
     $('gateOverlay').style.display = 'none';
+    $('gatePw').value = '';
+    updateUserBadge();
+    toast(u.name + '님으로 로그인했어요');
   } else {
     $('gateErr').style.display = 'block';
     $('gatePw').value = '';
     $('gatePw').focus();
   }
 }
-function initGate(){
-  try { $('gatePw').value = ''; } catch(e){}   // 브라우저 자동완성으로 채워진 값 비우기
-  let ok = false; try { ok = (localStorage.getItem('sp_gate') === '1') || (sessionStorage.getItem('sp_gate') === '1'); } catch(e){}
-  if (ok) { $('gateOverlay').style.display = 'none'; }
-  else { $('gateOverlay').style.display = 'flex'; setTimeout(()=>{ try{ $('gatePw').value=''; $('gatePw').focus(); }catch(e){} }, 120); }
+function spLogout(){
+  if (!confirm('로그아웃할까요?')) return;
+  try { localStorage.removeItem(AUTH_LS_KEY); sessionStorage.removeItem(AUTH_LS_KEY); } catch(e){}
+  location.reload();
 }
-initTheme();
+function initGate(){
+  try { $('gatePw').value = ''; } catch(e){}
+  try { localStorage.removeItem('sp_gate'); sessionStorage.removeItem('sp_gate'); } catch(e){}   // 예전 공용 비밀번호 로그인은 무효 → 개인 로그인 필요
+  if (authUser()) { $('gateOverlay').style.display = 'none'; updateUserBadge(); }
+  else { $('gateOverlay').style.display = 'flex'; setTimeout(()=>{ try{ $('gateId').focus(); }catch(e){} }, 120); }
+}
 initGate();
 loadAll();
 </script>
@@ -9342,6 +9374,13 @@ loadAll();
   .sr-hcomp .x{display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px 8px 4px 4px;font-size:11.5px;}
   .sr-hcomp img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#fff;cursor:zoom-in;}
   .sr-iline{line-height:1.5;min-height:19.5px;}
+  .sr-doneat{font-size:11px;color:var(--text-tertiary);margin-top:3px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border-bottom:1px dashed transparent;}
+  .sr-doneat:hover{color:var(--primary);border-bottom-color:var(--primary);}
+  .sr-doneed{margin-top:5px;display:flex;flex-direction:column;gap:4px;}
+  .sr-doneed input{font-size:12px;padding:5px 6px;border:1px solid var(--primary);border-radius:7px;font-family:inherit;width:168px;}
+  .sr-doneed div{display:flex;gap:4px;}
+  .sr-doneed button{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;font-family:inherit;}
+  .sr-doneed button.ok{background:var(--primary);border-color:var(--primary);color:#fff;}
   .sr-stsel{font-size:11.5px;font-weight:800;padding:4px 8px;border-radius:8px;cursor:pointer;font-family:inherit;}
   .sr-stsel.req{border:1px solid #d97706;color:#b45309;background:#fff7ed;}
   .sr-stsel.done{border:1px solid #16a34a;color:#15803d;background:#dcfce7;}
@@ -9978,7 +10017,7 @@ function srRenderHist(){
         <td style="text-align:right;white-space:nowrap;">${r.items.map(i=>`<div class="sr-iline"><b>${Number(i.qty)||0}</b> <span style="font-size:11.5px;color:var(--text-tertiary);">${i.kind==='part'?'개':'set'}</span></div>`).join('')}</td>
         <td style="white-space:nowrap;">${r.asap?'최대한 빠르게':fmtDate(r.hope_date)}</td>
         <td>${jp(r)}</td>
-        <td onclick="event.stopPropagation();">${srStatusSel(r, st)}${doneIso?`<div class="sr-ts" style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">${srStamp(doneIso)}</div>`:''}</td>
+        <td onclick="event.stopPropagation();">${srStatusSel(r, st)}${srDoneAtHtml(r, st, doneIso)}</td>
       </tr>${open ? `<tr class="open"><td colspan="8">
         <div class="sr-detail">
           <div>
@@ -10029,6 +10068,44 @@ async function srBackfillSheet(){
   toast(fail ? `시트 채우기: ${ok}줄 완료 · ${fail}줄 실패 — 한 번 더 누르면 다시 채워요 (중복 안 생김)` : `시트에 ${ok}줄 채웠어요 ✓`, !!fail);
 }
 
+/* ===== 출고 완료 일시 수동 수정 (잔디 알림 없음 · 시트·출고일 같이 반영) ===== */
+let srEditDoneId = null;
+const srLocalInput = iso => { const d=new Date(iso); return d.getFullYear()+'-'+srPad(d.getMonth()+1)+'-'+srPad(d.getDate())+'T'+srPad(d.getHours())+':'+srPad(d.getMinutes()); };
+function srDoneAtHtml(r, st, doneIso){
+  const meta = 'font-size:10.5px;color:var(--text-tertiary);margin-top:2px;';
+  if (st.k!=='done') return r.status_at ? `<div class="sr-ts" style="${meta}">변경 ${srStamp(r.status_at)} · ${esc(r.status_by||'')}</div>` : '';
+  if (srEditDoneId===r.id){
+    return `<div class="sr-doneed"><input type="datetime-local" id="srDoneIn" value="${doneIso?srLocalInput(doneIso):srLocalInput(new Date().toISOString())}">
+      <div><button class="ok" onclick="srSaveDone(${r.id})">저장</button><button onclick="srEditDoneId=null;srRenderHist()">취소</button></div></div>`;
+  }
+  return `<div><span class="sr-doneat sr-ts" title="눌러서 출고 완료 일시 수정" onclick="srEditDoneId=${r.id};srRenderHist();setTimeout(()=>{const e=$('srDoneIn');if(e)e.focus();},0)">${doneIso?srStamp(doneIso):'일시 입력'}${r.done_by?' · '+esc(r.done_by):''} ✎</span></div>`
+    + (r.done_edit ? `<div class="sr-ts" style="${meta}color:#b45309;">✎ ${srStamp(r.done_edit.at)} ${esc(r.done_edit.by||'')} 수정</div>` : '');
+}
+function srSaveDone(id){
+  const r = shipReqs.find(x=>x.id===id); if (!r) return;
+  const v = ($('srDoneIn')||{}).value;
+  if (!v){ toast('날짜와 시간을 입력해 주세요', true); return; }
+  const d = new Date(v); if (isNaN(d)){ toast('날짜 형식을 확인해 주세요', true); return; }
+  const iso = d.toISOString();
+  const s = srShipOf(r);
+  const old = r.deal_id ? r.done_at : (s && s.done_at);
+  if (r.deal_id){ r.done_at = iso; }
+  else if (s){
+    s.done_at = iso;
+    s.ship_date = v.slice(0,10);              // 출고일(매출 반영 기준)도 실제 출고일로 맞춤
+    s.updated_at = new Date().toISOString();
+    saveShipLocal();
+  }
+  r.done_edit = { at: new Date().toISOString(), by: curUser() };
+  srLog(r, 'done', `출고 완료 일시 수정 · ${old?srStamp(old):'없음'} → ${srStamp(iso)}`);
+  saveShipReqs();
+  srPushStatus(r, { done_at: iso }, 'done', { silent:true });   // 시트만 갱신, 잔디 알림 X
+  srEditDoneId = null;
+  srRenderHist();
+  if (!r.deal_id && typeof renderShip==='function') renderShip();
+  toast('출고 완료 일시를 수정했어요 ✓');
+}
+
 /* ===== 요청 이력에서 출고 상태 변경 (일반 출고 + 프로젝트딜) ===== */
 function srDealName(r){
   const d = (typeof deals!=='undefined') ? deals.find(x=>x.id===r.deal_id) : null;
@@ -10052,6 +10129,7 @@ function srChangeStatus(id, val, el){
   if (r.deal_id){
     // 프로젝트딜 건: 출고 목록에 없으니 요청 이력에만 상태 저장
     r.ship_status = val;
+    r.status_by = curUser(); r.status_at = new Date().toISOString(); if (val==='done') r.done_by = curUser();
     if (val==='done' && !r.done_at) r.done_at = new Date().toISOString();
     if (val==='request') r.done_at = null;
     srLog(r, val==='done'?'done':val==='returned'?'returned':'reverted', (val==='done'?'출고 완료 처리':val==='returned'?'반품 처리':'출고 대기로 되돌림')+' (프로젝트딜)');
@@ -10084,14 +10162,15 @@ function onShipStatusLog(s, val){
   if (val==='request') s.done_at = null;
   if (!s.request_id) return;
   const r = shipReqs.find(x=>x.id===s.request_id); if (!r) return;
+  r.status_by = curUser(); r.status_at = new Date().toISOString(); if (val==='done') r.done_by = curUser();
   srLog(r, val==='done'?'done':val==='returned'?'returned':'reverted', val==='done'?'출고 완료 처리':val==='returned'?'반품 처리':'출고 요청으로 되돌림');
   saveShipReqs();
   srPushStatus(r, s, val);
 }
-async function srPushStatus(r, s, val){
+async function srPushStatus(r, s, val, opt){
   if (!SHIP_REQ_UPDATE_WEBHOOK) return;
   const label = val==='done' ? '출고 완료' : val==='returned' ? '반품' : '출고 요청';
-  const payload = { req_key: srKey(r.requested_at), status: val, notify: true, deal: !!r.deal_id,
+  const payload = { req_key: srKey(r.requested_at), status: val, notify: !(opt && opt.silent), deal: !!r.deal_id,
     jandi_text: srStatusText(r, val, s && s.done_at),
     customer: r.customer, site: r.site, items: r.items, total_qty: r.total_qty, order_no: r.order_no, by: curUser(),
     rows: srItemRowsBase(r).map(it=>({ '요청키': it.key, '진행상태': label, '출고완료일시': val==='done' && s && s.done_at ? srKey(s.done_at) : '', '처리자': curUser() })) };
