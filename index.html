@@ -3247,6 +3247,7 @@ let currentShipId = null;
 let shipProducts = []; // 모달에서 편집 중인 제품 목록 [{name, qty, unit}]
 let selectedYear = new Date().getFullYear();
 let dashSubTab = 'sales';        // 'sales' 매출 요약 | 'product' 제품 통계
+let forkView = 'list';           // 지게차 통계: 'list' 브랜드별 목록 | 'card' 브랜드 카드
 let psSource = 'all';            // 'all' 합계(프로젝트+출고건) | 'deal' 프로젝트 | 'ship' 출고건 | 'gov' 정부지원
 let psMetric = 'qty';            // 'qty' 수량 | 'amt' 금액
 let psSort   = 'qty';            // 'qty' 출고량순 | 'pct' 비율순 | 'name' 이름순
@@ -4089,13 +4090,15 @@ function dealUnpaid(d){
 }
 
 /* ---- 매출 집계 ---- */
+/* 연도 매칭: year가 'all'이면 날짜 있는 전부 포함, 아니면 해당 연도만 */
+function yearOk(dateStr, year){ return year==='all' ? !!dateStr : (dateStr||'').startsWith(String(year)); }
 function revenueByMonth(year){
   const arr = new Array(12).fill(0);
   const items = Array.from({length:12}, ()=>[]);
   deals.forEach(d => {
     if (!isRevenue(d)) return;
     const rd = revDate(d);
-    if (!rd || !rd.startsWith(String(year))) return;
+    if (!yearOk(rd, year)) return;
     const m = parseInt(rd.slice(5,7),10)-1;
     arr[m] += (d.amount||0);
     items[m].push(d);
@@ -4104,7 +4107,7 @@ function revenueByMonth(year){
   shipments.forEach(s => {
     if (!shipDone(s)) return;
     const sd = s.ship_date;
-    if (!sd || !sd.startsWith(String(year))) return;
+    if (!yearOk(sd, year)) return;
     const m = parseInt(sd.slice(5,7),10)-1;
     if (m<0||m>11) return;
     arr[m] += shipNet(s);
@@ -4116,7 +4119,7 @@ function revenueOfYear(year, uptoMonth){
   let sum = deals.reduce((s,d)=>{
     if (!isRevenue(d)) return s;
     const rd = revDate(d);
-    if (!rd || !rd.startsWith(String(year))) return s;
+    if (!yearOk(rd, year)) return s;
     if (uptoMonth && parseInt(rd.slice(5,7),10) > uptoMonth) return s;
     return s + (d.amount||0);
   },0);
@@ -4124,7 +4127,7 @@ function revenueOfYear(year, uptoMonth){
   shipments.forEach(s=>{
     if (!shipDone(s)) return;
     const sd = s.ship_date;
-    if (!sd || !sd.startsWith(String(year))) return;
+    if (!yearOk(sd, year)) return;
     if (uptoMonth && parseInt(sd.slice(5,7),10) > uptoMonth) return;
     sum += shipNet(s);
   });
@@ -4211,19 +4214,27 @@ function partialDone(d){
   if(!taxBatches.length) return null;           // 세금계산서 발행된 회차가 있어야 '세금계산서완료'에도 뜸
   return {net, total, remain:Math.max(0,total-net), taxCount:taxBatches.length, billableCount:billable.length};
 }
-/* 실매출(확정): 출고 완료 + 설치 시작 이후(분할 설치는 완료 수량만) */
+/* ── 실매출/잠재매출: 딜 단계 기준 분류 ──
+   실매출 = 설치중·설치완료·세금계산서발행 전·세금계산서발행 완료 단계 (전액)
+   잠재매출 = 잠재·미팅접촉·제안견적·구두합의 단계 (전액)
+   실패·보류 딜은 양쪽 모두 제외. (출고건은 출고완료=실매출 / 출고예정=잠재매출) */
+function dealIsRealStage(d){ return !isLost(d) && stageIdx(d) >= 4; }
+function dealIsPotStage(d){ const i = stageIdx(d); return !isLost(d) && i >= 0 && i <= 3; }
+function dealRealWonStage(d){ return dealIsRealStage(d) ? (d.amount||0) : 0; }
+function dealPotWonStage(d){ return dealIsPotStage(d) ? (d.amount||0) : 0; }
+/* 실매출(확정): 출고 완료 + 설치중 이상 단계 딜 전액 */
 function realRevenueSplit(){
-  let deal=0, ship=0, dealQty=0;
-  deals.forEach(d=>{ deal += dealRealizedWon(d); dealQty += dealRealizedQty(d); });
+  let deal=0, ship=0, dealQty=0, dealCnt=0;
+  deals.forEach(d=>{ if(dealIsRealStage(d)){ deal += (d.amount||0); dealQty += dealTotalQty(d); dealCnt++; } });
   shipments.forEach(s=>{ if(shipDone(s)) ship += shipNet(s); });
-  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty};
+  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty, dealCnt:dealCnt};
 }
-/* 잠재매출: 제안견적 단계 이상의 미실현분(설치 예정 수량 포함) + 출고 예정(미완료) */
+/* 잠재매출(예정): 잠재~구두합의 단계 딜 전액 + 출고 예정(미완료) */
 function potentialRevenueSplit(){
-  let deal=0, ship=0, dealQty=0;
-  deals.forEach(d=>{ deal += dealPotentialWon(d); dealQty += dealPotentialQty(d); });
+  let deal=0, ship=0, dealQty=0, dealCnt=0;
+  deals.forEach(d=>{ if(dealIsPotStage(d)){ deal += (d.amount||0); dealQty += dealTotalQty(d); dealCnt++; } });
   shipments.forEach(s=>{ if(!shipDone(s)) ship += shipNet(s); });
-  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty};
+  return {deal:deal, ship:ship, total:deal+ship, dealQty:dealQty, dealCnt:dealCnt};
 }
 function yearsInData(){
   const ys = new Set([new Date().getFullYear()]);
@@ -4233,9 +4244,9 @@ function yearsInData(){
 }
 function collectedInYear(year){ // 입금일 기준 (원)
   let sum = 0;
-  recvList.forEach(r => { if (r.status==='received' && (r.received_date||'').startsWith(String(year))) sum += manToWon(r.amount); });
+  recvList.forEach(r => { if (r.status==='received' && yearOk(r.received_date, year)) sum += manToWon(r.amount); });
   productSales.forEach(p => {
-    if (p.status==='received' && ((p.recv_date||p.sale_date||'').startsWith(String(year)))) sum += (p.amount||0);
+    if (p.status==='received' && yearOk(p.recv_date||p.sale_date, year)) sum += (p.amount||0);
   });
   return sum;
 }
@@ -5280,8 +5291,9 @@ document.addEventListener('click', function(e){
 /* ---- 대시보드 ---- */
 function renderYearSelector(){
   const ys = yearsInData();
-  if (!ys.includes(selectedYear)) selectedYear = ys[ys.length-1];
-  $('yearSelector').innerHTML = ys.map(y =>
+  if (selectedYear !== 'all' && !ys.includes(selectedYear)) selectedYear = ys[ys.length-1];
+  const allBtn = `<button class="year-btn ${selectedYear==='all'?'active':''}" onclick="selectYear('all')">전체</button>`;
+  $('yearSelector').innerHTML = allBtn + ys.map(y =>
     `<button class="year-btn ${y===selectedYear?'active':''}" onclick="selectYear(${y})">${y}년</button>`).join('');
 }
 function selectYear(y){ selectedYear = y; renderDashboard(); }
@@ -5304,12 +5316,14 @@ function renderDashboard(){
   }
   $('dashSalesTab').style.display = '';
   const y = selectedYear;
+  const isAll = (y === 'all');
+  const yLab = isAll ? '전체' : (y + '년');
   const NOW = new Date();
   const thisYearRev = revenueOfYear(y);
-  const isCurrent = y === NOW.getFullYear();
+  const isCurrent = !isAll && y === NOW.getFullYear();
   const cmpMonth = isCurrent ? (NOW.getMonth()+1) : null;
-  const prevRevSame = revenueOfYear(y-1, cmpMonth);
-  const deltaPct = prevRevSame > 0 ? Math.round((revenueOfYear(y, cmpMonth) - prevRevSame) / prevRevSame * 100) : null;
+  const prevRevSame = isAll ? 0 : revenueOfYear(y-1, cmpMonth);
+  const deltaPct = (!isAll && prevRevSame > 0) ? Math.round((revenueOfYear(y, cmpMonth) - prevRevSame) / prevRevSame * 100) : null;
 
   const collected = collectedInYear(y);
   const unpaid = totalUnpaid();
@@ -5319,10 +5333,10 @@ function renderDashboard(){
   const pipeline = active.filter(d=>stageIdx(d)>=0 && stageIdx(d)<=3);
   const pipelineAmt = pipeline.reduce((s,d)=>s+(d.amount||0),0);
   // 제품 판매(대리점) 연간
-  const psYear = productSales.filter(p=>(p.sale_date||'').startsWith(String(y)));
+  const psYear = productSales.filter(p=>yearOk(p.sale_date, y));
   const psYearAmt = psYear.reduce((s,p)=>s+(p.amount||0),0);
   // 출고·납품(설치 없이 출고) 연간 — 출고 완료 건만, 출고일 기준
-  const shipYear = shipments.filter(s=>shipDone(s) && (s.ship_date||'').startsWith(String(y)));
+  const shipYear = shipments.filter(s=>shipDone(s) && yearOk(s.ship_date, y));
   const shipYearAmt = shipYear.reduce((s,x)=>s+shipNet(x),0);
 
   // ── 핵심 매출 히어로 배너 (시안 A) ──
@@ -5337,23 +5351,28 @@ function renderDashboard(){
   const rvGrand = rvReal.total + rvPot.total;
   const rvPct  = rvGrand > 0 ? Math.round(rvReal.total / rvGrand * 1000) / 10 : 0;
   const rvPotPct = Math.max(0, Math.round((100 - rvPct) * 10) / 10);
+  // 잠재 → 실매출 전환율 (딜 단계 기준, 실패·보류 제외) — 금액·건수 둘 다
+  const convWonBase = rvReal.deal + rvPot.deal;
+  const convWonPct  = convWonBase > 0 ? Math.round(rvReal.deal / convWonBase * 1000) / 10 : 0;
+  const convCntBase = rvReal.dealCnt + rvPot.dealCnt;
+  const convCntPct  = convCntBase > 0 ? Math.round(rvReal.dealCnt / convCntBase * 1000) / 10 : 0;
   $('dashHero').innerHTML = `
     <div class="rv2">
       <div class="rv2-card real">
         <span class="rv2-tag">✅ 실매출 · 확정</span>
         <div class="rv2-val">${fmtMoney(rvReal.total)}</div>
-        <div class="rv2-crit">출고 완료 + 설치 시작 이후 (분할 설치는 완료 수량만)</div>
+        <div class="rv2-crit">출고 완료 + 설치중·설치완료·세금계산서발행 전·완료 단계</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (설치 완료분)${rvReal.dealQty?` · ${rvReal.dealQty}대`:''}</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (설치중~완료)${rvReal.dealQty?` · ${rvReal.dealQty}대`:''}</div><div class="v">${fmtMoney(rvReal.deal)}</div></div>
           <div class="rv2-bk"><div class="k">출고 (출고 완료)</div><div class="v">${fmtMoney(rvReal.ship)}</div></div>
         </div>
       </div>
       <div class="rv2-card pot">
         <span class="rv2-tag">📦 잠재매출 · 예정</span>
         <div class="rv2-val">${fmtMoney(rvPot.total)}</div>
-        <div class="rv2-crit">잠재 단계 이상 · 실매출 제외 (미설치 예정 수량 포함)</div>
+        <div class="rv2-crit">잠재·미팅접촉·제안견적·구두합의 단계 + 출고 예정</div>
         <div class="rv2-break">
-          <div class="rv2-bk"><div class="k">딜 (잠재~ 미설치분)${rvPot.dealQty?` · ${rvPot.dealQty}대`:''}</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
+          <div class="rv2-bk"><div class="k">딜 (잠재~구두합의)${rvPot.dealQty?` · ${rvPot.dealQty}대`:''}</div><div class="v">${fmtMoney(rvPot.deal)}</div></div>
           <div class="rv2-bk" style="cursor:pointer;" onclick="showPage('ship')"><div class="k">출고 (출고 예정)</div><div class="v">${fmtMoney(rvPot.ship)}</div></div>
         </div>
       </div>
@@ -5365,11 +5384,18 @@ function renderDashboard(){
         <span><span class="rv2dot" style="background:#15803d"></span>실매출(확정) <b>${fmtMoney(rvReal.total)} · ${rvPct}%</b></span>
         <span><span class="rv2dot" style="background:#eef2ff;border:1px solid #c7d2fe"></span>잠재매출(예정) <b>${fmtMoney(rvPot.total)} · ${rvPotPct}%</b></span>
       </div>
+    </div>
+    <div class="rv2-conv" style="margin-top:14px;display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;background:#f4faf6;border:1px solid #d3e9d9;border-radius:12px;padding:12px 16px;">
+      <div style="font-size:13px;font-weight:800;color:#15803d;display:inline-flex;align-items:center;gap:7px;">📈 잠재 → 실매출 전환율<span style="font-weight:600;color:var(--text-tertiary);font-size:11px;">딜 단계 기준 · 실패·보류 제외</span></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:baseline;">
+        <span style="font-size:12.5px;color:var(--text-secondary);font-weight:700;">금액 <b style="font-size:17px;color:#15803d;margin-left:3px;">${convWonPct}%</b> <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;">(${fmtMoney(rvReal.deal)} / ${fmtMoney(convWonBase)})</span></span>
+        <span style="font-size:12.5px;color:var(--text-secondary);font-weight:700;">건수 <b style="font-size:17px;color:#15803d;margin-left:3px;">${convCntPct}%</b> <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;">(실 ${rvReal.dealCnt}딜 / 전체 ${convCntBase}딜)</span></span>
+      </div>
     </div>`;
 
   $('dashStats').innerHTML = `
     <div class="stat-card">
-      <div class="stat-label">${y}년 수금액 · 입금일 기준</div>
+      <div class="stat-label">${yLab} 수금액 · 입금일 기준</div>
       <div class="stat-value">${fmtMoney(collected)}</div>
       <div class="stat-sub">영업 수금 + 제품 판매 합산</div>
     </div>
@@ -5390,17 +5416,17 @@ function renderDashboard(){
       <div class="stat-sub">계약 전 단계 ${pipeline.length}건</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">${y}년 제품 판매 (대리점)</div>
+      <div class="stat-label">${yLab} 제품 판매 (대리점)</div>
       <div class="stat-value">${fmtMoney(psYearAmt)}</div>
       <div class="stat-sub">${psYear.length}건 · 판매일 기준</div>
     </div>
     <div class="stat-card" style="cursor:pointer" onclick="showPage('ship')">
-      <div class="stat-label">${y}년 출고·납품 매출</div>
+      <div class="stat-label">${yLab} 출고·납품 매출</div>
       <div class="stat-value">${fmtMoney(shipYearAmt)}</div>
       <div class="stat-sub">${shipYear.length}건 · 출고일 기준 · 눌러서 관리</div>
     </div>`;
 
-  $('monthlyChartTitle').textContent = `${y}년 월별 매출`;
+  $('monthlyChartTitle').textContent = isAll ? '전체 기간 월별 매출 (연도 합산)' : `${y}년 월별 매출`;
   renderMonthlyChart(y);
   renderYearlyChart();
   renderStageBoard();
@@ -5465,7 +5491,7 @@ function collectProductStats(year){
   // 프로젝트(설치·납품 완료 이후) — 제품값 + 설치비 합산, 설치완료(매출)일 기준
   deals.forEach(d=>{
     if (!isRevenue(d)) return;
-    const rd = revDate(d); if (!rd || !rd.startsWith(String(year))) return;
+    const rd = revDate(d); if (!yearOk(rd, year)) return;
     const mi = parseInt(rd.slice(5,7),10) - 1;
     const kv = getDealItems(d.id);
     let items;
@@ -5477,7 +5503,7 @@ function collectProductStats(year){
   // 출고건(출고 완료) — 제품값 + 설치비 항목 합산, 출고일 기준 · 정부지원은 gov 소스로 분리
   shipments.forEach(s=>{
     if (!shipDone(s)) return;
-    const sd = s.ship_date; if (!sd || !sd.startsWith(String(year))) return;
+    const sd = s.ship_date; if (!yearOk(sd, year)) return;
     const mi = parseInt(sd.slice(5,7),10) - 1;
     const src = s.gov_support ? 'gov' : 'ship';
     let prods = (Array.isArray(s.products) && s.products.length)
@@ -5782,18 +5808,44 @@ function renderForkliftStats(){
     </div>`;
   }).join('') : `<div class="di-note-empty" style="padding:18px 4px;">지게차 정보(제조사·모델·동력)가 입력된 프로젝트가 없어요 · 딜 정보 수정에서 입력하면 여기 모여요</div>`;
 
+  // ── 브랜드별 엑셀 목록 (시안 2: 제조사 그룹 + 모델 소계 + 총합) ──
+  const pwTagL = p => p ? `<span class="fk-pw" style="${p==='전동'?'color:#0d8f6f;background:rgba(13,143,111,.12);':'color:#c26a12;background:rgba(194,106,18,.13);'}">${esc(p)}</span>` : '<span style="color:var(--text-tertiary);">-</span>';
+  const prodChipsL = prod => { const ks = Object.keys(prod||{}).sort((a,b)=>prod[b]-prod[a]); return ks.length ? ks.map(pn=>`<span class="fk-pchip"><span class="fk-pdot" style="background:${FORK_PCOLOR[pn]||'#8b95a1'};"></span>${esc(pn)} ×${prod[pn]}</span>`).join('') : '<span style="color:var(--text-tertiary);">-</span>'; };
+  const listRows = brands.map(b=>{
+    const rows = b.models.map(m=>`<tr title="현장: ${m.sites.join(' · ').replace(/"/g,'&quot;')}">
+      <td class="mdl">${esc(m.model)}${m.noName?` <span style="color:var(--text-tertiary);font-size:11px;">(모델 미입력)</span>`:''}</td>
+      <td>${pwTagL(m.power)}</td>
+      <td>${prodChipsL(m.prod)}</td>
+      <td class="num">${m.cnt}</td>
+      <td class="num">${m.siteCnt}</td>
+    </tr>`).join('');
+    return `<tr class="grp"><td colspan="5"><span class="bdot" style="background:${b.color};"></span>${esc(b.name)} · ${b.cnt}건 · 모델 ${b.models.filter(m=>!m.noName).length}</td></tr>
+      ${rows}
+      <tr class="subt"><td class="mdl">${esc(b.name)} 소계</td><td></td><td></td><td class="num">${b.cnt}</td><td class="num">${b.siteCnt}</td></tr>`;
+  }).join('');
+  const listView = brands.length ? `<div style="overflow-x:auto;"><table class="fk-xls">
+      <thead><tr><th>제조사 / 모델</th><th>동력</th><th>우리 제품 (건수)</th><th class="num">설치 건수</th><th class="num">현장 수</th></tr></thead>
+      <tbody>${listRows}
+        <tr class="tot"><td>총합</td><td></td><td></td><td class="num">${totC}</td><td class="num">${totS}</td></tr>
+      </tbody></table></div>`
+    : `<div class="di-note-empty" style="padding:18px 4px;">지게차 정보(제조사·모델·동력)가 입력된 프로젝트가 없어요 · 딜 정보 수정에서 입력하면 여기 모여요</div>`;
+
+  const vt = `<div class="fk-vt"><button class="${forkView==='list'?'on':''}" onclick="setForkView('list')">📋 목록</button><button class="${forkView==='card'?'on':''}" onclick="setForkView('card')">🗂 카드</button></div>`;
+
   return `<div class="section-card">
     <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;">
       <div class="section-title">🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 지게차에 어떤 제품을 달았나</span></div>
-      <button onclick="openForkAddModal()" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> 지게차 추가</button>
+      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;">${vt}
+      <button onclick="openForkAddModal()" style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> 지게차 추가</button></div>
     </div>
-    <div class="section-desc">프로젝트에 입력된 지게차 + 직접 추가한 건 · 건수순 · 모델 옆 색 칩이 우리 제품 · 모델에 마우스를 올리면 현장이 보여요</div>
+    <div class="section-desc">프로젝트에 입력된 지게차 + 직접 추가한 건 · 건수순 · 제품 옆 색 칩이 우리 제품${forkView==='list'?' · 브랜드별로 묶어 모델 소계·총합까지':' · 모델에 마우스를 올리면 현장이 보여요'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;">
       ${schip(totB,'브랜드')}${schip(totM,'모델')}${schip(totC,'설치 건수')}${schip(totS,'현장')}
     </div>
-    ${cards}
+    ${forkView==='list' ? listView : cards}
   </div>`;
 }
+function setForkView(v){ forkView = v; if ($('dashForkliftTab')) $('dashForkliftTab').innerHTML = renderForkliftStats(); }
 /* 지게차 직접 추가 모달 */
 function openForkAddModal(){
   // 자동완성: 기존 제조사·모델 카탈로그 + 이미 입력된 값
@@ -8235,8 +8287,8 @@ function dealRowForExcel(d){
     '총수량': total||0,
     '설치완료(순)': net,
     '공급가(원)': Number(d.amount)||0,
-    '실매출(원)': dealRealizedWon(d),
-    '잠재매출(원)': dealPotentialWon(d),
+    '실매출(원)': dealRealWonStage(d),
+    '잠재매출(원)': dealPotWonStage(d),
     '유입경로': inflow,
     '담당자': d.person||'',
     '고객담당자': d.contact_name||'',
@@ -9556,6 +9608,22 @@ loadAll();
 .sx-dp-clear:hover{color:var(--primary);}
 .sx-dp-apply{height:30px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:800;padding:0 16px;border:none;cursor:pointer;font-family:inherit;}
 @media(max-width:620px){ .sx-dp-months{flex-direction:column;} .sx-dp-side{max-height:150px;} }
+/* 지게차 통계 — 브랜드별 엑셀 목록 */
+.fk-vt{display:inline-flex;background:var(--bg-subtle,#eef0f3);border-radius:9px;padding:3px;gap:2px;}
+.fk-vt button{border:none;background:none;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text-tertiary);padding:6px 13px;border-radius:7px;cursor:pointer;}
+.fk-vt button.on{background:var(--bg-card,#fff);color:var(--text-primary);font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+.fk-xls{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--grid-hairline,var(--border));border-radius:10px;overflow:hidden;}
+.fk-xls th{background:var(--bg-subtle,#f7f8fa);color:var(--text-secondary);font-weight:800;text-align:left;padding:9px 11px;border:1px solid var(--grid-hairline,var(--border));white-space:nowrap;font-size:11.5px;}
+.fk-xls td{padding:8px 11px;border:1px solid var(--grid-hairline,var(--border));vertical-align:middle;}
+.fk-xls .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:800;}
+.fk-xls .grp td{background:var(--bg-inset,#f0f3f8)!important;font-weight:800;font-size:12px;color:var(--text-primary);border-top:2px solid var(--border);}
+.fk-xls .grp .bdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:0px;}
+.fk-xls .subt td{background:var(--bg-subtle,#fafbfd)!important;font-weight:800;color:var(--text-secondary);}
+.fk-xls .tot td{background:var(--bg-inset,#eef2f8)!important;font-weight:900;border-top:2px solid var(--border);}
+.fk-xls .mdl{padding-left:24px;}
+.fk-pw{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:1px 6px;}
+.fk-pchip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;border-radius:6px;padding:1.5px 7px;background:var(--bg-subtle,#eef1f6);color:var(--text-primary);margin:1px 2px 1px 0;}
+.fk-pdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
 .sx-tools input{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;width:220px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
 .sx-mf{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:3px 4px 3px 9px;font-size:13px;}
 .sx-mf select{border:none;background:transparent;font-weight:700;color:#1d4ed8;padding:4px;font-size:12.5px;font-family:inherit;cursor:pointer;}
