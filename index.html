@@ -510,24 +510,24 @@
 
         /* ===== View toggle ===== */
         .view-toggle {
-            display: flex; gap: 4px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 4px;
+            display: flex; gap: 2px;
+            background: #eef0f3;
+            border: none;
+            border-radius: 10px;
+            padding: 3px;
             flex-shrink: 0;
         }
         .vt-btn {
-            padding: 10px 16px; border-radius: var(--radius-sm);
+            padding: 7px 14px; border-radius: 8px;
             border: none; background: transparent;
-            font-family: inherit; font-size: 14px; font-weight: 600;
+            font-family: inherit; font-size: 13px; font-weight: 700;
             color: var(--text-secondary); cursor: pointer;
             transition: all 0.15s ease;
             display: inline-flex; align-items: center; gap: 6px;
         }
-        .vt-btn svg { width: 16px; height: 16px; }
-        .vt-btn:hover { color: var(--text-primary); background: var(--bg-main); }
-        .vt-btn.active { background: var(--primary); color: white; }
+        .vt-btn svg { width: 15px; height: 15px; }
+        .vt-btn:hover { color: var(--text-primary); }
+        .vt-btn.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 
         /* ===== Kanban (단계별 보드) ===== */
         .kanban-wrap {
@@ -1316,14 +1316,13 @@
                         <p class="page-subtitle">잠재 발굴부터 납품·수금까지, 딜별 진행 상황을 한눈에 확인하세요</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-secondary btn-sm" style="color:#15803d;border-color:#bfe3c9;" onclick="openExportStageModal()" title="단계를 골라 엑셀로 내려받아요">📥 엑셀 다운로드</button>
-                        <button class="btn btn-primary" onclick="openCreateModal()">
+                        <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             새 프로젝트 등록
                         </button>
-                        <a class="btn btn-secondary btn-sm" href="https://operation-one.vercel.app/" target="_blank" rel="noopener">
-                            surepoint ↗
-                        </a>
+                        <span class="tb-div"></span>
+                        <button class="btn btn-secondary btn-sm" onclick="openExportStageModal()" title="단계를 골라 엑셀로 내려받아요">📥 엑셀 다운로드</button>
+                        <a class="btn btn-secondary btn-sm" href="https://operation-one.vercel.app/" target="_blank" rel="noopener" style="text-decoration:none;">surepoint ↗</a>
                     </div>
                 </div>
 
@@ -1383,15 +1382,16 @@
                     </div>
                     <div class="header-actions">
                         <div class="view-toggle">
-                            <button class="vt-btn active" id="asVtBoard" onclick="setAsView('board')">상태별 보드</button>
-                            <button class="vt-btn" id="asVtTable" onclick="setAsView('table')">목록</button>
+                            <button class="vt-btn active" id="asVtTable" onclick="setAsView('table')">목록</button>
+                            <button class="vt-btn" id="asVtBoard" onclick="setAsView('board')">상태별 보드</button>
                         </div>
-                        <button class="btn btn-secondary btn-sm" onclick="exportAs()" title="A/S 기록과 추가 주문 연결을 JSON 파일로 백업">백업 ↓</button>
-                        <button class="btn btn-secondary btn-sm" onclick="$('asImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
-                        <button class="btn btn-primary" onclick="openAsModal()">
+                        <button class="btn btn-primary btn-sm" onclick="openAsModal()">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             A/S 등록
                         </button>
+                        <span class="tb-div"></span>
+                        <button class="btn btn-secondary btn-sm" onclick="exportAs()" title="A/S 기록과 추가 주문 연결을 JSON 파일로 백업">⬇ 백업</button>
+                        <button class="btn btn-secondary btn-sm" onclick="$('asImportInput').click()" title="백업 파일 불러오기">⬆ 복원</button>
                         <input type="file" id="asImportInput" hidden accept=".json">
                     </div>
                 </div>
@@ -3234,7 +3234,7 @@ const HANDLE_META = {
   self:  {cls:'tag-self',  label:'🙋 자체 처리'},
   phone: {cls:'tag-phone', label:'📞 전화'}
 };
-let asView = 'board';
+let asView = 'table';   // 기본: 목록(단계별 그룹). 상태별 보드는 버튼으로 전환
 let currentAsId = null;
 // 출고·납품(설치 없이 출고만 되는 건) — 팀 공유(Supabase 전용 테이블) + 로컬 캐시
 const SHIP_LS_KEY = 'sp_shipments_v1';
@@ -6238,7 +6238,6 @@ function renderProjects(){
   const grpPre  = rest.filter(d=>!isLost(d) && !isRevenue(d));
   const grpLost = rest.filter(isLost);
   const groups = {rev: grpRev, pre: grpPre, lost: grpLost};
-  if (cardGroup === 'lost') cardGroup = 'rev'; // 카드 목록에서는 실패·보류 탭 없음 (보드에서만 확인)
   const sel = groups[cardGroup] || grpRev;
 
   // 설치 일정 기준 날짜: 설치 완료 = 설치(매출)일, 그 외 = 설치 완료일/설치 시작일
@@ -6273,7 +6272,7 @@ function renderProjects(){
   // 부분완료 딜은 세금계산서발행 완료 칩 건수에도 포함 (완료분만 함께 표시)
   shown.forEach(d=>{ if(dispStage(d)!=='세금계산서발행 완료' && partialDone(d)) stageCounts['세금계산서발행 완료']=(stageCounts['세금계산서발행 완료']||0)+1; });
   // 현재 탭에 해당하는 단계 칩은 건수가 0이어도 항상 표시 (rev 탭엔 설치중~세금계산서발행 완료가 늘 보이도록)
-  const tabStages = STAGES.filter(s => cardGroup==='rev' ? REVENUE_STAGES.has(s) : !REVENUE_STAGES.has(s));
+  const tabStages = cardGroup==='lost' ? [] : STAGES.filter(s => cardGroup==='rev' ? REVENUE_STAGES.has(s) : !REVENUE_STAGES.has(s));
   if (cardStage && !tabStages.includes(cardStage)) cardStage = '';
   const segP = (label,on,onclick,count)=>`<button class="s ${on?'on':''}" onclick="${onclick}">${label}${count!==undefined?` <span class="n">${count}</span>`:''}</button>`;
   const stageChipBtn = s => {
@@ -6321,7 +6320,7 @@ function renderProjects(){
     </div>`;
   const ctrl = `
     <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${tabBtn('rev')}${tabBtn('pre')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${tabBtn('rev')}${tabBtn('pre')}${tabBtn('lost')}</div>
       ${cardToggleBar}
       ${cardFilterOpen ? stageRow + yearRow + monthRow : ''}
     </div>`;
@@ -7520,14 +7519,11 @@ function renderAs(){
     }).join('');
     makeDragScroll($('asBoardWrap'));
   } else {
-    $('asTable').innerHTML = `
-      <thead><tr><th>상태</th><th>고객사 / 현장</th><th>제품</th><th>증상</th><th>담당</th><th>접수일</th><th>완료일</th><th>보증</th><th>구분</th><th>비용</th><th>수금</th></tr></thead>
-      <tbody>${list.length ? list.map(c=>`
-        <tr style="cursor:pointer" onclick="openAsModal(${c.id})">
-          <td><span class="status-badge ${AS_BADGE[c.status]||'badge-none'}"><span class="badge-dot"></span>${c.status===AS_TAX?'🧾 계산서 발행':c.status}</span>${c.priority==='긴급'?' <span class="status-badge badge-unpaid">긴급</span>':''}</td>
-          <td style="font-weight:600">${esc(c.co||'-')}${c.site?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;">${esc(c.site)}</div>`:''}</td>
+    const asRow = c => `
+        <tr class="as-it" style="cursor:pointer" onclick="openAsModal(${c.id})">
+          <td style="font-weight:600">${esc(c.co||'-')}${c.site?`<div style="font-size:11px;color:var(--text-tertiary);font-weight:400;">${esc(c.site)}</div>`:''}${c.priority==='긴급'?' <span class="status-badge badge-unpaid" style="margin-left:4px;">긴급</span>':''}</td>
           <td>${esc(c.prod||'-')}</td>
-          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(c.symptom||'')}">${esc(c.symptom||'-')}</td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(c.symptom||'')}">${esc(c.symptom||'-')}</td>
           <td>${esc(c.person||'-')}</td>
           <td class="td-num">${fmtDate(c.received_date)}</td>
           <td class="td-num">${fmtDate(c.completed_date)}</td>
@@ -7535,7 +7531,19 @@ function renderAs(){
           <td>${(()=>{const m=BEARER_META[asBearer(c)];return `<span class="status-badge ${m.cls}">${m.pill}</span>`;})()}</td>
           <td class="td-num">${c.cost?fmtWon(c.cost)+'원':'-'}</td>
           <td>${c.status===AS_TAX?asRecvBadge(c):'-'}</td>
-        </tr>`).join('') : `<tr><td colspan="11"><div class="empty-state" style="padding:26px;"><div class="empty-desc">조건에 맞는 A/S 건이 없어요</div></div></td></tr>`}</tbody>`;
+        </tr>`;
+    const asGroups = AS_STATUSES.map(st=>({st, arr:list.filter(c=>c.status===st)})).filter(g=>g.arr.length);
+    let asBody;
+    if (!list.length) asBody = `<tr><td colspan="10"><div class="empty-state" style="padding:26px;"><div class="empty-desc">조건에 맞는 A/S 건이 없어요</div></div></td></tr>`;
+    else asBody = asGroups.map(g=>{
+      const amt = g.arr.reduce((s,c)=>s+(c.cost||0),0);
+      const col = AS_COLORS[g.st]||'#9ca3af';
+      const head = `<tr class="as-grp"><td colspan="10" style="background:#f3f5f8;font-weight:800;font-size:12.5px;border-top:2px solid ${col};"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${col};vertical-align:middle;margin-right:7px;"></span>${g.st===AS_TAX?'🧾 '+g.st:g.st}<span style="color:var(--text-tertiary);font-weight:600;font-size:11.5px;margin-left:7px;">${g.arr.length}건${amt?' · '+fmtWon(amt)+'원':''}</span></td></tr>`;
+      return head + g.arr.map(asRow).join('');
+    }).join('');
+    $('asTable').innerHTML = `
+      <thead><tr><th>고객사 / 현장</th><th>제품</th><th>증상</th><th>담당</th><th>접수일</th><th>완료일</th><th>보증</th><th>구분</th><th>비용</th><th>수금</th></tr></thead>
+      <tbody>${asBody}</tbody>`;
   }
   updateAsNavBadge();
 }
@@ -11220,10 +11228,11 @@ srBadge();
 
 <style id="invStyle">
   #inventoryPage .inv-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
-  .inv-sub{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-  .inv-sub .st{padding:8px 15px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg-card);font-size:13.5px;font-weight:700;color:var(--text-secondary);cursor:pointer;}
-  .inv-sub .st.on{background:var(--primary);border-color:var(--primary);color:#fff;}
-  .inv-sub .st b{opacity:.7;margin-left:3px;}
+  .inv-sub{display:inline-flex;gap:2px;margin-bottom:16px;flex-wrap:wrap;background:#eef0f3;border-radius:10px;padding:3px;max-width:100%;}
+  .inv-sub .st{padding:7px 14px;border-radius:8px;border:none;background:transparent;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;white-space:nowrap;}
+  .inv-sub .st.on{background:#fff;color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .inv-sub .st b{color:var(--text-tertiary);font-weight:800;margin-left:3px;font-size:11px;}
+  .inv-sub .st.on b{color:var(--primary);}
   .inv-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;}
   .inv-chip{padding:6px 13px;border-radius:999px;border:1px solid var(--border);background:var(--bg-card);font-size:12.5px;font-weight:700;color:var(--text-secondary);cursor:pointer;}
   .inv-chip.on{background:var(--text-primary);border-color:var(--text-primary);color:#fff;}
@@ -11320,9 +11329,10 @@ srBadge();
   .ftg .s .n{font-size:11px;color:var(--text-tertiary);font-weight:800;}
   .ftg .s.on .n{color:var(--primary);}
   .ftg .s .fdot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
-  .frow2{display:grid;grid-template-columns:76px 1fr;align-items:center;gap:12px;margin-bottom:9px;}
-  .frow2 .flab2{font-size:12px;font-weight:800;color:var(--text-tertiary);}
-  @media(max-width:620px){ .frow2{grid-template-columns:1fr;gap:5px;} }
+  .frow2{display:flex;align-items:center;gap:12px;margin-bottom:9px;flex-wrap:wrap;}
+  .frow2 .flab2{font-size:12px;font-weight:800;color:var(--text-tertiary);width:72px;flex-shrink:0;}
+  .frow2 .ftg{flex:0 1 auto;}
+  @media(max-width:620px){ .frow2 .flab2{width:auto;} }
   .tb-div{width:1px;height:22px;background:var(--border);margin:0 4px;align-self:center;flex-shrink:0;}
 </style>
 <div class="inv-modal" id="invModal"><div class="inv-dialog" id="invDialog"></div></div>
