@@ -1797,18 +1797,19 @@
                         <p class="page-subtitle" style="display:none">설치 없이 출고만 되는 건을 관리해요 · <b>출고일 기준으로 매출에만 반영</b>되고, 프로젝트·A/S에는 표시되지 않아요 · <b>📨 출고 요청</b>은 잔디 출고방 전송 + 목록에 자동 추가돼요</p>
                     </div>
                     <div class="header-actions">
-                        <button data-sx="ship" class="btn btn-secondary btn-sm" id="shExcelBtn" style="color:#15803d;border-color:#bfe3c9;" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
-                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">백업 ↓</button>
-                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">복원 ↑</button>
-                        <button data-sx="ship" class="btn btn-primary sh-req-btn" onclick="srMode='ship';srDealId=null;openShipReq()" title="잔디 출고방 전송 + 목록 자동 추가">📨 출고 요청<span class="b" id="shReqBadge" style="display:none">0</span></button>
-                        <button class="btn btn-secondary btn-sm" style="color:#0369a1;border-color:#bae6fd;background:#f0f9ff;" onclick="openBomList()" title="세이프가드플러스 BOM LIST 바로가기 (새 탭에서 열려요)">🔗 세이프가드플러스 BOM</button>
-                        <a class="btn btn-secondary btn-sm" href="javascript:void 0" onclick="window.open(SHIP_SHEET_URL,'_blank')" style="color:#15803d;border-color:#bfe3c9;background:#f0fdf4;text-decoration:none;">📊 구글시트</a>
-                        <button class="btn btn-secondary btn-sm" id="srBackfillBtn" onclick="srBackfillSheet()" title="지금까지의 요청 전체를 시트 '출고' 탭에 품목별로 다시 채워요 (잔디 알림 없음 · 중복 안 생김)">🔄 시트 다시 채우기</button>
-                        <button data-sx="inst" class="btn btn-primary" style="background:var(--sx-inst);border-color:var(--sx-inst);display:none;" onclick="sxPickDeal()">🔧 설치건 출고 요청</button>
-                        <button data-sx="ship" class="btn btn-primary" onclick="openShipModal()" title="카톡 등 다른 경로로 받은 건을 수기로 등록">
+                        <button data-sx="ship" class="btn btn-sm sh-req-btn" style="background:#ea7a1e;border-color:#ea7a1e;color:#fff;" onclick="srMode='ship';srDealId=null;openShipReq()" title="잔디 출고방 전송 + 목록 자동 추가">📨 출고 요청<span class="b" id="shReqBadge" style="display:none">0</span></button>
+                        <button data-sx="inst" class="btn btn-primary btn-sm" style="background:var(--sx-inst);border-color:var(--sx-inst);display:none;" onclick="sxPickDeal()">🔧 설치건 출고 요청</button>
+                        <button data-sx="ship" class="btn btn-primary btn-sm" onclick="openShipModal()" title="카톡 등 다른 경로로 받은 건을 수기로 등록">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             직접 등록
                         </button>
+                        <span class="tb-div" data-sx="ship"></span>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" id="shExcelBtn" onclick="exportShipExcel()" title="선택한 건(없으면 현재 목록 전체)을 엑셀로 내려받아요">📥 엑셀 다운로드</button>
+                        <a data-sx="ship" class="btn btn-secondary btn-sm" href="javascript:void 0" onclick="window.open(SHIP_SHEET_URL,'_blank')" style="text-decoration:none;">📊 구글시트</a>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="exportShip()" title="출고·납품 기록을 JSON 파일로 백업">⬇ 백업</button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="$('shipImportInput').click()" title="백업 파일 불러오기">⬆ 복원</button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" id="srBackfillBtn" onclick="srBackfillSheet()" title="지금까지의 요청 전체를 시트 '출고' 탭에 품목별로 다시 채워요 (잔디 알림 없음 · 중복 안 생김)">🔄 시트 다시 채우기</button>
+                        <button data-sx="ship" class="btn btn-secondary btn-sm" onclick="openBomList()" title="세이프가드플러스 BOM LIST 바로가기 (새 탭에서 열려요)">🔗 세이프가드플러스 BOM</button>
                         <input type="file" id="shipImportInput" hidden accept=".json">
                     </div>
                 </div>
@@ -6274,41 +6275,25 @@ function renderProjects(){
   // 현재 탭에 해당하는 단계 칩은 건수가 0이어도 항상 표시 (rev 탭엔 설치중~세금계산서발행 완료가 늘 보이도록)
   const tabStages = STAGES.filter(s => cardGroup==='rev' ? REVENUE_STAGES.has(s) : !REVENUE_STAGES.has(s));
   if (cardStage && !tabStages.includes(cardStage)) cardStage = '';
+  const segP = (label,on,onclick,count)=>`<button class="s ${on?'on':''}" onclick="${onclick}">${label}${count!==undefined?` <span class="n">${count}</span>`:''}</button>`;
   const stageChipBtn = s => {
     const on = cardStage === s;
     const col = STAGE_COLORS[s] || '#9ca3af';
     const cnt = stageCounts[s] || 0;
-    return `<button onclick="setCardStage('${s}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid ${on?col:'var(--border)'};background:${on?col:'#fff'};color:${on?'#fff':'var(--text-secondary)'};font-size:12.5px;font-weight:600;cursor:pointer;opacity:${cnt||on?1:.55};">
-      <span style="width:8px;height:8px;border-radius:50%;background:${on?'#fff':col};flex-shrink:0;"></span>${s} <span style="opacity:.75;">${cnt}</span></button>`;
+    return `<button class="s ${on?'on':''}" onclick="setCardStage('${s}')" style="${(cnt||on)?'':'opacity:.5;'}"><span class="fdot" style="background:${col};"></span>${s} <span class="n">${cnt}</span></button>`;
   };
-  const stageRow = `
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <span style="font-size:12.5px;font-weight:700;color:var(--text-tertiary);flex-shrink:0;">단계</span>
-      ${chip('전체', !cardStage, "setCardStage('')")}
-      ${tabStages.map(stageChipBtn).join('')}
-    </div>`;
+  const stageRow = `<div class="frow2"><span class="flab2">단계</span><span class="ftg">${segP('전체', !cardStage, "setCardStage('')")}${tabStages.map(stageChipBtn).join('')}</span></div>`;
   if (cardStage) shown = shown.filter(d=> dispStage(d)===cardStage || (cardStage==='세금계산서발행 완료' && !!partialDone(d)) );
-  const yearRow = years.length ? `
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <span style="font-size:12.5px;font-weight:700;color:var(--text-tertiary);flex-shrink:0;">📅 ${cardGroup==='rev'?'설치 년도':'설치 예정'}</span>
-      ${chip('전체', !cardYear, "setCardYear('')")}
-      ${years.map(y=>chip(y+'년', cardYear===y, `setCardYear('${y}')`)).join('')}
-    </div>` : '';
+  const yearRow = years.length ? `<div class="frow2"><span class="flab2">${cardGroup==='rev'?'설치 년도':'설치 예정'}</span><span class="ftg">${segP('전체', !cardYear, "setCardYear('')")}${years.map(y=>segP(y+'년', cardYear===y, `setCardYear('${y}')`)).join('')}</span></div>` : '';
   let monthRow = '';
   if (cardYear) {
     const mCounts = {};
     sel.forEach(d=>{ const s = sched(d); if (s && String(s).slice(0,4)===cardYear) { const m = String(s).slice(5,7); mCounts[m]=(mCounts[m]||0)+1; } });
-    monthRow = `
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <span style="font-size:12.5px;font-weight:700;color:var(--text-tertiary);flex-shrink:0;">월별</span>
-      ${chip('전체', !cardMonth, "setCardMonth('')")}
-      ${Array.from({length:12},(_,i)=>{
-        const m = String(i+1).padStart(2,'0');
-        const c = mCounts[m]||0;
-        if (!c) return `<span style="padding:6px 13px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--text-tertiary);font-size:12.5px;font-weight:600;opacity:.45;">${i+1}월</span>`;
-        return chip((i+1)+'월', cardMonth===m, `setCardMonth('${m}')`, c);
-      }).join('')}
-    </div>`;
+    monthRow = `<div class="frow2"><span class="flab2">월별</span><span class="ftg">${segP('전체', !cardMonth, "setCardMonth('')")}${Array.from({length:12},(_,i)=>{
+        const m = String(i+1).padStart(2,'0'); const c = mCounts[m]||0;
+        if (!c) return `<button class="s" style="opacity:.4;cursor:default;">${i+1}월</button>`;
+        return segP((i+1)+'월', cardMonth===m, `setCardMonth('${m}')`, c);
+      }).join('')}</span></div>`;
   }
   const sumAmt = shown.reduce((s,d)=>{
     // 세금계산서완료 탭에 '완료분만' 얹힌 부분완료 딜은 실매출(설치분)로 합산
@@ -7784,13 +7769,8 @@ function shipStepper(s){
 function renderShip(){
   const q = ($('shipSearch').value||'').toLowerCase();
   // ── 일반 / 정부지원 전환 탭 (미니멀 텍스트) ──
-  const gtab = (label, val) => {
-    const on = shipGovF === val;
-    return `<button onclick="setShipGovF('${val}')" style="padding:4px 2px;border:none;background:transparent;font-family:inherit;font-size:15px;letter-spacing:-.01em;font-weight:${on?800:500};color:${on?'var(--text-primary)':'var(--text-tertiary)'};cursor:pointer;transition:color .15s;">${label}</button>`;
-  };
-  $('shipGovTabs').innerHTML = `<div style="display:inline-flex;gap:22px;align-items:center;width:100%;">
-      ${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원 출고','gov')}
-    </div>`;
+  const gtab = (label, val) => `<button class="s ${shipGovF===val?'on':''}" onclick="setShipGovF('${val}')">${label}</button>`;
+  $('shipGovTabs').innerHTML = `<div class="frow2"><span class="flab2">구분</span><span class="ftg">${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원','gov')}</span></div>`;
   // 전환 탭 적용 범위 (KPI·칩·목록 모두 이 범위 기준) — 단순 출고건만 (프로젝트 딜은 출고 목록에 안 뜸)
   const shipScope = shipments.filter(s=>{
     if (shipGovF === 'gov') return !!s.gov_support;
@@ -7831,20 +7811,19 @@ function renderShip(){
     return true;
   });
   const nIssued = invScope.filter(s=>s.tax_invoice_issued).length, nUniss = invScope.length - nIssued;
-  const invRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      ${rowLbl('세금계산서')}
-      ${chip('전체', !shipInvF, "setShipInvF('')")}
-      ${chip(`미발행 <span style="opacity:.75;">${nUniss}</span>`, shipInvF==='unissued', "setShipInvF('unissued')", '#dc2626')}
-      ${chip(`발행 <span style="opacity:.75;">${nIssued}</span>`, shipInvF==='issued', "setShipInvF('issued')", '#16a34a')}
-    </div>`;
+  const seg = (label, on, onclick) => `<button class="s ${on?'on':''}" onclick="${onclick}">${label}</button>`;
+  const invRow = `<div class="frow2"><span class="flab2">세금계산서</span><span class="ftg">
+      ${seg('전체', !shipInvF, "setShipInvF('')")}
+      ${seg(`미발행 <span class="n">${nUniss}</span>`, shipInvF==='unissued', "setShipInvF('unissued')")}
+      ${seg(`발행 <span class="n">${nIssued}</span>`, shipInvF==='issued', "setShipInvF('issued')")}
+    </span></div>`;
   // 수금
   const nColl = invScope.filter(s=>s.collected).length, nUncoll = invScope.length - nColl;
-  const collRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      ${rowLbl('수금')}
-      ${chip('전체', !shipCollF, "setShipCollF('')")}
-      ${chip(`💰 수금 전 <span style="opacity:.75;">${nUncoll}</span>`, shipCollF==='uncollected', "setShipCollF('uncollected')", '#d97706')}
-      ${chip(`✅ 수금 완료 <span style="opacity:.75;">${nColl}</span>`, shipCollF==='collected', "setShipCollF('collected')", '#16a34a')}
-    </div>`;
+  const collRow = `<div class="frow2"><span class="flab2">수금</span><span class="ftg">
+      ${seg('전체', !shipCollF, "setShipCollF('')")}
+      ${seg(`수금 전 <span class="n">${nUncoll}</span>`, shipCollF==='uncollected', "setShipCollF('uncollected')")}
+      ${seg(`수금 완료 <span class="n">${nColl}</span>`, shipCollF==='collected', "setShipCollF('collected')")}
+    </span></div>`;
   // ── 필터 접기/펼치기 (시안 A 동작 · B 링크 모양) ──
   const shipActive = [];
   if (shipStatusF==='request') shipActive.push('📦 출고 대기'); else if (shipStatusF==='done') shipActive.push('✅ 출고 완료'); else if (shipStatusF==='returned') shipActive.push('🔄 반품');
@@ -8751,7 +8730,7 @@ bindBackdropClose('createModal', closeCreateModal);
 bindBackdropClose('forkAddModal', closeForkAddModal);
 bindBackdropClose('editModal', closeEditModal);
 bindBackdropClose('asModal', closeAsModal);
-bindBackdropClose('shipModal', closeShipModal);
+/* 출고 수정 창: 바깥(배경) 클릭으로는 안 닫히게 — ×·취소·Esc로만 닫혀요 (실수로 꺼짐 방지) */
 bindBackdropClose('calDayModal', closeCalDay);
 bindBackdropClose('unpaidModal', closeUnpaidModal);
 bindBackdropClose('exportStageModal', closeExportStageModal);
@@ -9590,7 +9569,7 @@ loadAll();
 @media (max-width:900px){ .sx-bigtabs{grid-template-columns:1fr;} .sx-bigtab .nums{gap:10px;} .sx-kpis{grid-template-columns:repeat(2,1fr);} .sx-tools input{width:100%;} }
 @media (max-width:560px){ .sx-bigtab .nums{display:none;} }
 </style>
-<div class="sx-dim" id="sxDim" onclick="sxClose()"></div>
+<div class="sx-dim" id="sxDim"></div>
 <div class="sx-drawer" id="sxDrawer"></div>
 
 <!-- ═══════════ 출고 요청 (요청 작성 + 요청 이력) ═══════════ -->
@@ -10588,9 +10567,9 @@ function sxMonthOptions(keys, cur){
 function sxRenderShipSub(base){
   const box = $('sxShipSub'); if (!box) return;
   const n = { '':base.length, request:base.filter(s=>!shipDone(s)).length, done:base.filter(s=>shipDone(s)&&!shipReturned(s)).length, returned:base.filter(shipReturned).length };
-  const tb = (v,l) => `<button class="${shipStatusF===v?'on':''}" onclick="setShipStatusF('${v}')">${l}<em>${n[v]}</em></button>`;
+  const tb = (v,l) => `<button class="s ${shipStatusF===v?'on':''}" onclick="setShipStatusF('${v}')">${l} <span class="n">${n[v]}</span></button>`;
   const keys = shipments.map(s=>sxShipBasis==='req' ? sxLocalMonth(s.requested_at||s.created_at) : String(s.ship_date||'').slice(0,7));
-  box.innerHTML = `<div class="sx-sub"><div class="sx-subtabs">${tb('','전체')}${tb('request','📦 출고 대기')}${tb('done','✅ 출고 완료')}${tb('returned','🔄 반품')}</div>
+  box.innerHTML = `<div class="sx-sub" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span class="ftg">${tb('','전체')}${tb('request','출고 대기')}${tb('done','출고 완료')}${tb('returned','반품')}</span>
     <div class="sx-tools"><span class="sx-mf">📅 <select onchange="sxShipBasis=this.value;renderShip()" title="어느 날짜로 월을 나눌지">
         <option value="ship" ${sxShipBasis==='ship'?'selected':''}>출고일 기준</option><option value="req" ${sxShipBasis==='req'?'selected':''}>요청일 기준</option></select>
       <select class="msel" onchange="sxShipMonth=this.value;renderShip()"><option value="">전체 기간</option>${sxMonthOptions(keys, sxShipMonth)}</select></span></div></div>
@@ -11333,6 +11312,18 @@ srBadge();
   .inv-xls td.warn{color:var(--status-critical);font-weight:800;background:#fff2f2 !important;}
   .inv-xls td.low{color:#b45309;font-weight:800;background:#fffaf2 !important;}
   .inv-xls .xa{padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);}
+  /* ===== 공통 필터 세그먼트 토글 (시안 A) ===== */
+  .ftg{display:inline-flex;background:#eef0f3;border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;vertical-align:middle;max-width:100%;}
+  .ftg .s{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--text-secondary);padding:6px 13px;border-radius:8px;cursor:pointer;white-space:nowrap;border:none;background:transparent;font-family:inherit;line-height:1.1;}
+  .ftg .s:hover{color:var(--text-primary);}
+  .ftg .s.on{background:#fff;color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .ftg .s .n{font-size:11px;color:var(--text-tertiary);font-weight:800;}
+  .ftg .s.on .n{color:var(--primary);}
+  .ftg .s .fdot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+  .frow2{display:grid;grid-template-columns:76px 1fr;align-items:center;gap:12px;margin-bottom:9px;}
+  .frow2 .flab2{font-size:12px;font-weight:800;color:var(--text-tertiary);}
+  @media(max-width:620px){ .frow2{grid-template-columns:1fr;gap:5px;} }
+  .tb-div{width:1px;height:22px;background:var(--border);margin:0 4px;align-self:center;flex-shrink:0;}
 </style>
 <div class="inv-modal" id="invModal"><div class="inv-dialog" id="invDialog"></div></div>
 <script>
@@ -11410,8 +11401,8 @@ srBadge();
   function statCard(l,v,s){ return '<div class="stat-card"><div class="stat-label">'+l+'</div><div class="stat-value">'+v+'</div><div class="stat-sub">'+s+'</div></div>'; }
 
   function stockView(cats){
-    const chips='<span class="inv-chip '+(invCat===''?'on':'')+'" onclick="inv.cat(\'\')">전체 <span class="c">'+invItems.length+'</span></span>'
-      + cats.map(c=>{ const n=invItems.filter(i=>i.cat===c).length; return '<span class="inv-chip '+(invCat===c?'on':'')+'" onclick="inv.cat(\''+encodeURIComponent(c)+'\')">'+esc(c)+' <span class="c">'+n+'</span></span>'; }).join('');
+    const chips='<span class="ftg"><button class="s '+(invCat===''?'on':'')+'" onclick="inv.cat(\'\')">전체 <span class="n">'+invItems.length+'</span></button>'
+      + cats.map(c=>{ const n=invItems.filter(i=>i.cat===c).length; return '<button class="s '+(invCat===c?'on':'')+'" onclick="inv.cat(\''+encodeURIComponent(c)+'\')">'+esc(c)+' <span class="n">'+n+'</span></button>'; }).join('')+'</span>';
     const q=(document.getElementById('invSearch')?document.getElementById('invSearch').value:'').trim();
     const tools='<div class="inv-tools">'+chips
       +'<input class="inv-search" id="invSearch" placeholder="🔍 품목명·코드 검색" value="'+esc(q)+'" oninput="inv.render()">'
