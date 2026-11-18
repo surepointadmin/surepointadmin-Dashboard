@@ -7774,11 +7774,22 @@ function shipStepper(s){
     <span style="display:flex;align-items:center;gap:4px;">${dot(d3,'#16a34a','rgba(22,163,74,.20)')}${lbl(d3,'#15803d','수금')}</span>
   </div>`;
 }
+// 정렬형 세그먼트(.ftgA) 폭을 같은 영역 안에서 가장 긴 줄의 글자끝 기준으로 통일
+function alignFtg(root){
+  if(!root) return;
+  requestAnimationFrame(()=>{
+    const boxes=[...root.querySelectorAll('.ftgA')];
+    if(!boxes.length) return;
+    boxes.forEach(b=>{ b.style.width=''; });
+    let mx=0; boxes.forEach(b=>{ mx=Math.max(mx, b.getBoundingClientRect().width); });
+    if(mx>0.5) boxes.forEach(b=>{ b.style.width=mx+'px'; });
+  });
+}
 function renderShip(){
   const q = ($('shipSearch').value||'').toLowerCase();
   // ── 일반 / 정부지원 전환 탭 (미니멀 텍스트) ──
   const gtab = (label, val) => `<button class="s ${shipGovF===val?'on':''}" onclick="setShipGovF('${val}')">${label}</button>`;
-  $('shipGovTabs').innerHTML = `<div class="frow2"><span class="flab2">구분</span><span class="ftg">${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원','gov')}</span></div>`;
+  $('shipGovTabs').innerHTML = `<div class="frow2"><span class="flab2">구분</span><span class="ftg ftgA">${gtab('전체','')}${gtab('일반 출고','normal')}${gtab('🏛️ 정부지원','gov')}</span></div>`;
   // 전환 탭 적용 범위 (KPI·칩·목록 모두 이 범위 기준) — 단순 출고건만 (프로젝트 딜은 출고 목록에 안 뜸)
   const shipScope = shipments.filter(s=>{
     if (shipGovF === 'gov') return !!s.gov_support;
@@ -7820,14 +7831,14 @@ function renderShip(){
   });
   const nIssued = invScope.filter(s=>s.tax_invoice_issued).length, nUniss = invScope.length - nIssued;
   const seg = (label, on, onclick) => `<button class="s ${on?'on':''}" onclick="${onclick}">${label}</button>`;
-  const invRow = `<div class="frow2"><span class="flab2">세금계산서</span><span class="ftg">
+  const invRow = `<div class="frow2"><span class="flab2">세금계산서</span><span class="ftg ftgA">
       ${seg('전체', !shipInvF, "setShipInvF('')")}
       ${seg(`미발행 <span class="n">${nUniss}</span>`, shipInvF==='unissued', "setShipInvF('unissued')")}
       ${seg(`발행 <span class="n">${nIssued}</span>`, shipInvF==='issued', "setShipInvF('issued')")}
     </span></div>`;
   // 수금
   const nColl = invScope.filter(s=>s.collected).length, nUncoll = invScope.length - nColl;
-  const collRow = `<div class="frow2"><span class="flab2">수금</span><span class="ftg">
+  const collRow = `<div class="frow2"><span class="flab2">수금</span><span class="ftg ftgA">
       ${seg('전체', !shipCollF, "setShipCollF('')")}
       ${seg(`수금 전 <span class="n">${nUncoll}</span>`, shipCollF==='uncollected', "setShipCollF('uncollected')")}
       ${seg(`수금 완료 <span class="n">${nColl}</span>`, shipCollF==='collected', "setShipCollF('collected')")}
@@ -9516,6 +9527,35 @@ loadAll();
 .sx-subtabs button em{font-style:normal;font-size:12px;margin-left:3px;color:var(--text-tertiary);font-weight:700;}
 .sx-subtabs button.on em{color:var(--text-primary);}
 .sx-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;}
+/* 출고 기간 트리거 + 팝오버 */
+.sx-dtrig{display:inline-flex;align-items:center;gap:6px;height:32px;border:1px solid var(--primary);background:var(--primary-light,#eff4ff);color:var(--primary);border-radius:9px;padding:0 11px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.sx-dtrig:hover{background:#e4edff;}
+.sx-datepop{position:absolute;z-index:4000;background:var(--bg-card,#fff);border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 42px rgba(20,30,50,.20);padding:14px;}
+.sx-dp-body{display:flex;gap:14px;}
+.sx-dp-side{min-width:118px;max-width:118px;border-right:1px solid var(--border);padding-right:10px;max-height:296px;overflow:auto;}
+.sx-dp-mi{font-size:12.5px;font-weight:600;color:var(--text-secondary);padding:7px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.sx-dp-mi:hover{background:var(--bg-hover,#f3f5f8);}
+.sx-dp-mi.on{background:var(--primary);color:#fff;font-weight:800;}
+.sx-dp-hr{height:1px;background:var(--border);margin:6px 4px;}
+.sx-dp-months{display:flex;gap:18px;}
+.sx-dp-mh{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:8px;color:var(--text-primary);}
+.sx-dp-nav{color:var(--text-tertiary);cursor:pointer;padding:0 8px;font-weight:900;user-select:none;}
+.sx-dp-nav:hover{color:var(--primary);}
+.sx-dp-wk{display:grid;grid-template-columns:repeat(7,30px);gap:1px;}
+.sx-dp-wh{font-size:10px;color:var(--text-tertiary);text-align:center;font-weight:700;padding-bottom:3px;}
+.sx-dp-d{height:28px;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--text-secondary);cursor:pointer;border-radius:7px;}
+.sx-dp-d:hover{background:var(--bg-hover,#f3f5f8);}
+.sx-dp-d.mut{color:#cfd4db;cursor:default;}
+.sx-dp-d.mut:hover{background:none;}
+.sx-dp-d.st,.sx-dp-d.en{background:var(--primary);color:#fff;font-weight:800;}
+.sx-dp-d.rng{background:#dbe7ff;color:#1d4ed8;border-radius:0;}
+.sx-dp-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--border);margin-top:12px;padding-top:11px;}
+.sx-dp-sum{font-size:12.5px;font-weight:800;color:var(--text-primary);}
+.sx-dp-ph{color:var(--text-tertiary);font-weight:600;}
+.sx-dp-clear{font-size:12px;color:var(--text-tertiary);cursor:pointer;font-weight:700;}
+.sx-dp-clear:hover{color:var(--primary);}
+.sx-dp-apply{height:30px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:800;padding:0 16px;border:none;cursor:pointer;font-family:inherit;}
+@media(max-width:620px){ .sx-dp-months{flex-direction:column;} .sx-dp-side{max-height:150px;} }
 .sx-tools input{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;width:220px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
 .sx-mf{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:3px 4px 3px 9px;font-size:13px;}
 .sx-mf select{border:none;background:transparent;font-weight:700;color:#1d4ed8;padding:4px;font-size:12.5px;font-family:inherit;cursor:pointer;}
@@ -10508,6 +10548,8 @@ $('shipReqModal').addEventListener('click', e=>{ if (e.target.id==='shipReqModal
 let sxTab = 'ship';
 try { const t = localStorage.getItem('sp_sx_tab'); if (t==='inst' || t==='ship') sxTab = t; } catch(e){}
 let sxShipMonth = '', sxShipBasis = 'ship', sxShipBrk = false;
+let sxShipFrom = '', sxShipTo = '';   // 기간 직접 지정 (YYYY-MM-DD, 포함)
+let sxDpY, sxDpM, sxDpFrom='', sxDpTo='', sxDpPick='start';  // 날짜 팝오버 임시상태
 let sxInstSub = 'all', sxInstMonth = '', sxInstBasis = 'done', sxInstQ = '', sxInstBrk = false;
 let sxInstSel = new Set(), sxOpenRef = null, sxQuiet = false;
 
@@ -10561,7 +10603,108 @@ function sxRenderTabs(){
 
 /* ── 출고건 탭 (기존 renderShip에서 호출) ── */
 function sxShipKey(s){ return sxShipBasis==='req' ? sxLocalMonth(s.requested_at || s.created_at) : String(s.ship_date||'').slice(0,7); }
-function sxShipMonthOk(s){ return !sxShipMonth || sxShipKey(s)===sxShipMonth; }
+function sxShipBasisDate(s){ return sxShipBasis==='req' ? String(s.requested_at || s.created_at || '').slice(0,10) : String(s.ship_date||'').slice(0,10); }
+function sxShipMonthOk(s){
+  if (sxShipMonth && sxShipKey(s)!==sxShipMonth) return false;
+  if (sxShipFrom || sxShipTo){
+    const d = sxShipBasisDate(s);
+    if (!d) return false;
+    if (sxShipFrom && d < sxShipFrom) return false;
+    if (sxShipTo && d > sxShipTo) return false;
+  }
+  return true;
+}
+// ===== 출고 기간 필터: 월 리스트 + 2개월 달력 팝오버 =====
+function sxShipDateLabel(){
+  if (sxShipFrom || sxShipTo){
+    const f = sxShipFrom ? sxShipFrom.slice(2).replace(/-/g,'.') : '처음';
+    const t = sxShipTo ? sxShipTo.slice(2).replace(/-/g,'.') : '지금';
+    return `${f} ~ ${t}`;
+  }
+  return sxShipMonth ? sxMonthLabel(sxShipMonth) : '전체 기간';
+}
+function sxMonthEnd(m){ const y=+m.slice(0,4), mo=+m.slice(5,7); const d=new Date(y,mo,0); return y+'-'+sxPad(mo)+'-'+sxPad(d.getDate()); }
+function sxShipMonthsInData(){
+  const keys = shipments.map(s=> sxShipBasis==='req' ? sxLocalMonth(s.requested_at||s.created_at) : String(s.ship_date||'').slice(0,7)).filter(Boolean);
+  const set = new Set(keys); set.add(sxLocalMonth(new Date().toISOString()));
+  return [...set].sort().reverse();
+}
+function sxCloseDp(){ const p=document.getElementById('sxDatePop'); if(p){ p.remove(); document.removeEventListener('mousedown', sxDpOutside, true); } }
+function sxDpOutside(e){ const pop=document.getElementById('sxDatePop'); const trig=document.getElementById('sxDateTrig'); if(pop && !pop.contains(e.target) && !(trig&&trig.contains(e.target))) sxCloseDp(); }
+function sxOpenShipDate(ev){
+  ev.stopPropagation();
+  if (document.getElementById('sxDatePop')){ sxCloseDp(); return; }
+  const today = new Date();
+  if (sxShipFrom || sxShipTo){ sxDpFrom=sxShipFrom; sxDpTo=sxShipTo; }
+  else if (sxShipMonth){ sxDpFrom=sxShipMonth+'-01'; sxDpTo=sxMonthEnd(sxShipMonth); }
+  else { sxDpFrom=''; sxDpTo=''; }
+  sxDpPick='start';
+  const anc = sxDpFrom ? new Date(sxDpFrom) : today;
+  sxDpM = anc.getMonth(); sxDpY = anc.getFullYear();
+  const pop = document.createElement('div'); pop.id='sxDatePop'; pop.className='sx-datepop';
+  document.body.appendChild(pop);
+  sxDpRender();
+  const r = ev.currentTarget.getBoundingClientRect();
+  pop.style.top = (window.scrollY + r.bottom + 6) + 'px';
+  let left = window.scrollX + r.right - pop.offsetWidth;
+  if (left < window.scrollX + 10) left = window.scrollX + 10;
+  pop.style.left = left + 'px';
+  setTimeout(()=>document.addEventListener('mousedown', sxDpOutside, true), 0);
+}
+function sxDpShift(n){ let m=sxDpM+n, y=sxDpY; while(m<0){m+=12;y--;} while(m>11){m-=12;y++;} sxDpM=m; sxDpY=y; sxDpRender(); }
+function sxDpDayClick(iso){
+  if (sxDpPick==='start' || (sxDpFrom && sxDpTo)){ sxDpFrom=iso; sxDpTo=''; sxDpPick='end'; }
+  else { if (iso < sxDpFrom){ sxDpTo=sxDpFrom; sxDpFrom=iso; } else sxDpTo=iso; sxDpPick='start'; }
+  sxDpRender();
+}
+function sxDpApply(){ if (sxDpFrom){ sxShipFrom=sxDpFrom; sxShipTo=sxDpTo||sxDpFrom; sxShipMonth=''; } sxCloseDp(); renderShip(); }
+function sxDpClear(){ sxDpFrom=''; sxDpTo=''; sxDpPick='start'; sxDpRender(); }
+function sxDpPreset(kind){
+  const t=new Date(), y=t.getFullYear(), m=t.getMonth();
+  const iso=d=>d.getFullYear()+'-'+sxPad(d.getMonth()+1)+'-'+sxPad(d.getDate());
+  if (kind==='all'){ sxShipMonth=''; sxShipFrom=''; sxShipTo=''; }
+  else if (kind==='thism'){ sxShipMonth=sxLocalMonth(t.toISOString()); sxShipFrom=''; sxShipTo=''; }
+  else if (kind==='lastm'){ const d=new Date(y,m-1,1); sxShipMonth=d.getFullYear()+'-'+sxPad(d.getMonth()+1); sxShipFrom=''; sxShipTo=''; }
+  else if (kind==='3m'){ sxShipFrom=iso(new Date(y,m-2,1)); sxShipTo=iso(new Date(y,m+1,0)); sxShipMonth=''; }
+  else if (kind==='year'){ sxShipFrom=y+'-01-01'; sxShipTo=y+'-12-31'; sxShipMonth=''; }
+  sxCloseDp(); renderShip();
+}
+function sxDpPickMonth(m){ sxShipMonth=m; sxShipFrom=''; sxShipTo=''; sxCloseDp(); renderShip(); }
+function sxDpCal(y, mi, isLeft){
+  const startDow=new Date(y,mi,1).getDay();
+  const days=new Date(y,mi+1,0).getDate();
+  const prevDays=new Date(y,mi,0).getDate();
+  let cells='';
+  for(let i=0;i<startDow;i++) cells+=`<div class="sx-dp-d mut">${prevDays-startDow+1+i}</div>`;
+  for(let d=1;d<=days;d++){
+    const iso=y+'-'+sxPad(mi+1)+'-'+sxPad(d);
+    let cls='';
+    if(sxDpFrom && iso===sxDpFrom) cls='st';
+    else if(sxDpTo && iso===sxDpTo) cls='en';
+    else if(sxDpFrom && sxDpTo && iso>sxDpFrom && iso<sxDpTo) cls='rng';
+    cells+=`<div class="sx-dp-d ${cls}" onclick="sxDpDayClick('${iso}')">${d}</div>`;
+  }
+  const rem=(7-((startDow+days)%7))%7;
+  for(let i=1;i<=rem;i++) cells+=`<div class="sx-dp-d mut">${i}</div>`;
+  const head=`<div class="sx-dp-mh"><span class="sx-dp-nav" style="${isLeft?'':'visibility:hidden'}" onclick="sxDpShift(-1)">‹</span><b>${y}년 ${mi+1}월</b><span class="sx-dp-nav" style="${isLeft?'visibility:hidden':''}" onclick="sxDpShift(1)">›</span></div>`;
+  const wh=['일','월','화','수','목','금','토'].map(w=>`<div class="sx-dp-wh">${w}</div>`).join('');
+  return `<div class="sx-dp-mcol">${head}<div class="sx-dp-wk">${wh}${cells}</div></div>`;
+}
+function sxDpRender(){
+  const pop=document.getElementById('sxDatePop'); if(!pop) return;
+  const noneSel=!sxShipMonth && !sxShipFrom && !sxShipTo;
+  const presets=[['all','전체 기간',noneSel],['thism','이번 달',false],['lastm','지난 달',false],['3m','최근 3개월',false],['year','올해',false]];
+  const side=presets.map(p=>`<div class="sx-dp-mi ${p[2]?'on':''}" onclick="sxDpPreset('${p[0]}')">${p[1]}</div>`).join('')
+    + `<div class="sx-dp-hr"></div>`
+    + sxShipMonthsInData().map(m=>`<div class="sx-dp-mi ${sxShipMonth===m?'on':''}" onclick="sxDpPickMonth('${m}')">${sxMonthLabel(m)}</div>`).join('');
+  let ry=sxDpY, rm=sxDpM+1; if(rm>11){rm=0;ry++;}
+  const sum=`${sxDpFrom?sxDpFrom:'<span class="sx-dp-ph">시작일</span>'} ~ ${sxDpTo?sxDpTo:'<span class="sx-dp-ph">종료일</span>'}`;
+  pop.innerHTML=`<div class="sx-dp-body"><div class="sx-dp-side">${side}</div>
+    <div class="sx-dp-main"><div class="sx-dp-months">${sxDpCal(sxDpY,sxDpM,true)}${sxDpCal(ry,rm,false)}</div></div></div>
+    <div class="sx-dp-foot"><span class="sx-dp-sum">${sum}</span>
+      <span style="display:flex;align-items:center;gap:12px;"><span class="sx-dp-clear" onclick="sxDpClear()">초기화</span>
+      <button class="sx-dp-apply" onclick="sxDpApply()">적용</button></span></div>`;
+}
 function sxStatusOk(s){
   if (shipStatusF==='request') return !shipDone(s);
   if (shipStatusF==='done') return shipDone(s) && !shipReturned(s);
@@ -10577,12 +10720,13 @@ function sxRenderShipSub(base){
   const n = { '':base.length, request:base.filter(s=>!shipDone(s)).length, done:base.filter(s=>shipDone(s)&&!shipReturned(s)).length, returned:base.filter(shipReturned).length };
   const tb = (v,l) => `<button class="s ${shipStatusF===v?'on':''}" onclick="setShipStatusF('${v}')">${l} <span class="n">${n[v]}</span></button>`;
   const keys = shipments.map(s=>sxShipBasis==='req' ? sxLocalMonth(s.requested_at||s.created_at) : String(s.ship_date||'').slice(0,7));
-  box.innerHTML = `<div class="sx-sub" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span class="ftg">${tb('','전체')}${tb('request','출고 대기')}${tb('done','출고 완료')}${tb('returned','반품')}</span>
-    <div class="sx-tools"><span class="sx-mf">📅 <select onchange="sxShipBasis=this.value;renderShip()" title="어느 날짜로 월을 나눌지">
+  box.innerHTML = `<div class="sx-sub" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span style="display:flex;align-items:center;gap:12px;"><span class="flab2" style="font-size:12px;font-weight:800;color:var(--text-tertiary);width:72px;flex-shrink:0;">상태</span><span class="ftg ftgA">${tb('','전체')}${tb('request','출고 대기')}${tb('done','출고 완료')}${tb('returned','반품')}</span></span>
+    <div class="sx-tools"><span class="sx-mf"><select onchange="sxShipBasis=this.value;renderShip()" title="어느 날짜로 월을 나눌지">
         <option value="ship" ${sxShipBasis==='ship'?'selected':''}>출고일 기준</option><option value="req" ${sxShipBasis==='req'?'selected':''}>요청일 기준</option></select>
-      <select class="msel" onchange="sxShipMonth=this.value;renderShip()"><option value="">전체 기간</option>${sxMonthOptions(keys, sxShipMonth)}</select></span></div></div>
+      <button type="button" id="sxDateTrig" class="sx-dtrig" onclick="sxOpenShipDate(event)">📅 <span>${sxShipDateLabel()}</span> ▾</button></span></div></div>
     <div id="sxShipSel"></div>`;
   sxRenderShipSel();
+  alignFtg($('sxShipPanel'));
 }
 function sxRenderShipSel(){
   const box = $('sxShipSel'); if (!box) return;
@@ -11332,7 +11476,10 @@ srBadge();
   .frow2{display:flex;align-items:center;gap:12px;margin-bottom:9px;flex-wrap:wrap;}
   .frow2 .flab2{font-size:12px;font-weight:800;color:var(--text-tertiary);width:72px;flex-shrink:0;}
   .frow2 .ftg{flex:0 1 auto;}
-  @media(max-width:620px){ .frow2 .flab2{width:auto;} }
+  /* 정렬형 세그먼트: 옵션 균등폭 + (JS가) 가장 긴 줄 글자끝에 폭 통일 */
+  .ftgA{display:grid !important;grid-auto-flow:column;grid-auto-columns:1fr;}
+  .ftgA .s{justify-content:center;}
+  @media(max-width:620px){ .frow2 .flab2{width:auto;} .ftgA{width:auto !important;} }
   .tb-div{width:1px;height:22px;background:var(--border);margin:0 4px;align-self:center;flex-shrink:0;}
 </style>
 <div class="inv-modal" id="invModal"><div class="inv-dialog" id="invDialog"></div></div>
