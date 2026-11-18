@@ -11314,6 +11314,25 @@ srBadge();
   .inv-comp .cl .nm{flex:1;}
   .inv-comp .cl input[type=number]{width:72px;padding:6px 8px;}
   .inv-empty{padding:40px 20px;text-align:center;color:var(--text-tertiary);font-size:14px;}
+  /* 엑셀형 재고표: 격자+행번호+정렬 (시안1) · 대분류 그룹+소계+총합 (시안3) */
+  .inv-xls{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .inv-xls th,.inv-xls td{border:1px solid #e5e8ec;padding:7px 10px;}
+  .inv-xls thead th{background:#f1f3f6;border-color:#cfd4db;font-size:11px;font-weight:800;color:var(--text-secondary);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:1;}
+  .inv-xls thead th.srt{cursor:pointer;user-select:none;}
+  .inv-xls thead th.srt:hover{background:#e7ebf1;}
+  .inv-xls thead th.num,.inv-xls td.num{text-align:right;}
+  .inv-xls .ar{color:var(--text-tertiary);font-size:9px;margin-left:3px;}
+  .inv-xls .ar.on{color:var(--primary);}
+  .inv-xls .rn{width:38px;text-align:center;color:var(--text-tertiary);background:#f6f7f9;font-weight:700;}
+  .inv-xls tr.it.ev td:not(.rn){background:#fafbfc;}
+  .inv-xls tr.it:hover td:not(.rn){background:#eff4ff;}
+  .inv-xls tr.grp td{background:#eef2f8;font-weight:800;color:#1d3f87;border-color:#d4def0;cursor:pointer;}
+  .inv-xls tr.grp .gw{color:#1d3f87;}
+  .inv-xls tr.tot td{background:#1f2430;color:#fff;font-weight:800;border-color:#1f2430;}
+  .inv-xls .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+  .inv-xls td.warn{color:var(--status-critical);font-weight:800;background:#fff2f2 !important;}
+  .inv-xls td.low{color:#b45309;font-weight:800;background:#fffaf2 !important;}
+  .inv-xls .xa{padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);}
 </style>
 <div class="inv-modal" id="invModal"><div class="inv-dialog" id="invDialog"></div></div>
 <script>
@@ -11321,6 +11340,7 @@ srBadge();
   const SEED = /*__SEED__*/{"items": [{"code": "1", "cat": "제어모듈", "name": "제어 모듈(S1)", "unit": 53048, "stock": 43}, {"code": "2", "cat": "제어모듈", "name": "제어 모듈(S2)", "unit": 66076, "stock": 13}, {"code": "3", "cat": "제어모듈", "name": "제어 모듈(S3_12V-48V)", "unit": 233109, "stock": 11}, {"code": "4", "cat": "제어모듈", "name": "제어 모듈(S3_80V)", "unit": 233109, "stock": 9}, {"code": "5", "cat": "제어모듈", "name": "제어 모듈(S3_100V)", "unit": 233109, "stock": 321}, {"code": "6", "cat": "제어모듈", "name": "제어 모듈(S3_JR)", "unit": 210200, "stock": 23}, {"code": "7", "cat": "제어모듈", "name": "제어 모듈(S3_JC)", "unit": 253495, "stock": 13}, {"code": "8", "cat": "제어모듈", "name": "제어 모듈(리찌유-77)", "unit": 253495, "stock": 17}, {"code": "9", "cat": "제어모듈", "name": "제어 모듈(S3_VD)", "unit": 0, "stock": 17}, {"code": "10", "cat": "모니터", "name": "모니터(국산)", "unit": 315000, "stock": 457}, {"code": "11", "cat": "모니터", "name": "모니터 거치대(국산)", "unit": 0, "stock": 432}, {"code": "12", "cat": "모니터", "name": "AI 모니터(중국산)", "unit": 87750, "stock": 200}, {"code": "13", "cat": "모니터", "name": "모니터 거치대(중국산)", "unit": 0, "stock": 54}, {"code": "14", "cat": "카메라", "name": "AI 카메라", "unit": 52560, "stock": 349}, {"code": "15", "cat": "카메라", "name": "IR 카메라 - PAL", "unit": 18000, "stock": 2785}, {"code": "16", "cat": "카메라", "name": "IR 카메라 - NTCS", "unit": 18000, "stock": 17}, {"code": "17", "cat": "스피커", "name": "스피커(BSD)", "unit": 22500, "stock": 676}, {"code": "18", "cat": "LED", "name": "싱글 LED", "unit": 13500, "stock": 142}, {"code": "19", "cat": "LED", "name": "싱글 LED-Y", "unit": 21440, "stock": 290}, {"code": "20", "cat": "LED", "name": "싱글 LED-1", "unit": 17460, "stock": 375}, {"code": "21", "cat": "LED", "name": "듀얼 LED", "unit": 19125, "stock": 1142}, {"code": "22", "cat": "LED", "name": "듀얼 LED-Y", "unit": 26585, "stock": 49}, {"code": "23", "cat": "LED", "name": "듀얼 LED-1", "unit": 22825, "stock": 33}, {"code": "24", "cat": "LED", "name": "띠 LED", "unit": 0, "stock": 0}, {"code": "25", "cat": "GPS", "name": "GPS 안테나", "unit": 0, "stock": 614}, {"code": "26", "cat": "Cable", "name": "모니터 연결 케이블(작업X)", "unit": 0, "stock": 213}, {"code": "27", "cat": "Cable", "name": "모니터 전원 케이블(작업X)", "unit": 0, "stock": 216}, {"code": "28", "cat": "Cable", "name": "모니터 연결케이블", "unit": 3955, "stock": 314}, {"code": "29", "cat": "Cable", "name": "모니터 전원케이블", "unit": 3955, "stock": 317}, {"code": "30", "cat": "Cable", "name": "3m 연장선", "unit": 2250, "stock": 3807}, {"code": "31", "cat": "Cable", "name": "5m 연장선", "unit": 2475, "stock": 676}, {"code": "32", "cat": "Cable", "name": "브레이크용 케이블_2M", "unit": 12980, "stock": 375}, {"code": "33", "cat": "Cable", "name": "전원용 케이블_2.5M", "unit": 3970, "stock": 382}, {"code": "34", "cat": "Cable", "name": "LED 연장 케이블[3P]_2.5m", "unit": 10000, "stock": 361}, {"code": "35", "cat": "Cable", "name": "LED 연장 케이블[3P]_1m", "unit": 8450, "stock": 658}, {"code": "39", "cat": "DC/DC 컨버터", "name": "DC/DC (CM01)", "unit": 0, "stock": 7}, {"code": "40", "cat": "DC/DC 컨버터", "name": "DC/DC (CM07)", "unit": 0, "stock": 8}, {"code": "41", "cat": "제어 모듈(S3_VD) Set품목", "name": "LM-45120-12100E", "unit": 0, "stock": 19}, {"code": "42", "cat": "제어 모듈(S3_VD) Set품목", "name": "로고스티커", "unit": 0, "stock": 945}, {"code": "43", "cat": "커넥터", "name": "DT04-3P-E004", "unit": 571, "stock": 765}, {"code": "44", "cat": "커넥터", "name": "W3P", "unit": 55, "stock": 763}, {"code": "45", "cat": "커넥터", "name": "DT06-3S-P012", "unit": 608, "stock": 1139}, {"code": "46", "cat": "커넥터", "name": "W3S-P012", "unit": 94, "stock": 1139}, {"code": "47", "cat": "커넥터", "name": "DT04-4P-E004", "unit": 659, "stock": 200}, {"code": "48", "cat": "커넥터", "name": "W4P", "unit": 60, "stock": 200}, {"code": "49", "cat": "커넥터", "name": "DT06-4S-P012", "unit": 720, "stock": 205}, {"code": "50", "cat": "커넥터", "name": "W4S-P012", "unit": 94, "stock": 205}, {"code": "51", "cat": "커넥터", "name": "1062-16-0122", "unit": 117, "stock": 7000}, {"code": "52", "cat": "커넥터", "name": "1060-16-0122", "unit": 89, "stock": 3000}, {"code": "53", "cat": "커넥터", "name": "DT06-2S-P012", "unit": 400, "stock": 600}, {"code": "54", "cat": "커넥터", "name": "W2S-P012", "unit": 50, "stock": 600}], "sets": {"AI-S0": {"AI 모니터(중국산)": 1, "모니터 거치대(중국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 4, "5m 연장선": 1}, "AI-S1": {"제어 모듈(S1)": 1, "AI 카메라": 1, "싱글 LED": 3}, "AI-S2": {"제어 모듈(S2)": 1, "AI 모니터(중국산)": 1, "모니터 거치대(중국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 4, "5m 연장선": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(12-48V)": {"제어 모듈(S3_12V-48V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(100V)": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(80V)": {"제어 모듈(S3_80V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(JC)_좌식": {"제어 모듈(S3_100V)": 1, "제어 모듈(S3_JC)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 5, "5m 연장선": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(JC)_77시리즈": {"제어 모듈(S3_100V)": 1, "제어 모듈(리찌유-77)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 5, "5m 연장선": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(JR)_입식": {"제어 모듈(S3_JR)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "듀얼 LED-Y": 2, "듀얼 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(LG)_기전,수성": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 3, "스피커(BSD)": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 3, "5m 연장선": 1, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1}, "AI-S3(정부지원)_기존": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-Y": 2, "싱글 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(정부지원)_국일케빈": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-Y": 2, "싱글 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 2, "5m 연장선": 3, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 3}, "AI-S3(정부지원)_국일케빈_1톤,2톤,3톤": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-Y": 2, "싱글 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 3, "5m 연장선": 3, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 1, "LED 연장 케이블[3P]_1m": 4}, "AI-S3(정부지원)_국일케빈_5톤,6톤,7톤": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-Y": 2, "싱글 LED-1": 1, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 2, "5m 연장선": 4, "브레이크용 케이블_2M": 1, "전원용 케이블_2.5M": 1, "LED 연장 케이블[3P]_2.5m": 2, "LED 연장 케이블[3P]_1m": 2}, "AI-S3(정부지원)_클라크머터리얼_8194385": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-1": 3, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1}, "AI-S3(정부지원)_클라크머터리얼_8194399": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-1": 3, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 4, "5m 연장선": 1}, "AI-S3(정부지원)_클라크머터리얼_8194665": {"제어 모듈(S3_100V)": 1, "모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "싱글 LED-1": 3, "GPS 안테나": 1, "모니터 연결케이블": 1, "모니터 전원케이블": 1, "3m 연장선": 3, "5m 연장선": 2}, "AI-S0(정부지원)_기존": {"모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 4, "5m 연장선": 1}, "AI-S0(정부지원)_국일케빈": {"모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 2, "5m 연장선": 3}, "AI-S0(정부지원)_클라크머터리얼_8194400": {"모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 5}, "AI-S0(정부지원)_클라크머터리얼_8194709": {"모니터(국산)": 1, "모니터 거치대(국산)": 1, "IR 카메라 - PAL": 4, "스피커(BSD)": 1, "모니터 연결 케이블(작업X)": 1, "모니터 전원 케이블(작업X)": 1, "3m 연장선": 3, "5m 연장선": 1}}}/*__ENDSEED__*/;
   let invItems=[], invSets={}, invTx=[], invSettings={}, invLoaded=false, invStock={};
   let invView='stock', invCat='', invLogFilter='';
+  let invSort={col:'name', dir:1}, invCollapsed={};
   const nowISO = ()=>new Date().toISOString();
   const who = ()=>{ try{ const u=authUser(); return (u&&u.name)||'—'; }catch(e){ return '—'; } };
   const commaN = n=>Number(n||0).toLocaleString();
@@ -11373,11 +11393,13 @@ srBadge();
       + '</div>';
     const sub = '<div class="inv-sub">'
       + '<span class="st '+(invView==='stock'?'on':'')+'" onclick="inv.tab(\'stock\')">재고 현황</span>'
+      + '<span class="st '+(invView==='setcap'?'on':'')+'" onclick="inv.tab(\'setcap\')">세트 출고가능 <b>'+Object.keys(invSets).length+'</b></span>'
       + '<span class="st '+(invView==='log'?'on':'')+'" onclick="inv.tab(\'log\')">입·출고·반품 이력 <b>'+invTx.length+'</b></span>'
       + '<span class="st '+(invView==='master'?'on':'')+'" onclick="inv.tab(\'master\')">품목·세트 <b>'+invItems.length+'·'+Object.keys(invSets).length+'</b></span>'
       + '</div>';
     let body='';
     if(invView==='stock') body=stockView(cats);
+    else if(invView==='setcap') body=setcapView();
     else if(invView==='log') body=logView();
     else body=masterView();
     document.getElementById('invRoot').innerHTML =
@@ -11390,8 +11412,9 @@ srBadge();
   function stockView(cats){
     const chips='<span class="inv-chip '+(invCat===''?'on':'')+'" onclick="inv.cat(\'\')">전체 <span class="c">'+invItems.length+'</span></span>'
       + cats.map(c=>{ const n=invItems.filter(i=>i.cat===c).length; return '<span class="inv-chip '+(invCat===c?'on':'')+'" onclick="inv.cat(\''+encodeURIComponent(c)+'\')">'+esc(c)+' <span class="c">'+n+'</span></span>'; }).join('');
+    const q=(document.getElementById('invSearch')?document.getElementById('invSearch').value:'').trim();
     const tools='<div class="inv-tools">'+chips
-      +'<input class="inv-search" id="invSearch" placeholder="🔍 품목명·코드 검색" oninput="inv.render()">'
+      +'<input class="inv-search" id="invSearch" placeholder="🔍 품목명·코드 검색" value="'+esc(q)+'" oninput="inv.render()">'
       +'<div class="inv-reg">'
       +'<span class="b in" onclick="inv.open(\'in\')">＋ 입고</span>'
       +'<span class="b out" onclick="inv.open(\'setout\')">세트 출고</span>'
@@ -11399,23 +11422,76 @@ srBadge();
       +'<span class="b ret" onclick="inv.open(\'return\')">반품</span>'
       +'<span class="b adj" onclick="inv.open(\'adjust\')">재고조정</span>'
       +'</div></div>';
-    const q=(document.getElementById('invSearch')?document.getElementById('invSearch').value:'').trim().toLowerCase();
+    const ql=q.toLowerCase();
     let list=invItems.slice();
     if(invCat) list=list.filter(i=>i.cat===invCat);
-    if(q) list=list.filter(i=>(i.name+' '+(i.code||'')).toLowerCase().includes(q));
-    // 안전재고 미만 먼저
-    const low=list.filter(i=>{ const s=invStock[i.name]||{sell:0}; return (Number(i.safe)||0)>0 && s.sell<i.safe; });
-    const rest=list.filter(i=>!low.includes(i));
-    let html='<div class="section-card">'+tools;
-    if(!list.length){ html+='<div class="inv-empty">해당 품목이 없어요</div></div>'; return html; }
-    if(low.length){ html+='<div class="inv-grp" style="color:var(--status-critical);">⚠️ 안전재고 미만 <span class="cnt">· 먼저 확인</span></div>'+low.map(itemRow).join(''); }
-    // 카테고리별 그룹
-    const byCat={}; rest.forEach(i=>{ (byCat[i.cat]=byCat[i.cat]||[]).push(i); });
-    Object.keys(byCat).forEach(c=>{
-      const arr=byCat[c]; let val=0; arr.forEach(i=>{ const s=invStock[i.name]||{sell:0}; val+=s.sell*(Number(i.unit)||0); });
-      html+='<div class="inv-grp"><span class="dot"></span>'+esc(c)+' <span class="cnt">'+arr.length+'종 · 재고액 '+stShort(val)+'</span></div>'+arr.map(itemRow).join('');
+    if(ql) list=list.filter(i=>(i.name+' '+(i.code||'')).toLowerCase().includes(ql));
+    if(!list.length) return '<div class="section-card">'+tools+'<div class="inv-empty">해당 품목이 없어요</div></div>';
+    const valOf=i=>(invStock[i.name]||{sell:0}).sell*(Number(i.unit)||0);
+    const curOf=i=>(invStock[i.name]||{sell:0}).sell;
+    const keyFns={name:i=>i.name, cur:curOf, safe:i=>Number(i.safe)||0, unit:i=>Number(i.unit)||0, val:valOf};
+    const kf=keyFns[invSort.col]||keyFns.name;
+    const cmp=(a,b)=>{ const ka=kf(a),kb=kf(b); const r=(typeof ka==='string')?ka.localeCompare(kb):(ka-kb); return r*invSort.dir; };
+    const cols=cats.filter(c=>list.some(i=>i.cat===c));
+    let totVal=0, rn=0, ev=0, body='';
+    cols.forEach(c=>{
+      const arr=list.filter(i=>i.cat===c).sort(cmp);
+      let sub=0; arr.forEach(i=>sub+=valOf(i)); totVal+=sub;
+      const collapsed=!!invCollapsed[c];
+      body+='<tr class="grp" onclick="inv.group(\''+encodeURIComponent(c)+'\')"><td class="rn">'+(collapsed?'▸':'▾')+'</td><td>'+esc(c)+' <span style="font-weight:600;color:var(--text-tertiary);">'+arr.length+'종</span></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num gw mono">'+stShort(sub)+'</td><td></td></tr>';
+      if(collapsed) return;
+      arr.forEach(i=>{
+        rn++; ev++;
+        const s=invStock[i.name]||{sell:0,defect:0}; const cur=s.sell, safe=Number(i.safe)||0;
+        let ccls=''; if(safe>0 && cur<safe) ccls = cur<safe*0.5 ? 'warn' : 'low';
+        body+='<tr class="it'+(ev%2===0?' ev':'')+'">'
+          +'<td class="rn">'+rn+'</td>'
+          +'<td><b>'+esc(i.name)+'</b>'+(s.defect>0?' <span class="inv-defect">불량 '+s.defect+'</span>':'')+(i.code?' <span style="color:var(--text-tertiary);font-weight:500;font-size:11px;">#'+esc(i.code)+'</span>':'')+'</td>'
+          +'<td class="num mono '+ccls+'">'+commaN(cur)+'</td>'
+          +'<td class="num mono" style="color:var(--text-tertiary);">'+(safe>0?commaN(safe):'—')+'</td>'
+          +'<td class="num mono" style="color:var(--text-secondary);">'+commaN(i.unit)+'</td>'
+          +'<td class="num mono" style="font-weight:700;">'+stShort(valOf(i))+'</td>'
+          +'<td style="text-align:center;white-space:nowrap;"><span class="xa" style="color:#15803d;border-color:#bfe3c9;background:#f3faf5;" onclick="inv.open(\'in\',\''+encodeURIComponent(i.name)+'\')">입고</span> <span class="xa" style="color:#b45309;border-color:#f3d9b5;background:#fff8f0;margin-left:3px;" onclick="inv.open(\'out\',\''+encodeURIComponent(i.name)+'\')">출고</span></td>'
+          +'</tr>';
+      });
     });
-    html+='</div>'; return html;
+    const totRow='<tr class="tot"><td class="rn"></td><td>총 합계 <span style="font-weight:600;opacity:.75;">'+list.length+'종</span></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num mono">'+stShort(totVal)+'</td><td></td></tr>';
+    const th=(label,col,isNum)=>'<th class="'+(isNum?'num ':'')+'srt" onclick="inv.sort(\''+col+'\')">'+label+arrow(col)+'</th>';
+    const head='<thead><tr><th class="rn">#</th>'+th('품목','name',false)+th('현재고','cur',true)+th('안전','safe',true)+th('단가','unit',true)+th('재고액','val',true)+'<th style="text-align:center;">관리</th></tr></thead>';
+    return '<div class="section-card" style="padding:0;overflow:hidden;"><div style="padding:16px 18px 10px;">'+tools+'</div>'
+      +'<div style="overflow-x:auto;"><table class="inv-xls">'+head+'<tbody>'+body+totRow+'</tbody></table></div></div>';
+  }
+  function arrow(col){ return (invSort.col===col) ? '<span class="ar on">'+(invSort.dir>0?'▲':'▼')+'</span>' : '<span class="ar">▲▼</span>'; }
+  // ===== 세트 출고가능 — 현재 재고로 각 세트를 최대 몇 개 만들 수 있는지 (병목 구성품 기준) =====
+  function setcapView(){
+    const rows=Object.keys(invSets).map(sc=>{
+      const comp=invSets[sc]; let minCan=Infinity, bottleneck=null;
+      Object.keys(comp).forEach(c=>{
+        const need=Number(comp[c])||0; if(need<=0) return;
+        const have=(invStock[c]||{sell:0}).sell;
+        const can=Math.floor(have/need);
+        if(can<minCan){ minCan=can; bottleneck={name:c,have,need}; }
+      });
+      if(minCan===Infinity) minCan=0;
+      return {sc, can:minCan, bottleneck, nComp:Object.keys(comp).length};
+    }).sort((a,b)=>a.can-b.can || a.sc.localeCompare(b.sc));
+    const total=rows.reduce((s,r)=>s+r.can,0), zero=rows.filter(r=>r.can===0).length;
+    const body=rows.map(r=>{
+      const col=r.can===0?'var(--status-critical)':(r.can<5?'#b45309':'#15803d');
+      const rs=r.can===0?'background:#fffafa;':(r.can<5?'background:#fffdf8;':'');
+      const bn=r.bottleneck?(esc(r.bottleneck.name)+' <span style="color:var(--text-tertiary);font-weight:500;">(남은 '+commaN(r.bottleneck.have)+' · 1세트당 '+r.bottleneck.need+')</span>'):'-';
+      return '<tr style="'+rs+'">'
+        +'<td style="font-weight:700;white-space:nowrap;">'+esc(r.sc)+'</td>'
+        +'<td style="text-align:right;"><span style="font-size:16px;font-weight:900;color:'+col+';">'+commaN(r.can)+'</span> <span style="color:var(--text-tertiary);font-size:12px;">세트</span></td>'
+        +'<td>'+bn+'</td>'
+        +'<td style="text-align:center;color:var(--text-tertiary);">'+r.nComp+'종</td>'
+        +'<td style="text-align:center;white-space:nowrap;"><span style="padding:5px 11px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid #f3d9b5;color:#b45309;background:#fff8f0;'+(r.can===0?'opacity:.45;':'')+'" onclick="inv.setout(\''+encodeURIComponent(r.sc)+'\')">세트 출고</span></td>'
+        +'</tr>';
+    }).join('');
+    return '<div class="section-card" style="padding:0;overflow:hidden;">'
+      +'<div style="padding:16px 18px 10px;"><div style="font-size:13.5px;font-weight:800;margin-bottom:3px;">📦 세트 출고가능 수량 <span style="font-weight:600;color:var(--text-tertiary);font-size:12px;">· 지금 재고로 만들 수 있는 세트</span></div>'
+      +'<div style="font-size:12px;color:var(--text-tertiary);line-height:1.6;">가장 모자란 구성품(병목)이 한도예요. 숫자가 작은 세트부터 정렬 · '+(zero?('<b style="color:var(--status-critical);">만들 수 없는 세트 '+zero+'종</b> · '):'')+'전 세트 합계 '+commaN(total)+'세트</div></div>'
+      +'<div style="overflow-x:auto;"><table class="inv-log"><thead><tr><th>세트</th><th style="text-align:right;">지금 가능</th><th>가장 모자란 구성품 (병목)</th><th style="text-align:center;">구성품</th><th style="text-align:center;">출고</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
   }
   function itemRow(it){
     const s=invStock[it.name]||{sell:0,defect:0};
@@ -11632,7 +11708,10 @@ srBadge();
   window.inv={ enter:invEnter, render:invRender, tab:v=>{invView=v;invRender();}, cat:c=>{invCat=c?decodeURIComponent(c):'';invRender();},
     logf:f=>{invLogFilter=f;invRender();}, open:invOpen, close:invClose, submit:invSubmit, del:invDel, safe:invSafe,
     mode:m=>{modMode=m;renderModal();}, retmode:m=>{modReturnMode=m;renderModal(); if(m==='set')setTimeout(retPreview,0); if(m==='parts')setTimeout(retParts,0); setTimeout(retGate,0);},
-    setchg:setDeductPreview, retchg:retPreview, retparts:retParts, retgate:retGate };
+    setchg:setDeductPreview, retchg:retPreview, retparts:retParts, retgate:retGate,
+    sort:c=>{ if(invSort.col===c) invSort.dir*=-1; else { invSort.col=c; invSort.dir=(c==='name'?1:-1); } invRender(); },
+    group:c=>{ c=decodeURIComponent(c); invCollapsed[c]=!invCollapsed[c]; invRender(); },
+    setout:sc=>{ invOpen('setout'); setTimeout(function(){ const el=document.getElementById('fSet'); if(el){ el.value=decodeURIComponent(sc); setDeductPreview(); } },0); } };
   window.invEnter=invEnter;
 })();
 </script>
