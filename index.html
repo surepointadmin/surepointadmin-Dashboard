@@ -3252,7 +3252,8 @@ let currentShipId = null;
 let shipProducts = []; // 모달에서 편집 중인 제품 목록 [{name, qty, unit}]
 let selectedYear = new Date().getFullYear();
 let dashSubTab = 'sales';        // 'sales' 매출 요약 | 'product' 제품 통계
-let forkView = 'list';           // 지게차 통계: 'list' 브랜드별 목록 | 'card' 브랜드 카드
+let forkView = 'list';           // 지게차 통계: 'list' 설치 실적 | 'catalog' 호환 카탈로그
+let forkQ = '';                  // 지게차 통계 검색어 (모델명·브랜드)
 let psSource = 'all';            // 'all' 합계(프로젝트+출고건) | 'deal' 프로젝트 | 'ship' 출고건 | 'gov' 정부지원
 let psMetric = 'qty';            // 'qty' 수량 | 'amt' 금액
 let psSort   = 'qty';            // 'qty' 출고량순 | 'pct' 비율순 | 'name' 이름순
@@ -3416,6 +3417,9 @@ async function loadKvRemote(){
     // 직접 추가한 지게차 기록
     if (Array.isArray(map.forklift_manual)) { forkManual = map.forklift_manual; try{ localStorage.setItem(FMANUAL_LS_KEY, JSON.stringify(forkManual)); }catch(e){} }
     else if (forkManual && forkManual.length) { await sbUpsert(KV_TABLE, [{k:'forklift_manual', data:forkManual}], 'k'); }
+    // 지게차 호환 카탈로그 (편집본)
+    if (Array.isArray(map.fork_catalog) && map.fork_catalog.length) { forkCat = map.fork_catalog.map(r=>fcRow(r)); try{ localStorage.setItem(FCAT_LS_KEY, JSON.stringify(forkCat)); }catch(e){} }
+    else { await sbUpsert(KV_TABLE, [{k:'fork_catalog', data:forkCat}], 'k'); }
     // 딜 제품 구성(여러 제품+설치비)
     if (map.deal_items != null) { dealItems = map.deal_items || {}; try{ localStorage.setItem(DITEMS_LS_KEY, JSON.stringify(dealItems)); }catch(e){} }
     else if (dealItems && Object.keys(dealItems).length) { await sbUpsert(KV_TABLE, [{k:'deal_items', data:dealItems}], 'k'); }
@@ -5757,9 +5761,9 @@ function dealForkProduct(d){
 /* ===== 지게차 호환 카탈로그 (브레이크 밸브 적용 가능 모델 · 이미지에서 옮긴 초안) =====
    셀 표기: O=가능 / ^=조건부(△) / X=불가 / (빈칸)=해당없음 · "O(UNF3/4)"처럼 괄호=보조 태그
    컬럼: 제조사|모델|하중(톤)|전압|연료|세대|유압즉시|유압추가품후|전장즉시|전장추가품후|밸브사양|비고 */
-function fcCell(v){ v=(v||'').trim(); const m=v.match(/^([O\^X])(?:\((.+)\))?$/); if(!m) return {s:'',t:''}; return {s:(m[1]==='^'?'△':m[1]), t:m[2]||''}; }
+function fcCell(v){ v=(v||'').trim(); const m=v.match(/^([O\^△X])(?:\((.+)\))?$/); if(!m) return {s:'',t:''}; return {s:(m[1]==='^'?'△':m[1]), t:m[2]||''}; }
 function fcParse(s){ const a=s.split('|'); return {mk:a[0]||'',md:a[1]||'',ton:a[2]||'',volt:a[3]||'',fuel:a[4]||'',gen:a[5]||'',hN:fcCell(a[6]),hF:fcCell(a[7]),eN:fcCell(a[8]),eF:fcCell(a[9]),valve:(a[10]||'').trim(),note:(a[11]||'').trim()}; }
-const FORK_CATALOG = [
+const FORK_CAT_SEED = [
 "클라크|C10/20|10/20|12V|디젤/LPG|GEN2||O||O|마스터실린더|유압·전장 검토 및 시험 필요",
 "클라크|C20/35|20/35|12V|디젤/LPG|GEN2||O||O|마스터실린더|유압·전장 검토 및 시험 필요",
 "클라크|C40/55s|40/50|24V|디젤/LPG|GEN2|O|||O|부스터|전장시스템 설계 후 가능(제어기 12V)",
@@ -5835,7 +5839,15 @@ const FORK_CATALOG = [
 "두산|D50C-7|5|12V|디젤||O|O|||부스터|4.5톤 이상급 UNF3/4 적용 예상(범위행)",
 "두산|G50C-7|5|12V|LPG(가솔린겸용)|-7|O(UNF3/4)|O|O|O|부스터|UNF3/4",
 "두산|G55C-7|5.5|12V|LPG(가솔린겸용)|-7|O(UNF3/4)|O|O|O|부스터|UNF3/4",
-].map(fcParse);
+];
+// 편집 가능한 카탈로그 (셀은 원문 문자열로 보관: 'O','O(UNF3/4)','△','X','')
+let fcSeq = 1;
+function fcRow(s){ const a=(typeof s==='string'?s.split('|'):null); if(a) return {id:'fc'+(fcSeq++),mk:a[0]||'',md:a[1]||'',ton:a[2]||'',volt:a[3]||'',fuel:a[4]||'',gen:a[5]||'',hN:(a[6]||'').trim().replace('^','△'),hF:(a[7]||'').trim().replace('^','△'),eN:(a[8]||'').trim().replace('^','△'),eF:(a[9]||'').trim().replace('^','△'),valve:(a[10]||'').trim(),note:(a[11]||'').trim()}; return Object.assign({id:'fc'+(fcSeq++),mk:'',md:'',ton:'',volt:'',fuel:'',gen:'',hN:'',hF:'',eN:'',eF:'',valve:'',note:''}, s||{}); }
+let forkCat = FORK_CAT_SEED.map(fcRow);
+const FCAT_LS_KEY = 'sp_fork_catalog';
+function loadForkCat(){ try{ const v=JSON.parse(localStorage.getItem(FCAT_LS_KEY)||'null'); if(Array.isArray(v)&&v.length){ forkCat=v.map(r=>fcRow(r)); } }catch(e){} }
+function saveForkCat(){ try{ localStorage.setItem(FCAT_LS_KEY, JSON.stringify(forkCat)); }catch(e){} syncKv('fork_catalog', forkCat); }
+loadForkCat();
 const FORK_CAT_COLORS = {'클라크':'#0071e3','현대':'#0d9488','두산':'#7d5bed'};
 function fcNorm(s){ return String(s||'').toUpperCase().replace(/[\s\-_/]/g,''); }
 /* 카탈로그 + 설치 실적 병합: 카탈로그 행엔 설치건수(inst) 붙이고, 카탈로그에 없는 설치 모델은 '호환 미확인' 행으로 추가 */
@@ -5843,32 +5855,36 @@ function forkCatalogRows(){
   const stats = collectForkliftStats();
   const instMap = {};
   stats.forEach(b=> b.models.forEach(m=>{ const k=fcNorm(b.name)+'|'+fcNorm(m.model); instMap[k]=(instMap[k]||0)+m.cnt; }));
-  const catKeys = new Set(FORK_CATALOG.map(r=>fcNorm(r.mk)+'|'+fcNorm(r.md)));
-  const rows = FORK_CATALOG.map(r=>({ ...r, inst: instMap[fcNorm(r.mk)+'|'+fcNorm(r.md)]||0, extra:false }));
+  const catKeys = new Set(forkCat.map(r=>fcNorm(r.mk)+'|'+fcNorm(r.md)));
+  const rows = forkCat.map(r=>({ ...r, inst: instMap[fcNorm(r.mk)+'|'+fcNorm(r.md)]||0, extra:false }));
   stats.forEach(b=> b.models.forEach(m=>{
     const k=fcNorm(b.name)+'|'+fcNorm(m.model);
-    if(!catKeys.has(k)) rows.push({ mk:b.name, md:m.model, ton:'',volt:'',fuel:'',gen:'', hN:{s:'',t:''},hF:{s:'',t:''},eN:{s:'',t:''},eF:{s:'',t:''}, valve:'', note:'설치 실적 기반 · 호환 미확인', inst:m.cnt, extra:true });
+    if(!catKeys.has(k)) rows.push({ id:'', mk:b.name, md:m.model, ton:'',volt:'',fuel:'',gen:'', hN:'',hF:'',eN:'',eF:'', valve:'', note:'설치 실적 기반 · 호환 미확인', inst:m.cnt, extra:true });
   }));
   return rows;
 }
-function fcChip(c){ if(!c.s) return `<span style="color:var(--text-tertiary);">·</span>`; const cls=c.s==='O'?'ok':(c.s==='△'?'cond':'no'); return `<span class="fk-cm ${cls}">${c.s}</span>${c.t?`<div class="fk-sub">${esc(c.t)}</div>`:''}`; }
+function fcChip(raw){ const c=fcCell(raw); if(!c.s) return `<span style="color:var(--text-tertiary);">·</span>`; const cls=c.s==='O'?'ok':(c.s==='△'?'cond':'no'); return `<span class="fk-cm ${cls}">${c.s}</span>${c.t?`<div class="fk-sub">${esc(c.t)}</div>`:''}`; }
+function fcSym(raw){ return fcCell(raw).s; }
 function renderForkCatalog(){
-  const rows = forkCatalogRows();
-  const nOk = rows.filter(r=>r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O').length;
-  const nCond = rows.filter(r=>!(r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O') && (r.hN.s==='△'||r.hF.s==='△'||r.eN.s==='△'||r.eF.s==='△')).length;
-  const nNo = rows.filter(r=>[r.hN,r.hF,r.eN,r.eF].some(c=>c.s==='X') && !(r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O')).length;
+  let rows = forkCatalogRows();
+  if (forkQ && forkQ.trim()){ const q=forkQ.trim().toLowerCase(); rows = rows.filter(r=>((r.mk||'')+' '+(r.md||'')).toLowerCase().includes(q)); }
+  const hasO = r => fcSym(r.hN)==='O'||fcSym(r.hF)==='O'||fcSym(r.eN)==='O'||fcSym(r.eF)==='O';
+  const hasC = r => fcSym(r.hN)==='△'||fcSym(r.hF)==='△'||fcSym(r.eN)==='△'||fcSym(r.eF)==='△';
+  const hasX = r => fcSym(r.hN)==='X'||fcSym(r.hF)==='X'||fcSym(r.eN)==='X'||fcSym(r.eF)==='X';
+  const nOk = rows.filter(hasO).length;
+  const nCond = rows.filter(r=>!hasO(r)&&hasC(r)).length;
+  const nNo = rows.filter(r=>hasX(r)&&!hasO(r)).length;
   const nInst = rows.filter(r=>r.inst>0).length;
-  // 제조사 그룹 (등장 순서 유지)
   const order=[]; const grp={};
   rows.forEach(r=>{ if(!grp[r.mk]){ grp[r.mk]=[]; order.push(r.mk); } grp[r.mk].push(r); });
   const body = order.map(mk=>{
     const col = FORK_CAT_COLORS[mk] || '#8b95a1';
-    const rws = grp[mk].map(r=>`<tr${r.extra?' style="background:#fffaf0;"':''}>
-      <td class="lft"><b>${esc(r.md)}</b>${r.inst?`<span class="fk-inst" title="우리가 설치한 모델">🔧 설치 ${r.inst}</span>`:''}${r.extra?`<span class="fk-unk">호환 미확인</span>`:''}</td>
+    const rws = grp[mk].map(r=>`<tr${r.extra?' style="background:#fffaf0;"':''} class="fk-crow" ${r.extra?`onclick="fcPromote('${esc(r.mk)}','${esc(r.md)}')" title="카탈로그에 추가해서 호환 정보 입력"`:`onclick="openForkCatEdit('${r.id}')" title="눌러서 수정"`}>
+      <td class="lft"><b>${esc(r.md)}</b>${r.inst?`<span class="fk-inst" title="우리가 설치한 모델">🔧 설치 ${r.inst}</span>`:''}${r.extra?`<span class="fk-unk">＋ 카탈로그 추가</span>`:''}</td>
       <td class="ctr">${esc(r.ton||'-')}</td><td class="ctr">${esc(r.volt||'-')}</td><td class="ctr">${esc(r.fuel||'-')}</td><td class="ctr">${esc(r.gen||'-')}</td>
       <td class="ctr">${fcChip(r.hN)}</td><td class="ctr">${fcChip(r.hF)}</td><td class="ctr">${fcChip(r.eN)}</td><td class="ctr">${fcChip(r.eF)}</td>
-      <td class="lft">${esc(r.valve||'')}</td><td class="lft cap">${esc(r.note||'')}</td></tr>`).join('');
-    return `<tr class="grp"><td colspan="11"><span class="bdot" style="background:${col};"></span>${esc(mk)} · ${grp[mk].length}모델</td></tr>${rws}`;
+      <td class="lft">${esc(r.valve||'')}</td><td class="lft cap">${esc(r.note||'')}</td><td class="ctr">${r.extra?'':'<span class="fk-edit">✏️</span>'}</td></tr>`).join('');
+    return `<tr class="grp"><td colspan="12"><span class="bdot" style="background:${col};"></span>${esc(mk)} · ${grp[mk].length}모델</td></tr>${rws}`;
   }).join('');
   return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px;align-items:center;">
       <span class="fk-lg"><b>${rows.length}</b> 모델</span>
@@ -5876,15 +5892,80 @@ function renderForkCatalog(){
       <span class="fk-lg"><span class="fk-cm cond">△</span> 조건부 <b>${nCond}</b></span>
       <span class="fk-lg"><span class="fk-cm no">X</span> 불가 <b>${nNo}</b></span>
       <span class="fk-lg">🔧 설치 실적 <b>${nInst}</b></span>
+      <span style="margin-left:auto;font-size:11.5px;color:var(--text-tertiary);font-weight:600;">행을 누르면 수정돼요</span>
     </div>
     <div style="overflow-x:auto;"><table class="fk-xls fk-cat">
       <thead>
-        <tr><th rowspan="2" class="lft">모델</th><th rowspan="2">하중(톤)</th><th rowspan="2">전압</th><th rowspan="2">연료</th><th rowspan="2">세대</th><th colspan="2">유압</th><th colspan="2">전장</th><th rowspan="2" class="lft">브레이크밸브 사양</th><th rowspan="2" class="lft">비고</th></tr>
+        <tr><th rowspan="2" class="lft">모델</th><th rowspan="2">하중(톤)</th><th rowspan="2">전압</th><th rowspan="2">연료</th><th rowspan="2">세대</th><th colspan="2">유압</th><th colspan="2">전장</th><th rowspan="2" class="lft">브레이크밸브 사양</th><th rowspan="2" class="lft">비고</th><th rowspan="2"></th></tr>
         <tr><th>즉시</th><th>추가품후</th><th>즉시</th><th>추가품후</th></tr>
       </thead>
       <tbody>${body}</tbody>
     </table></div>
-    <div style="font-size:11px;color:var(--text-tertiary);margin-top:9px;line-height:1.6;">표시: <span class="fk-cm ok">O</span>가능 <span class="fk-cm cond">△</span>조건부(추가품·시험) <span class="fk-cm no">X</span>불가 · <span style="color:var(--text-tertiary);">·</span> 해당없음 · <span class="fk-inst">🔧 설치 N</span> = 우리가 설치한 모델(설치 실적과 자동 연결) · <span style="color:#b45309;">연한 노랑 행</span>은 설치했지만 카탈로그에 없던 모델<br>⚠️ 이 데이터는 보내주신 이미지에서 옮긴 <b>초안</b>이라 O·X 표시에 오류가 있을 수 있어요 — 원본 대조/엑셀 주시면 정확히 교체할게요.</div>`;
+    <div style="font-size:11px;color:var(--text-tertiary);margin-top:9px;line-height:1.6;">표시: <span class="fk-cm ok">O</span>가능 <span class="fk-cm cond">△</span>조건부(추가품·시험) <span class="fk-cm no">X</span>불가 · <span style="color:var(--text-tertiary);">·</span> 해당없음 · <span class="fk-inst">🔧 설치 N</span> = 우리가 설치한 모델(설치 실적과 자동 연결) · <span style="color:#b45309;">연노랑 행</span>은 설치했지만 카탈로그에 없던 모델(눌러서 추가)<br>⚠️ 이 데이터는 이미지에서 옮긴 <b>초안</b>이라 O·X에 오류가 있을 수 있어요 — 행을 눌러 바로 고칠 수 있어요.</div>`;
+}
+/* ── 카탈로그 행 수정/추가 모달 ── */
+const FC_OPTS = [['','해당없음'],['O','가능 (O)'],['△','조건부 (△)'],['X','불가 (X)']];
+function fcSel(id,val){ const sym=fcCell(val).s; return `<select id="${id}" class="form-input" style="padding:7px 9px;">${FC_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===sym?'selected':''}>${o[1]}</option>`).join('')}</select>`; }
+function fcMakeCell(sym, tag){ sym=(sym||'').trim(); if(!sym) return ''; tag=(tag||'').trim(); return sym + (tag?`(${tag})`:''); }
+function openForkCatEdit(id){
+  const r = forkCat.find(x=>x.id===id) || {id:'',mk:'',md:'',ton:'',volt:'',fuel:'',gen:'',hN:'',hF:'',eN:'',eF:'',valve:'',note:''};
+  const isNew = !r.id;
+  const tg = v => fcCell(v).t;
+  let pop = document.getElementById('fcEditPop'); if(pop) pop.remove();
+  pop = document.createElement('div'); pop.id='fcEditPop';
+  pop.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(20,25,35,.4);display:flex;align-items:center;justify-content:center;padding:20px;';
+  pop.innerHTML = `<div style="background:var(--bg-card,#fff);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.25);">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-size:16px;font-weight:800;">${isNew?'🧩 카탈로그 모델 추가':'🧩 카탈로그 모델 수정'}</div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:10px;"><div style="flex:1;"><label class="form-label">제조사</label><input id="fcMk" class="form-input" value="${esc(r.mk)}" placeholder="예: 두산"></div><div style="flex:1.4;"><label class="form-label">모델명</label><input id="fcMd" class="form-input" value="${esc(r.md)}" placeholder="예: D30S-9"></div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;"><div style="flex:1;min-width:90px;"><label class="form-label">하중(톤)</label><input id="fcTon" class="form-input" value="${esc(r.ton)}"></div><div style="flex:1;min-width:90px;"><label class="form-label">전압</label><input id="fcVolt" class="form-input" value="${esc(r.volt)}"></div><div style="flex:1;min-width:110px;"><label class="form-label">연료</label><input id="fcFuel" class="form-input" value="${esc(r.fuel)}"></div><div style="flex:1;min-width:80px;"><label class="form-label">세대</label><input id="fcGen" class="form-input" value="${esc(r.gen)}"></div></div>
+      <div style="border-top:1px dashed var(--border);padding-top:12px;">
+        <div style="font-size:12.5px;font-weight:800;color:var(--primary);margin-bottom:8px;">🛢 유압</div>
+        <div style="display:flex;gap:10px;"><div style="flex:1;"><label class="form-label">즉시</label>${fcSel('fcHN',r.hN)}</div><div style="flex:1;"><label class="form-label">추가품 적용 후</label>${fcSel('fcHF',r.hF)}</div><div style="flex:1;"><label class="form-label">보조표기</label><input id="fcHtag" class="form-input" value="${esc(tg(r.hF)||tg(r.hN))}" placeholder="예: UNF3/4"></div></div>
+      </div>
+      <div style="border-top:1px dashed var(--border);padding-top:12px;">
+        <div style="font-size:12.5px;font-weight:800;color:var(--primary);margin-bottom:8px;">⚡ 전장</div>
+        <div style="display:flex;gap:10px;"><div style="flex:1;"><label class="form-label">즉시</label>${fcSel('fcEN',r.eN)}</div><div style="flex:1;"><label class="form-label">추가품 적용 후</label>${fcSel('fcEF',r.eF)}</div><div style="flex:1;"><label class="form-label">보조표기</label><input id="fcEtag" class="form-input" value="${esc(tg(r.eF)||tg(r.eN))}" placeholder="(선택)"></div></div>
+      </div>
+      <div><label class="form-label">브레이크밸브 사양</label><input id="fcValve" class="form-input" value="${esc(r.valve)}" placeholder="예: 부스터 / 마스터"></div>
+      <div><label class="form-label">비고</label><input id="fcNote" class="form-input" value="${esc(r.note)}" placeholder="출처·확인사항"></div>
+    </div>
+    <div style="padding:13px 20px;display:flex;gap:10px;border-top:1px solid var(--border);background:var(--bg-subtle,#fafbfc);">
+      ${isNew?'':`<button class="btn btn-secondary btn-sm" style="margin-right:auto;color:var(--status-critical);" onclick="deleteForkCatRow('${r.id}')">삭제</button>`}
+      <button class="btn btn-secondary btn-sm" style="${isNew?'margin-left:auto;':''}" onclick="fcCloseEdit()">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="saveForkCatRow('${r.id}')">저장</button>
+    </div>
+  </div>`;
+  pop.addEventListener('mousedown', e=>{ if(e.target===pop) fcCloseEdit(); });
+  document.body.appendChild(pop);
+}
+function fcCloseEdit(){ const p=document.getElementById('fcEditPop'); if(p) p.remove(); }
+function fcRerender(){ if($('dashForkliftTab')) $('dashForkliftTab').innerHTML = renderForkliftStats(); }
+function saveForkCatRow(id){
+  const g = x => (document.getElementById(x)?document.getElementById(x).value:'').trim();
+  const mk=g('fcMk'), md=g('fcMd');
+  if(!mk || !md){ toast('제조사·모델명을 입력해 주세요', true); return; }
+  const htag=g('fcHtag'), etag=g('fcEtag');
+  const row = { mk, md, ton:g('fcTon'), volt:g('fcVolt'), fuel:g('fcFuel'), gen:g('fcGen'),
+    hN:fcMakeCell(g('fcHN'), g('fcHN')==='O'?htag:''), hF:fcMakeCell(g('fcHF'), g('fcHF')==='O'?htag:''),
+    eN:fcMakeCell(g('fcEN'), g('fcEN')==='O'?etag:''), eF:fcMakeCell(g('fcEF'), g('fcEF')==='O'?etag:''),
+    valve:g('fcValve'), note:g('fcNote') };
+  const ex = forkCat.find(x=>x.id===id);
+  if(ex){ Object.assign(ex, row); } else { forkCat.push(fcRow(Object.assign({}, row))); }
+  saveForkCat(); fcCloseEdit(); fcRerender();
+  toast(ex?'카탈로그 수정됐어요 ✓':'카탈로그에 추가됐어요 ✓');
+}
+function deleteForkCatRow(id){
+  if(!confirm('이 모델을 카탈로그에서 삭제할까요?')) return;
+  forkCat = forkCat.filter(x=>x.id!==id);
+  saveForkCat(); fcCloseEdit(); fcRerender();
+  toast('삭제됐어요');
+}
+function fcPromote(mk, md){
+  // 설치 실적 기반(호환 미확인) 행을 카탈로그로 올려서 바로 수정
+  if(!forkCat.some(x=>fcNorm(x.mk)===fcNorm(mk)&&fcNorm(x.md)===fcNorm(md))){
+    const nr = fcRow({mk, md}); forkCat.push(nr); saveForkCat(); fcRerender(); openForkCatEdit(nr.id);
+  }
 }
 function collectForkliftStats(){
   const brands = {};
@@ -5916,7 +5997,7 @@ function collectForkliftStats(){
   return arr;
 }
 function renderForkliftStats(){
-  const brands = collectForkliftStats();
+  const brands = forkFilterBrands(collectForkliftStats(), forkQ);
   const totB = brands.length;
   const totM = brands.reduce((s,b)=> s + b.models.filter(m=>!m.noName).length, 0);
   const totC = brands.reduce((s,b)=> s + b.cnt, 0);
@@ -5949,8 +6030,8 @@ function renderForkliftStats(){
   const pwTagL = p => p ? `<span class="fk-pw" style="${p==='전동'?'color:#0d8f6f;background:rgba(13,143,111,.12);':'color:#c26a12;background:rgba(194,106,18,.13);'}">${esc(p)}</span>` : '<span style="color:var(--text-tertiary);">-</span>';
   const prodChipsL = prod => { const ks = Object.keys(prod||{}).sort((a,b)=>prod[b]-prod[a]); return ks.length ? ks.map(pn=>`<span class="fk-pchip"><span class="fk-pdot" style="background:${FORK_PCOLOR[pn]||'#8b95a1'};"></span>${esc(pn)} ×${prod[pn]}</span>`).join('') : '<span style="color:var(--text-tertiary);">-</span>'; };
   const listRows = brands.map(b=>{
-    const rows = b.models.map(m=>`<tr title="현장: ${m.sites.join(' · ').replace(/"/g,'&quot;')}">
-      <td class="mdl">${esc(m.model)}${m.noName?` <span style="color:var(--text-tertiary);font-size:11px;">(모델 미입력)</span>`:''}</td>
+    const rows = b.models.map(m=>`<tr>
+      <td class="mdl"><span class="fk-mdl" data-mk="${esc(b.name)}" data-md="${esc(m.model)}" onclick="forkSitesPop(this.dataset.mk,this.dataset.md,event)">${esc(m.model)}</span>${m.noName?` <span style="color:var(--text-tertiary);font-size:11px;">(모델 미입력)</span>`:''}</td>
       <td>${pwTagL(m.power)}</td>
       <td>${prodChipsL(m.prod)}</td>
       <td class="num">${m.cnt}</td>
@@ -5967,8 +6048,9 @@ function renderForkliftStats(){
       </tbody></table></div>`
     : `<div class="di-note-empty" style="padding:18px 4px;">지게차 정보(제조사·모델·동력)가 입력된 프로젝트가 없어요 · 딜 정보 수정에서 입력하면 여기 모여요</div>`;
 
+  if (forkView==='card') forkView='list';   // '카드' 뷰 제거
   const isCat = (forkView==='catalog');
-  const vt = `<div class="fk-vt"><button class="${forkView==='list'?'on':''}" onclick="setForkView('list')">📋 설치 실적</button><button class="${forkView==='card'?'on':''}" onclick="setForkView('card')">🗂 카드</button><button class="${isCat?'on':''}" onclick="setForkView('catalog')">🧩 호환 카탈로그 ${FORK_CATALOG.length}</button></div>`;
+  const vt = `<div class="fk-vt"><button class="${forkView==='list'?'on':''}" onclick="setForkView('list')">📋 설치 실적</button><button class="${isCat?'on':''}" onclick="setForkView('catalog')">🧩 호환 카탈로그 ${forkCat.length}</button></div>`;
   const title = isCat
     ? `🧩 지게차 호환 카탈로그 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">우리 브레이크 밸브가 들어가는 모델 (설치 안 해본 모델 포함)</span>`
     : `🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 지게차에 어떤 제품을 달았나</span>`;
@@ -5976,8 +6058,10 @@ function renderForkliftStats(){
   return `<div class="section-card">
     <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;">
       <div class="section-title">${title}</div>
-      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;">${vt}
-      <button onclick="openForkAddModal()" style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> 지게차 추가</button></div>
+      <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <input id="forkSearch" placeholder="🔍 모델명·브랜드 검색" value="${esc(forkQ)}" oninput="forkQ=this.value;fcRerender();const e=$('forkSearch');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}" style="height:34px;border:1px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;font-family:inherit;min-width:180px;background:var(--bg-card);color:var(--text-primary);">
+      ${vt}
+      <button onclick="${isCat?'openForkCatEdit(\'\')':'openForkAddModal()'}" style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> ${isCat?'모델 추가':'지게차 추가'}</button></div>
     </div>
     ${isCat
       ? `<div class="section-desc">모델별 유압·전장 호환 여부(즉시 / 추가품 적용 후)와 밸브 사양 · 우리가 설치한 모델은 🔧로 표시 · 앞으로 설치 실적에 올라오는 모델도 여기 자동 추가돼요</div>${renderForkCatalog()}`
@@ -5989,6 +6073,40 @@ function renderForkliftStats(){
   </div>`;
 }
 function setForkView(v){ forkView = v; if ($('dashForkliftTab')) $('dashForkliftTab').innerHTML = renderForkliftStats(); }
+/* 지게차 검색: 모델명·브랜드로 설치 실적(브랜드/모델) 필터 */
+function forkFilterBrands(brands, q){
+  q = (q||'').trim().toLowerCase(); if(!q) return brands;
+  const out=[];
+  brands.forEach(b=>{
+    const makerHit = (b.name||'').toLowerCase().includes(q);
+    const models = makerHit ? b.models : b.models.filter(m=>(m.model||'').toLowerCase().includes(q));
+    if(models.length){
+      const siteSet=new Set(); models.forEach(m=>m.sites.forEach(s=>siteSet.add(s)));
+      out.push(Object.assign({}, b, { models, cnt: models.reduce((s,m)=>s+m.cnt,0), siteCnt: siteSet.size }));
+    }
+  });
+  return out;
+}
+/* 설치 실적: 지게차 모델명 클릭 → 설치 현장만 팝업 */
+function forkSitesPop(maker, model, ev){
+  ev.stopPropagation();
+  let pop=document.getElementById('forkSitePop'); if(pop) pop.remove();
+  const b=(collectForkliftStats()||[]).find(x=>x.name===maker);
+  const m=b && b.models.find(mm=>mm.model===model);
+  const sites=(m&&m.sites)||[];
+  pop=document.createElement('div'); pop.id='forkSitePop';
+  pop.style.cssText='position:fixed;z-index:5200;background:var(--bg-card,#fff);border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 34px rgba(20,30,50,.2);padding:12px 14px;max-width:300px;max-height:320px;overflow:auto;';
+  pop.innerHTML=`<div style="font-size:12.5px;font-weight:800;margin-bottom:6px;">📍 ${esc(maker)} ${esc(model)} <span style="color:var(--text-tertiary);font-weight:700;">· 설치 현장 ${sites.length}</span></div>`
+    + (sites.length ? sites.map(s=>`<div style="font-size:12.5px;color:var(--text-secondary);font-weight:600;padding:5px 0;border-top:1px solid var(--grid-hairline,var(--border));">${esc(s)}</div>`).join('') : '<div style="font-size:12px;color:var(--text-tertiary);">현장 정보 없음</div>');
+  document.body.appendChild(pop);
+  const w=pop.offsetWidth||280, h=pop.offsetHeight||120;
+  let x=ev.clientX, y=ev.clientY+10;
+  if(x+w>window.innerWidth-10) x=window.innerWidth-w-10;
+  if(y+h>window.innerHeight-10) y=ev.clientY-h-10;
+  pop.style.left=Math.max(10,x)+'px'; pop.style.top=Math.max(10,y)+'px';
+  setTimeout(()=>document.addEventListener('mousedown', forkSitePopOut, true),0);
+}
+function forkSitePopOut(e){ const p=document.getElementById('forkSitePop'); if(p && !p.contains(e.target)){ p.remove(); document.removeEventListener('mousedown', forkSitePopOut, true); } }
 /* 지게차 직접 추가 모달 */
 function openForkAddModal(){
   // 자동완성: 기존 제조사·모델 카탈로그 + 이미 입력된 값
@@ -9855,6 +9973,10 @@ loadAll();
 .fk-inst{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;color:#0d6b58;background:#e5f6f1;border:1px solid #bfe8dd;border-radius:999px;padding:1px 7px;margin-left:6px;}
 .fk-unk{display:inline-flex;font-size:10px;font-weight:800;color:#b45309;background:#fff7e6;border:1px solid #f0e2c3;border-radius:999px;padding:1px 7px;margin-left:6px;}
 .fk-lg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--text-secondary);background:var(--bg-subtle,#f3f5f8);border-radius:999px;padding:5px 11px;}
+.fk-crow{cursor:pointer;} .fk-crow:hover td{background:#eef4ff!important;}
+.fk-mdl{cursor:pointer;text-decoration:none;}
+.fk-edit{font-size:12px;opacity:.35;} .fk-crow:hover .fk-edit{opacity:1;}
+.fk-cat .fk-unk{cursor:pointer;}
 .sx-tools input{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;width:220px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
 .sx-mf{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:3px 4px 3px 9px;font-size:13px;}
 .sx-mf select{border:none;background:transparent;font-weight:700;color:#1d4ed8;padding:4px;font-size:12.5px;font-family:inherit;cursor:pointer;}
