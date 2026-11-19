@@ -5754,6 +5754,138 @@ function dealForkProduct(d){
   if (!name) name = d.prod || '';
   return normProdName(name) || '(제품 미상)';
 }
+/* ===== 지게차 호환 카탈로그 (브레이크 밸브 적용 가능 모델 · 이미지에서 옮긴 초안) =====
+   셀 표기: O=가능 / ^=조건부(△) / X=불가 / (빈칸)=해당없음 · "O(UNF3/4)"처럼 괄호=보조 태그
+   컬럼: 제조사|모델|하중(톤)|전압|연료|세대|유압즉시|유압추가품후|전장즉시|전장추가품후|밸브사양|비고 */
+function fcCell(v){ v=(v||'').trim(); const m=v.match(/^([O\^X])(?:\((.+)\))?$/); if(!m) return {s:'',t:''}; return {s:(m[1]==='^'?'△':m[1]), t:m[2]||''}; }
+function fcParse(s){ const a=s.split('|'); return {mk:a[0]||'',md:a[1]||'',ton:a[2]||'',volt:a[3]||'',fuel:a[4]||'',gen:a[5]||'',hN:fcCell(a[6]),hF:fcCell(a[7]),eN:fcCell(a[8]),eF:fcCell(a[9]),valve:(a[10]||'').trim(),note:(a[11]||'').trim()}; }
+const FORK_CATALOG = [
+"클라크|C10/20|10/20|12V|디젤/LPG|GEN2||O||O|마스터실린더|유압·전장 검토 및 시험 필요",
+"클라크|C20/35|20/35|12V|디젤/LPG|GEN2||O||O|마스터실린더|유압·전장 검토 및 시험 필요",
+"클라크|C40/55s|40/50|24V|디젤/LPG|GEN2|O|||O|부스터|전장시스템 설계 후 가능(제어기 12V)",
+"클라크|C60/80|60/80|24V|디젤/LPG|GEN2|O|||O|부스터|전장시스템 설계 후 가능(제어기 12V)",
+"클라크|GTS20/32|20/32|12V|디젤/LPG|GEN2|||||부스터|",
+"클라크|S20/35|20/35|12V|디젤/LPG|GEN3|O|||O|부스터|전장시스템 설계 후 가능(제어기 12V)",
+"클라크|S40/55s|40/50|24V|디젤/LPG|GEN3|O|||O|부스터|전장시스템 설계 후 가능(제어기 12V)",
+"현대|20D-9VA|2|12V|디젤|-9|O|||O|부스터|",
+"현대|25D-9V|2.5|12V|디젤|-9|O|||O|부스터|AJ솔류션 방문(11/6)",
+"현대|30D-9V|3|12V|디젤|-9|O|||O|부스터|",
+"현대|35Dn-9V|3.5|12V|디젤|-9|O|||O|부스터|",
+"현대|35D-9VB|3.5|12V|디젤|-9|O|||O|부스터|",
+"현대|45D-9VB|4.5|12V|디젤|-9|O|||O|부스터|",
+"현대|50Dn-9VB|5|12V|디젤|-9||O(UNF3/4)||^|부스터(칼라일)|배압테스트 필요(미션유사용)",
+"현대|70D-9V|7|12V|디젤|-9|X|||X|득인기공 폐달일체형|스폰타입",
+"현대|70D-9VB|7|12V|디젤|-9|X|||X|득인기공 폐달일체형|스폰타입",
+"현대|80D-9V|8|12/24V|디젤|-9|X|||X|득인기공 폐달일체형|스폰타입",
+"현대|100D-9V|10|12/24V|디젤|-9|X|||X|득인기공 폐달일체형|스폰타입",
+"현대|25LE-7U|2.5|12V|LPG(가솔린겸용)|-7|O|||O|부스터|",
+"현대|30LE-7U|3|12V|LPG(가솔린겸용)|-7|O|||O|부스터|",
+"현대|35LE-7U|3.5|12V|LPG(가솔린겸용)|-7|O|||O|부스터|",
+"현대|35D-9F|3.5|12V|디젤|-9|O|||O|부스터|AJ솔류션 방문(11/6)",
+"현대|25L-7A|2.5|12V|디젤|-7|X|||O|마스터|AJ솔류션 방문(11/6)",
+"현대|30D-9B|3.0|12V|디젤|-9|X|||O|마스터|AJ솔류션 방문(11/6)",
+"현대|30D-9|3.0|12V|디젤|-9|O|||O|부스터|AJ솔류션 방문(11/6)",
+"현대|25D-9B|2.5|12V|디젤|-9|X||O||마스터|AJ솔류션 방문(11/6)",
+"현대|20B-9F|2.0|12V|디젤|-9|X|||X|마스터|AJ솔류션 방문(11/6)",
+"현대|25B-9F|2.5|12V|디젤|-9|X|||X|마스터|AJ솔류션 방문(11/6)",
+"현대|45D-9F|4.5|12V|디젤|-9|O|||O|부스터|AJ솔류션 방문(11/6)",
+"현대|30D-9H|3.0|12V|디젤|-9|O|||O|부스터|AJ솔류션 방문(11/6)",
+"현대|25BR-9|2.5|12V|전동|||||O||PSJ, w.이승재팀장",
+"현대|15BR-X|1.5|12V|전동|||||O||PSJ, w.이승재팀장",
+"두산|D20S-9|2|12V|디젤|-9||O|||마스터실린더(확인필요)|S=프리미엄",
+"두산|D25S-9|2.5|12V|디젤|-9|X|O|||마스터|AJ솔류션 방문(11/6)",
+"두산|D30S-9|3|12V|디젤|-9||O|||마스터실린더(확인필요)|",
+"두산|D33S-9|3.3|12V|디젤|-9|O|||||",
+"두산|D20SE-9|2|12V|디젤|-9|X|O|||마스터|SE=보급형 · AJ솔류션 방문(11/6)",
+"두산|D25SE-9|2.5|12V|디젤|-9|X|O|||마스터|AJ솔류션 방문(11/6)",
+"두산|D30SE-9|3|12V|디젤|-9|X|O|||마스터|AJ솔류션 방문(11/6)",
+"두산|D33SE-9|3.3|12V|디젤|-9|O|||||",
+"두산|D40SE-9|4|12V|디젤|-9|O|||||",
+"두산|D45SE-9|4.5|12V|디젤|-9|O|||||",
+"두산|D50SE-9|5|12V|디젤|-9||O(UNF3/4)||||유압부 배압 영향 테스트 필요",
+"두산|D50EV-9|5|12V|디젤|-9||O(UNF3/4)||||유압부 배압 영향 테스트 필요",
+"두산|D60EV-9|6|12V|디젤|-9||O(UNF3/4)||||",
+"두산|D70EV-9|7|12V|디젤|-9||O(UNF3/4)||||",
+"두산|D50S-9|5|12V|디젤|-9|O|O(UNF3/4)||||",
+"두산|D60S-9|6|12V|디젤|-9||O(UNF3/4)||||",
+"두산|D70S-9|7|12V|디젤|-9||O(UNF3/4)||||",
+"두산|D80S-9|8|24V|디젤|-9||O(UNF3/4)||||",
+"두산|D100S-9|10|24V|디젤|-9|X|||||",
+"두산|G20S-7|2|12V|LPG|-7|O|||||7모델 마스터타입인지 확인 필요",
+"두산|G25S-7|2.5|12V|LPG|-7|O|||||7모델 마스터타입인지 확인 필요",
+"두산|G30S-7|3|12V|LPG|-7|O|||||7모델 마스터타입인지 확인 필요",
+"두산|G33S-7|3.3|12V|LPG|-7|O|||||",
+"두산|G35S-7|3.5|12V|LPG|-7|O|||||",
+"두산|G40S-7|4|12V|LPG|-7|O|||||",
+"두산|G45S-7|4.5|12V|LPG|-7|O|||||",
+"두산|G50S-7|5|12V|LPG|-7||O(UNF3/4)||||유압부 배압 영향 테스트 필요",
+"두산|G60S-7|6|12V|LPG|-7||O(UNF3/4)||||유압부 배압 영향 테스트 필요",
+"두산|G70S-7|7|12V|LPG|-7||O(UNF3/4)||||캐빈 측면 개방방식이면 불가",
+"두산|D35SE-9|3.5|12V|디젤|-9|X||||마스터|AJ솔류션 방문(11/6)",
+"두산|D35D9|3.5|12V|디젤||O||||부스터|AJ솔류션 방문(11/6)",
+"두산|35S-7|3.5|12V|디젤||O||||부스터|AJ솔류션 방문(11/6)",
+"두산|D3S-7|3.0|12V|디젤||X||||마스터|AJ솔류션 방문(11/6)",
+"두산|D35SE-7|3.5|12V|디젤||O||||부스터|AJ솔류션 방문(11/6)",
+"두산|G45S-5|4.5|12V|디젤||O||||부스터|AJ솔류션 방문(11/6)",
+"두산|BR15S-9||12V|전동||||O|||PSJ, w.이승재팀장",
+"두산|B18S-7||12V|전동||||O|||PSJ, w.이승재팀장",
+"두산|BR25S-7||12V|전동||||O|||PSJ, w.이승재팀장",
+"두산|B25S-7||48V|전동||||O|||PSJ, w.이승재팀장",
+"두산|D50SE-7|5|12V|디젤|-7|O|O|O||부스터|scribd.com/document/575638906",
+"두산|D50C-7|5|12V|디젤||O|O|||부스터|4.5톤 이상급 UNF3/4 적용 예상(범위행)",
+"두산|G50C-7|5|12V|LPG(가솔린겸용)|-7|O(UNF3/4)|O|O|O|부스터|UNF3/4",
+"두산|G55C-7|5.5|12V|LPG(가솔린겸용)|-7|O(UNF3/4)|O|O|O|부스터|UNF3/4",
+].map(fcParse);
+const FORK_CAT_COLORS = {'클라크':'#0071e3','현대':'#0d9488','두산':'#7d5bed'};
+function fcNorm(s){ return String(s||'').toUpperCase().replace(/[\s\-_/]/g,''); }
+/* 카탈로그 + 설치 실적 병합: 카탈로그 행엔 설치건수(inst) 붙이고, 카탈로그에 없는 설치 모델은 '호환 미확인' 행으로 추가 */
+function forkCatalogRows(){
+  const stats = collectForkliftStats();
+  const instMap = {};
+  stats.forEach(b=> b.models.forEach(m=>{ const k=fcNorm(b.name)+'|'+fcNorm(m.model); instMap[k]=(instMap[k]||0)+m.cnt; }));
+  const catKeys = new Set(FORK_CATALOG.map(r=>fcNorm(r.mk)+'|'+fcNorm(r.md)));
+  const rows = FORK_CATALOG.map(r=>({ ...r, inst: instMap[fcNorm(r.mk)+'|'+fcNorm(r.md)]||0, extra:false }));
+  stats.forEach(b=> b.models.forEach(m=>{
+    const k=fcNorm(b.name)+'|'+fcNorm(m.model);
+    if(!catKeys.has(k)) rows.push({ mk:b.name, md:m.model, ton:'',volt:'',fuel:'',gen:'', hN:{s:'',t:''},hF:{s:'',t:''},eN:{s:'',t:''},eF:{s:'',t:''}, valve:'', note:'설치 실적 기반 · 호환 미확인', inst:m.cnt, extra:true });
+  }));
+  return rows;
+}
+function fcChip(c){ if(!c.s) return `<span style="color:var(--text-tertiary);">·</span>`; const cls=c.s==='O'?'ok':(c.s==='△'?'cond':'no'); return `<span class="fk-cm ${cls}">${c.s}</span>${c.t?`<div class="fk-sub">${esc(c.t)}</div>`:''}`; }
+function renderForkCatalog(){
+  const rows = forkCatalogRows();
+  const nOk = rows.filter(r=>r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O').length;
+  const nCond = rows.filter(r=>!(r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O') && (r.hN.s==='△'||r.hF.s==='△'||r.eN.s==='△'||r.eF.s==='△')).length;
+  const nNo = rows.filter(r=>[r.hN,r.hF,r.eN,r.eF].some(c=>c.s==='X') && !(r.hN.s==='O'||r.hF.s==='O'||r.eN.s==='O'||r.eF.s==='O')).length;
+  const nInst = rows.filter(r=>r.inst>0).length;
+  // 제조사 그룹 (등장 순서 유지)
+  const order=[]; const grp={};
+  rows.forEach(r=>{ if(!grp[r.mk]){ grp[r.mk]=[]; order.push(r.mk); } grp[r.mk].push(r); });
+  const body = order.map(mk=>{
+    const col = FORK_CAT_COLORS[mk] || '#8b95a1';
+    const rws = grp[mk].map(r=>`<tr${r.extra?' style="background:#fffaf0;"':''}>
+      <td class="lft"><b>${esc(r.md)}</b>${r.inst?`<span class="fk-inst" title="우리가 설치한 모델">🔧 설치 ${r.inst}</span>`:''}${r.extra?`<span class="fk-unk">호환 미확인</span>`:''}</td>
+      <td class="ctr">${esc(r.ton||'-')}</td><td class="ctr">${esc(r.volt||'-')}</td><td class="ctr">${esc(r.fuel||'-')}</td><td class="ctr">${esc(r.gen||'-')}</td>
+      <td class="ctr">${fcChip(r.hN)}</td><td class="ctr">${fcChip(r.hF)}</td><td class="ctr">${fcChip(r.eN)}</td><td class="ctr">${fcChip(r.eF)}</td>
+      <td class="lft">${esc(r.valve||'')}</td><td class="lft cap">${esc(r.note||'')}</td></tr>`).join('');
+    return `<tr class="grp"><td colspan="11"><span class="bdot" style="background:${col};"></span>${esc(mk)} · ${grp[mk].length}모델</td></tr>${rws}`;
+  }).join('');
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px;align-items:center;">
+      <span class="fk-lg"><b>${rows.length}</b> 모델</span>
+      <span class="fk-lg"><span class="fk-cm ok">O</span> 가능 <b>${nOk}</b></span>
+      <span class="fk-lg"><span class="fk-cm cond">△</span> 조건부 <b>${nCond}</b></span>
+      <span class="fk-lg"><span class="fk-cm no">X</span> 불가 <b>${nNo}</b></span>
+      <span class="fk-lg">🔧 설치 실적 <b>${nInst}</b></span>
+    </div>
+    <div style="overflow-x:auto;"><table class="fk-xls fk-cat">
+      <thead>
+        <tr><th rowspan="2" class="lft">모델</th><th rowspan="2">하중(톤)</th><th rowspan="2">전압</th><th rowspan="2">연료</th><th rowspan="2">세대</th><th colspan="2">유압</th><th colspan="2">전장</th><th rowspan="2" class="lft">브레이크밸브 사양</th><th rowspan="2" class="lft">비고</th></tr>
+        <tr><th>즉시</th><th>추가품후</th><th>즉시</th><th>추가품후</th></tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table></div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-top:9px;line-height:1.6;">표시: <span class="fk-cm ok">O</span>가능 <span class="fk-cm cond">△</span>조건부(추가품·시험) <span class="fk-cm no">X</span>불가 · <span style="color:var(--text-tertiary);">·</span> 해당없음 · <span class="fk-inst">🔧 설치 N</span> = 우리가 설치한 모델(설치 실적과 자동 연결) · <span style="color:#b45309;">연한 노랑 행</span>은 설치했지만 카탈로그에 없던 모델<br>⚠️ 이 데이터는 보내주신 이미지에서 옮긴 <b>초안</b>이라 O·X 표시에 오류가 있을 수 있어요 — 원본 대조/엑셀 주시면 정확히 교체할게요.</div>`;
+}
 function collectForkliftStats(){
   const brands = {};
   const add = (maker, modelRaw, power, site, product) => {
@@ -5835,19 +5967,25 @@ function renderForkliftStats(){
       </tbody></table></div>`
     : `<div class="di-note-empty" style="padding:18px 4px;">지게차 정보(제조사·모델·동력)가 입력된 프로젝트가 없어요 · 딜 정보 수정에서 입력하면 여기 모여요</div>`;
 
-  const vt = `<div class="fk-vt"><button class="${forkView==='list'?'on':''}" onclick="setForkView('list')">📋 목록</button><button class="${forkView==='card'?'on':''}" onclick="setForkView('card')">🗂 카드</button></div>`;
+  const isCat = (forkView==='catalog');
+  const vt = `<div class="fk-vt"><button class="${forkView==='list'?'on':''}" onclick="setForkView('list')">📋 설치 실적</button><button class="${forkView==='card'?'on':''}" onclick="setForkView('card')">🗂 카드</button><button class="${isCat?'on':''}" onclick="setForkView('catalog')">🧩 호환 카탈로그 ${FORK_CATALOG.length}</button></div>`;
+  const title = isCat
+    ? `🧩 지게차 호환 카탈로그 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">우리 브레이크 밸브가 들어가는 모델 (설치 안 해본 모델 포함)</span>`
+    : `🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 지게차에 어떤 제품을 달았나</span>`;
 
   return `<div class="section-card">
     <div class="section-header" style="align-items:center;gap:10px;flex-wrap:wrap;">
-      <div class="section-title">🚜 지게차 브랜드·모델 <span style="font-size:12px;font-weight:600;color:var(--text-tertiary);">(설치 건수) · 어떤 지게차에 어떤 제품을 달았나</span></div>
+      <div class="section-title">${title}</div>
       <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;">${vt}
       <button onclick="openForkAddModal()" style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--primary) 12%, var(--bg-card));color:var(--primary);border:none;border-radius:10px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;"><span style="font-size:15px;line-height:1;">＋</span> 지게차 추가</button></div>
     </div>
-    <div class="section-desc">프로젝트에 입력된 지게차 + 직접 추가한 건 · 건수순 · 제품 옆 색 칩이 우리 제품${forkView==='list'?' · 브랜드별로 묶어 모델 소계·총합까지':' · 모델에 마우스를 올리면 현장이 보여요'}</div>
+    ${isCat
+      ? `<div class="section-desc">모델별 유압·전장 호환 여부(즉시 / 추가품 적용 후)와 밸브 사양 · 우리가 설치한 모델은 🔧로 표시 · 앞으로 설치 실적에 올라오는 모델도 여기 자동 추가돼요</div>${renderForkCatalog()}`
+      : `<div class="section-desc">프로젝트에 입력된 지게차 + 직접 추가한 건 · 건수순 · 제품 옆 색 칩이 우리 제품${forkView==='list'?' · 브랜드별로 묶어 모델 소계·총합까지':' · 모델에 마우스를 올리면 현장이 보여요'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;">
       ${schip(totB,'브랜드')}${schip(totM,'모델')}${schip(totC,'설치 건수')}${schip(totS,'현장')}
     </div>
-    ${forkView==='list' ? listView : cards}
+    ${forkView==='list' ? listView : cards}`}
   </div>`;
 }
 function setForkView(v){ forkView = v; if ($('dashForkliftTab')) $('dashForkliftTab').innerHTML = renderForkliftStats(); }
@@ -9707,6 +9845,16 @@ loadAll();
 .fk-pw{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:1px 6px;}
 .fk-pchip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;border-radius:6px;padding:1.5px 7px;background:var(--bg-subtle,#eef1f6);color:var(--text-primary);margin:1px 2px 1px 0;}
 .fk-pdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+/* 호환 카탈로그 */
+.fk-cat th{text-align:center;}
+.fk-cat td{white-space:nowrap;}
+.fk-cat .lft{text-align:left;} .fk-cat .ctr{text-align:center;} .fk-cat .cap{color:var(--text-tertiary);white-space:normal;max-width:260px;}
+.fk-cm{display:inline-flex;align-items:center;justify-content:center;min-width:26px;font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;}
+.fk-cm.ok{background:#e9f7ee;color:#15803d;} .fk-cm.cond{background:#fff7e6;color:#b45309;} .fk-cm.no{background:#fdecec;color:#dc2626;}
+.fk-sub{font-size:9px;color:var(--text-tertiary);font-weight:700;margin-top:1px;}
+.fk-inst{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;color:#0d6b58;background:#e5f6f1;border:1px solid #bfe8dd;border-radius:999px;padding:1px 7px;margin-left:6px;}
+.fk-unk{display:inline-flex;font-size:10px;font-weight:800;color:#b45309;background:#fff7e6;border:1px solid #f0e2c3;border-radius:999px;padding:1px 7px;margin-left:6px;}
+.fk-lg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--text-secondary);background:var(--bg-subtle,#f3f5f8);border-radius:999px;padding:5px 11px;}
 .sx-tools input{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12.5px;width:220px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
 .sx-mf{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:3px 4px 3px 9px;font-size:13px;}
 .sx-mf select{border:none;background:transparent;font-weight:700;color:#1d4ed8;padding:4px;font-size:12.5px;font-family:inherit;cursor:pointer;}
