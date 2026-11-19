@@ -6393,6 +6393,44 @@ function setCardYear(y){ cardYear = y; cardMonth = ''; renderProjects(); }
 function setCardMonth(m){ cardMonth = m; renderProjects(); }
 function setCardStage(s){ cardStage = s; renderProjects(); }
 
+/* ===== 설치중인데 출고 요청 안 한 건 감지 (설치 시작 D-3 이내 또는 지남) ===== */
+const SHIP_REQ_LEAD_DAYS = 3;   // 설치 시작 며칠 전부터 경고
+function dealHasShipReq(d){ return Array.isArray(shipReqs) && shipReqs.some(r => r.deal_id === d.id); }
+function installStartDays(d){   // 설치 시작일(close_date)까지 남은 일수 (음수=지남), null=날짜없음
+  const s = String(d.close_date||'').slice(0,10);
+  if (!s) return null;
+  const t = new Date(s+'T00:00:00'); if (isNaN(t)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((t - today)/86400000);
+}
+function shipReqAlert(d){   // null | {level:'urgent'|'warn'|'nodate', days}
+  if (isLost(d) || canonStage(d) !== '설치중') return null;
+  if (dealHasShipReq(d)) return null;
+  const dleft = installStartDays(d);
+  if (dleft === null) return { level:'nodate', days:null };
+  if (dleft <= SHIP_REQ_LEAD_DAYS) return { level: dleft <= 0 ? 'urgent' : 'warn', days:dleft };
+  return null;
+}
+function shipReqAlertCount(){   // 날짜 임박/지남(긴급·경고)만 집계
+  return deals.filter(d=>{ const a=shipReqAlert(d); return a && (a.level==='urgent'||a.level==='warn'); }).length;
+}
+function shipReqDdayLabel(days){ return days<0 ? `설치 D+${-days} 지남` : (days===0 ? '설치 당일' : `설치 D-${days}`); }
+/* 필수 항목 입력 누락 체크 (설치중 설치시작일은 출고요청 알림에서 따로 처리하므로 제외) */
+function dealMissingFields(d){
+  if (isLost(d)) return [];
+  if (stageIdx(d) < 4) return [];   // 설치중(4) 이후 단계부터만 — 그 전엔 정보가 비어 있을 수 있음
+  const miss = [];
+  if (!d.amount) miss.push('금액');
+  if (!(d.site && String(d.site).trim())) miss.push('현장');
+  const items = getDealItems(d.id);
+  const hasProd = (items && items.length) || (d.prod && String(d.prod).trim());
+  if (!hasProd) miss.push('제품');
+  if (!(d.person && String(d.person).trim())) miss.push('담당');
+  const stg = canonStage(d);
+  if (DELIVERED_STAGES.has(stg) && !d.delivery_date) miss.push('설치 완료일');
+  if (stg === '세금계산서발행 완료' && !d.tax_invoice_date) miss.push('계산서 발행일');
+  return miss;
+}
 function projectCardHtml(d, seq, mode){
   const lost = isLost(d);
   const si = stageIdx(d);
@@ -6480,16 +6518,42 @@ function projectCardHtml(d, seq, mode){
         <div class="sub-amt">설치 ${_netQ}대분 · 실매출</div>
         <div class="sub-amt contract">계약 ${_totQ}대 · ${d.amount?fmtMoney(d.amount):'-'}</div>`;
   } else {
-    amtBlock = `<div class="pc-amt">${d.amount?fmtMoney(d.amount):'-'}</div>
+    amtBlock = `<div class="pc-amt">${d.amount?fmtMoney(d.amount):'<span style="color:#b98a2e;font-size:13px;">금액 미입력</span>'}</div>
         <div class="pc-dt">${dtHtml}</div>`;
   }
+  const _sra = shipReqAlert(d);
+  const _miss = (mode==='partialTax') ? [] : dealMissingFields(d);
+  const _cardStyle = _sra
+    ? (_sra.level==='urgent' ? ' style="border-color:#fecaca;box-shadow:0 0 0 1px #fde0e0;"'
+       : _sra.level==='warn' ? ' style="border-color:#fed7aa;box-shadow:0 0 0 1px #ffe8d4;"' : '')
+    : (_miss.length ? ' style="border-color:#eadfc4;box-shadow:0 0 0 1px #f3ead2;"'
+       : (isRepeatOrder(d) ? ' style="border-color:#c7d2fe;box-shadow:0 0 0 1px #e0e7ff;"' : ''));
+  let reqBar = '';
+  if (_sra){
+    if (_sra.level==='nodate'){
+      reqBar = `<div onclick="event.stopPropagation();openDetail(${d.id})" style="display:flex;align-items:center;gap:8px;background:#f5f6f8;border:1px solid #e2e6ec;border-radius:9px;padding:8px 11px;margin-bottom:10px;cursor:pointer;">
+        <span style="font-size:11.5px;font-weight:800;color:var(--text-secondary);">⚠️ 설치중인데 설치 시작일 미입력</span>
+        <span style="margin-left:auto;font-size:11.5px;font-weight:800;color:var(--primary);">날짜 입력 →</span></div>`;
+    } else {
+      const _u = _sra.level==='urgent', _c = _u?'#dc2626':'#ea7a1e', _bg=_u?'#fef2f2':'#fff7ed', _bd=_u?'#fecaca':'#fed7aa';
+      reqBar = `<div style="display:flex;align-items:center;gap:8px;background:${_bg};border:1px solid ${_bd};border-radius:9px;padding:8px 11px;margin-bottom:10px;">
+        <span style="font-size:11.5px;font-weight:800;color:${_c};">📨 출고 요청 필요 · ${shipReqDdayLabel(_sra.days)}</span>
+        <button onclick="event.stopPropagation();openShipReqForDeal(${d.id})" style="margin-left:auto;height:26px;padding:0 11px;border-radius:7px;background:${_c};color:#fff;border:none;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;">📨 출고 요청</button></div>`;
+    }
+  }
+  // 입력 누락 뱃지 (연한 노랑 · 차분하게)
+  const _missBar = _miss.length ? `<div onclick="event.stopPropagation();openDetail(${d.id})" style="display:flex;align-items:center;gap:8px;background:#fffaf0;border:1px solid #f0e2c3;border-radius:9px;padding:8px 11px;margin-bottom:10px;cursor:pointer;">
+      <span style="font-size:11.5px;font-weight:800;color:#b45309;">📝 입력 누락 · ${_miss.join(' · ')}</span>
+      <span style="margin-left:auto;font-size:11.5px;font-weight:800;color:var(--primary);">입력 →</span></div>` : '';
   return `
-  <div class="project-card" onclick="openDetail(${d.id})"${isRepeatOrder(d)?' style="border-color:#c7d2fe;box-shadow:0 0 0 1px #e0e7ff;"':''}>
+  <div class="project-card" onclick="openDetail(${d.id})"${_cardStyle}>
     ${extRibbon}
+    ${reqBar}
+    ${_missBar}
     <div class="pc-wrap">
       <div class="pc-left">
         <div class="pc-coBig">${seqChip?seqChip+' ':''}🏢 ${coHtml}${agencyBadge(d)}${asBadge(d)||''}${partialBadge}</div>
-        <div class="pc-subsmall">${d.site?`<span class="pin">📍</span> ${esc(d.site)}`:''}${(d.site&&d.prod)?' · ':''}${d.prod?`<span class="prod">${esc(d.prod)}</span>`:''} · ${esc(d.person||'-')}</div>
+        <div class="pc-subsmall">${(d.site&&String(d.site).trim())?`<span class="pin">📍</span> ${esc(d.site)}`:`<span class="pin">📍</span> <span style="color:#b98a2e;font-weight:700;">현장 미입력</span>`}${(()=>{ const items=getDealItems(d.id); const hasP=(items&&items.length)||(d.prod&&String(d.prod).trim()); if(d.prod&&String(d.prod).trim()) return ` · <span class="prod">${esc(d.prod)}</span>`; if(!hasP) return ` · <span style="color:#b98a2e;font-weight:700;">제품 미입력</span>`; return ''; })()} · ${(d.person&&String(d.person).trim())?esc(d.person):`<span style="color:#b98a2e;font-weight:700;">담당 미입력</span>`}</div>
         <div class="pc-stgline" style="color:${scol};">● ${esc(stageName)}</div>
         <div class="pc-bar">${barSegs}</div>
         ${(()=>{ const bs=getDealBatches(d.id); if(!bs.length) return ''; const tot=dealTotalQty(d); const cn=dealBatchCancelQty(d.id); const dn=Math.max(0,dealBatchDoneQty(d.id)-cn); const p=tot>0?Math.min(100,Math.round(dn/tot*100)):0; return `<div class="pc-inst">
@@ -8747,7 +8811,12 @@ function openEditModal(){
   $('edStageHint').textContent = '';
   $('edStage').onchange = () => {
     const v = $('edStage').value;
-    if (v === '세금계산서발행 완료') { $('edStageHint').textContent = '세금계산서 발행 완료 상태로 저장돼요'; setEdInv(true); }
+    if (v === '세금계산서발행 완료') {
+      $('edStageHint').textContent = '세금계산서 발행됨 + 발행일(오늘) + 수금상태 "계산서 발행"이 자동 입력돼요';
+      setEdInv(true);
+      if (!$('edInvDate').value) $('edInvDate').value = new Date().toISOString().slice(0,10);   // 발행일 = 옮긴 날
+      if ($('edRecv').value === 'pending') $('edRecv').value = 'invoiced';                        // 수금상태 자동
+    }
     else if (v === '세금계산서발행 전') { $('edStageHint').textContent = '계산서 발행 대기 상태예요'; setEdInv(false); }
     else $('edStageHint').textContent = '';
   };
@@ -8893,8 +8962,12 @@ async function saveEdit(){
   if (sel !== dispStage(d)) {
     patch.stage = sel;
     if (sel === '세금계산서발행 완료') {
-      patch.tax_invoice_issued = true;
-      if (!d.tax_invoice_date) patch.tax_invoice_date = new Date().toISOString().slice(0,10);
+      patch.tax_invoice_issued = true;   // ② 발행됨 자동
+      // ③ 발행일 = 완료로 옮긴 그 당시(오늘) 날짜. 모달에서 다른 날짜를 직접 입력했으면 그걸 존중
+      const _loaded = (d.tax_invoice_date||'').slice(0,10), _typed = $('edInvDate').value;
+      patch.tax_invoice_date = (_typed && _typed !== _loaded) ? _typed : new Date().toISOString().slice(0,10);
+      // ④ 수금 상태: 수금 전이면 '계산서 발행'으로 자동 (이미 수금완료/연체면 유지)
+      if ((d.recv_status||'pending') === 'pending') patch.recv_status = 'invoiced';
     } else if (sel === '세금계산서발행 전') {
       patch.tax_invoice_issued = false;
     }
@@ -10884,7 +10957,7 @@ function sxRenderInst(){
   const n = k => base.filter(r=>k==='all' || sxReqState(r)===k).length;
   const tb = (v,l) => `<button class="s ${sxInstSub===v?'on':''}" onclick="sxInstSub='${v}';sxInstSel.clear();sxRenderInst()">${l} <span class="n">${n(v)}</span></button>`;
   const keys = all.map(r=>sxInstBasis==='req' ? sxLocalMonth(r.requested_at) : sxLocalMonth(r.done_at));
-  $('sxInstSub').innerHTML = `<div class="sx-sub" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span style="display:flex;align-items:center;gap:12px;"><span class="flab2" style="font-size:12px;font-weight:800;color:var(--text-tertiary);width:72px;flex-shrink:0;">상태</span><span class="ftg ftgA">${tb('all','전체')}${tb('req','출고 대기')}${tb('done','출고 완료')}${tb('ret','반품')}</span></span>
+  $('sxInstSub').innerHTML = `<div class="sx-sub" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span style="display:flex;align-items:center;gap:12px;"><span class="flab2" style="font-size:12px;font-weight:800;color:var(--text-tertiary);width:72px;flex-shrink:0;">상태</span><span class="ftg ftgA">${tb('all','전체')}${tb('req','출고 대기')}${tb('done','출고 완료')}${tb('ret','반품')}</span>${(()=>{ const nR=shipReqAlertCount(); return nR?`<span onclick="showPage('projects')" title="설치중인데 출고 요청 안 한 건으로 이동" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap;">🚨 출고 요청 필요 ${nR}</span>`:''; })()}</span>
     <div class="sx-tools"><input id="sxInstQ" placeholder="딜·현장·제품 검색" value="${esc(sxInstQ)}" oninput="sxInstQ=this.value;sxRenderInst();const e=$('sxInstQ');e.focus();e.setSelectionRange(e.value.length,e.value.length)">
       <span class="sx-mf"><select onchange="sxInstBasis=this.value;sxRenderInst()"><option value="done" ${sxInstBasis==='done'?'selected':''}>출고 완료일 기준</option><option value="req" ${sxInstBasis==='req'?'selected':''}>요청일 기준</option></select>
       <select class="msel" onchange="sxInstMonth=this.value;sxInstSel.clear();sxRenderInst()"><option value="">전체 기간</option>${sxMonthOptions(keys, sxInstMonth)}</select></span></div></div>
