@@ -1139,6 +1139,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
     <script>/* 다크/라이트 모드 조기 적용 (깜빡임 방지) · 기본 라이트 */
@@ -1535,12 +1536,14 @@
                         <p class="page-subtitle">업체별 결제 조건과 들어올 돈만 모아 보는 재무 전용 화면 · 거래처는 프로젝트·출고건에서 자동 수집돼요</p>
                     </div>
                     <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="openMgmtReport()" title="경영지원팀 전달용 월간 미완료 리포트">📊 경영지원 월간 리포트</button>
                         <button class="btn btn-primary" onclick="openTermsModal()">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                             거래처 결제 조건 추가
                         </button>
                     </div>
                 </div>
+                <div id="mgmtReportBanner"></div>
                 <div id="cashFlow3Fin" style="margin:0 0 18px;"></div>
                 <div class="stats-grid" id="finKpis"></div>
                 <div class="section-card" style="margin-bottom:18px;">
@@ -1586,6 +1589,18 @@
             </div>
 
             <!-- 거래처 결제 조건 입력 모달 -->
+            <div class="modal-overlay" id="mgmtReportModal">
+                <div class="modal" style="max-width:720px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">📊 경영지원 월간 리포트</h2>
+                        <button class="modal-close" onclick="closeMgmtReport()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">경영지원팀 전달용 · 지난달 기준 아직 마무리 안 된 건을 ① 설치 진행중 ② 출고·계산서 미발행 ③ 설치완료·계산서 미발행 으로 모아 엑셀(시트 3개+요약)로 내려받아요.</div>
+                        <div id="mgmtReportBody"></div>
+                    </div>
+                </div>
+            </div>
             <div class="modal-overlay" id="termsModal">
                 <div class="modal" style="max-width:440px;">
                     <div class="modal-header">
@@ -4400,6 +4415,7 @@ function financeTotals(){
   return {unpaid, overdue, weekAmt, weekCnt, monthAmt, monthCnt, coCount:cos.length, termCount};
 }
 function renderFinance(){
+  renderMgmtBanner();
   renderCashFlow3('cashFlow3Fin');
   const cos = financeCompanies();
   const t = financeTotals();
@@ -8747,6 +8763,190 @@ function triggerDownload(blob, filename){
   try { a.click(); }
   catch(e){ try{ window.open(url, '_blank'); }catch(_){} }   // 클릭이 막히면 새 탭으로
   setTimeout(()=>{ try{ document.body.removeChild(a); }catch(e){} URL.revokeObjectURL(url); }, 1500);
+}
+/* ===================== 경영지원 월간 리포트 ===================== */
+/* 대상월(ym='YYYY-MM', 기본=지난달)에 대해 3가지 미완료 항목 집계
+   ① 설치 진행중: 설치 시작했는데 아직 '설치중' (대상월 말까지 시작, 현재도 설치중)
+   ② 출고·계산서 미발행: 대상월 출고 완료인데 세금계산서 미발행
+   ③ 설치완료·계산서 미발행: 대상월 설치 완료인데 세금계산서 미발행 */
+function mgmtPrevYm(ref){ const d=ref?new Date(ref):new Date(); const p=new Date(d.getFullYear(), d.getMonth()-1, 1); return p.getFullYear()+'-'+String(p.getMonth()+1).padStart(2,'0'); }
+function mgmtReportData(ym){
+  ym = ym || mgmtPrevYm();
+  const y=+ym.slice(0,4), m=+ym.slice(5,7);
+  const ymEnd = ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');
+  const today = new Date();
+  const daysSince = ds => { if(!ds) return ''; const d=new Date(String(ds).slice(0,10)); if(isNaN(d)) return ''; return Math.max(0, Math.round((today - d)/86400000)); };
+  // ① 설치 진행중 (대상월 말까지 설치 시작, 아직 설치중)
+  const cat1 = deals.filter(d=> !isLost(d) && canonStage(d)==='설치중' && (d.close_date||'') && String(d.close_date).slice(0,10) <= ymEnd)
+    .sort((a,b)=>String(a.close_date).localeCompare(String(b.close_date)));
+  // ② 출고했는데 계산서 미발행 (대상월 출고 완료)
+  const cat2 = shipments.filter(s=> shipDone(s) && !shipReturned(s) && String(s.ship_date||'').slice(0,7)===ym && !s.tax_invoice_issued)
+    .sort((a,b)=>String(a.ship_date).localeCompare(String(b.ship_date)));
+  // ③ 설치 끝났는데 계산서 미발행 (대상월 설치 완료) — ①에 이미 잡힌 설치중 건은 제외(중복 방지)
+  const cat1Ids = new Set(cat1.map(d=>d.id));
+  const cat3 = deals.filter(d=> !isLost(d) && String(d.delivery_date||'').slice(0,7)===ym && !dealInvoiced(d) && !cat1Ids.has(d.id))
+    .sort((a,b)=>String(a.delivery_date).localeCompare(String(b.delivery_date)));
+  // 비고(사유) — 사용자가 미리보기에서 입력한 값(브라우저 저장)
+  const notes = mgmtNotes();
+  const nv = (nk,id)=> notes[ym+'|'+nk+'|'+id] || '';
+  // 표시 컬럼 (요청 지정) + 행 매핑 (끝에 비고 컬럼 추가)
+  const products = s => Array.isArray(s.products)&&s.products.length ? s.products.map(p=>`${p.name||'제품'}${p.qty?' x'+p.qty:''}`).join(', ') : (s.prod||'');
+  const vat = n => Math.round((Number(n)||0)*1.1);
+  const NOTE = {h:'비고(사유)',k:'note',w:30,note:true};
+  const COLS1 = [{h:'고객사',k:'co',w:18},{h:'도입현장',k:'site',w:22},{h:'제품명',k:'prod',w:16},{h:'수량',k:'qty',w:8,num:true},{h:'설치 시작일',k:'start',w:14,num:true},{h:'공급가(원)',k:'amt',w:15,money:true},{h:'부가세포함(원)',k:'vat',w:16,money:true},NOTE];
+  const COLS2 = [{h:'출고일',k:'date',w:14,num:true},{h:'건명',k:'name',w:34},{h:'제품',k:'prod',w:26},{h:'부가세포함(원)',k:'vat',w:16,money:true},NOTE];
+  const COLS3 = [{h:'고객사',k:'co',w:18},{h:'도입현장',k:'site',w:22},{h:'제품',k:'prod',w:16},{h:'설치 완료일',k:'done',w:14,num:true},{h:'공급가(원)',k:'amt',w:15,money:true},{h:'부가세포함(원)',k:'vat',w:16,money:true},NOTE];
+  const m1 = d=>({ _id:d.id, co:d.co||'', site:d.site||'', prod:d.prod||'', qty:dealTotalQty(d)||0, start:(d.close_date||'').slice(0,10), amt:Number(d.amount)||0, vat:vat(d.amount), note:nv('cat1',d.id) });
+  const m2 = s=>({ _id:s.id, date:(s.ship_date||'').slice(0,10), name:s.name||'', prod:products(s), vat:vat(shipNet(s)), note:nv('cat2',s.id) });
+  const m3 = d=>({ _id:d.id, co:d.co||'', site:d.site||'', prod:d.prod||'', done:(d.delivery_date||'').slice(0,10), amt:Number(d.amount)||0, vat:vat(d.amount), note:nv('cat3',d.id) });
+  return { ym, ymEnd,
+    cats: [
+      { key:'설치 진행중', nk:'cat1', desc:'설치 시작했는데 아직 설치중', rows:cat1, cols:COLS1, data:cat1.map(m1), amt:cat1.reduce((s,d)=>s+(Number(d.amount)||0),0) },
+      { key:'출고·계산서 미발행', nk:'cat2', desc:ym+' 출고 완료인데 세금계산서 미발행', rows:cat2, cols:COLS2, data:cat2.map(m2), amt:cat2.reduce((s,x)=>s+shipNet(x),0) },
+      { key:'설치완료·계산서 미발행', nk:'cat3', desc:ym+' 설치 완료인데 세금계산서 미발행', rows:cat3, cols:COLS3, data:cat3.map(m3), amt:cat3.reduce((s,d)=>s+(Number(d.amount)||0),0) },
+    ] };
+}
+/* 비고(사유) 저장 — 브라우저(localStorage), 월·분류·건ID 단위 */
+const MGMT_NOTE_LS = 'sp_mgmt_report_note';
+function mgmtNotes(){ try{ return JSON.parse(localStorage.getItem(MGMT_NOTE_LS)||'{}'); }catch(e){ return {}; } }
+function setMgmtNote(key, val){ try{ const o=mgmtNotes(); if(val&&String(val).trim()) o[key]=val; else delete o[key]; localStorage.setItem(MGMT_NOTE_LS, JSON.stringify(o)); }catch(e){} }
+const MGMT_REPORT_LS = 'sp_mgmt_report_done';   // 'YYYY-MM'(이번달) 저장 = 이번달치 다운로드 완료
+async function downloadMgmtReport(ym){
+  const rep = mgmtReportData(ym);
+  const total = rep.cats.reduce((s,c)=>s+c.rows.length,0);
+  if (!total){ toast('해당 월에 해당하는 미완료 건이 없어요', true); return; }
+  const fname = `경영지원_월간리포트_${rep.ym}기준_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const titles = ['① 설치 진행중 (아직 설치중)','② 출고·계산서 미발행','③ 설치완료·계산서 미발행'];
+  const tabs   = ['① 설치 진행중','② 출고 계산서미발행','③ 설치완료 계산서미발행'];
+  const NAVY='FF1F3A5F', BLUE='FF2563EB', ZEBRA='FFF4F7FC', LINE='FFD8E0EC', INK='FF1F2430';
+  try{
+    if(typeof ExcelJS==='undefined') throw new Error('ExcelJS 미로드');
+    const wb = new ExcelJS.Workbook(); wb.creator='surepoint';
+    const border = { top:{style:'thin',color:{argb:LINE}}, left:{style:'thin',color:{argb:LINE}}, bottom:{style:'thin',color:{argb:LINE}}, right:{style:'thin',color:{argb:LINE}} };
+    // ── 요약 시트 ──
+    const sumCols=[{h:'구분',k:'t',w:34},{h:'건수',k:'n',w:10,num:true},{h:'공급가 합계(원)',k:'amt',w:18,money:true},{h:'부가세포함 합계(원)',k:'vat',w:20,money:true}];
+    const sumData=rep.cats.map((c,i)=>({t:titles[i], n:c.rows.length, amt:c.amt, vat:Math.round(c.amt*1.1)}));
+    sumData.push({t:'합계', n:total, amt:rep.cats.reduce((s,c)=>s+c.amt,0), vat:Math.round(rep.cats.reduce((s,c)=>s+c.amt,0)*1.1)});
+    styleSheet(wb.addWorksheet('요약'), `경영지원 월간 리포트 · ${rep.ym} 기준`, sumCols, sumData, {totalRow:true});
+    // ── 분류별 시트 3개 ──
+    rep.cats.forEach((c,i)=>{ styleSheet(wb.addWorksheet(tabs[i]), `${titles[i]} · ${rep.ym}`, c.cols.map(x=>({h:x.h,k:x.k,w:x.w,num:x.num,money:x.money})), c.data, {totalRow:true}); });
+    const buf = await wb.xlsx.writeBuffer();
+    triggerDownload(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), fname);
+    toast(`경영지원 리포트 ${total}건 엑셀로 내려받았어요 ✓`);
+  }catch(e){
+    // ExcelJS 실패 시 CSV(섹션 구분)로 폴백
+    try{
+      const esc = v => { v=String(v??''); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+      const lines=['[요약]','구분,건수,공급가합계,부가세포함합계'];
+      rep.cats.forEach((c,i)=>lines.push([esc(titles[i]),c.rows.length,c.amt,Math.round(c.amt*1.1)].join(',')));
+      rep.cats.forEach((c,i)=>{ lines.push('', '['+tabs[i]+']'); const hdr=c.cols.map(x=>x.h); lines.push(hdr.join(','));
+        if(c.data.length) c.data.forEach(r=>lines.push(c.cols.map(x=>esc(r[x.k])).join(','))); else lines.push('(해당 건 없음)'); });
+      triggerDownload(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'}), fname.replace(/\.xlsx$/,'.csv'));
+      toast(`경영지원 리포트 ${total}건 CSV로 내려받았어요 ✓ (엑셀에서 열려요)`);
+    }catch(e2){ toast('다운로드 실패: '+e.message, true); return; }
+  }
+  try{ localStorage.setItem(MGMT_REPORT_LS, new Date().toISOString().slice(0,7)); }catch(e){}
+  renderMgmtBanner();
+  // ── 시트 스타일 헬퍼 ──
+  function styleSheet(ws, title, cols, data, opt){
+    opt = opt||{};
+    const nc = cols.length;
+    const border = { top:{style:'thin',color:{argb:LINE}}, left:{style:'thin',color:{argb:LINE}}, bottom:{style:'thin',color:{argb:LINE}}, right:{style:'thin',color:{argb:LINE}} };
+    // 제목 줄 (병합)
+    ws.mergeCells(1,1,1,nc);
+    const tc=ws.getCell(1,1); tc.value=title; tc.font={bold:true,size:13,color:{argb:INK}}; tc.alignment={vertical:'middle',horizontal:'left'};
+    ws.getRow(1).height=26;
+    // 헤더 줄
+    const hr=ws.getRow(2);
+    cols.forEach((c,i)=>{ const cell=hr.getCell(i+1); cell.value=c.h; cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; cell.alignment={horizontal:'center',vertical:'middle'}; cell.border=border; });
+    hr.height=22;
+    // 데이터
+    if(!data.length){ const r=ws.getRow(3); ws.mergeCells(3,1,3,nc); const c=r.getCell(1); c.value='해당 건 없음'; c.alignment={horizontal:'center'}; c.font={color:{argb:'FF97A0AD'},italic:true}; c.border=border; }
+    data.forEach((row,ri)=>{
+      const r=ws.getRow(ri+3);
+      cols.forEach((c,ci)=>{ const cell=r.getCell(ci+1); let v=row[c.k]; cell.value=(v===''||v==null)?'':v;
+        cell.border=border; cell.font={size:11,color:{argb:INK}};
+        if(c.money){ cell.numFmt='#,##0'; cell.alignment={horizontal:'right',vertical:'middle'}; }
+        else if(c.num){ cell.alignment={horizontal:'center',vertical:'middle'}; }
+        else if(c.note){ cell.alignment={horizontal:'left',vertical:'middle',wrapText:true}; }
+        else cell.alignment={horizontal:'left',vertical:'middle'};
+        if(ri%2===1) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:ZEBRA}};
+      });
+      r.height=19;
+    });
+    // 합계 줄 (money 컬럼 합산)
+    if(opt.totalRow && data.length){
+      const tr=ws.getRow(data.length+3);
+      cols.forEach((c,ci)=>{ const cell=tr.getCell(ci+1); cell.border=border; cell.font={bold:true,color:{argb:INK},size:11}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEAF0FA'}};
+        if(ci===0){ cell.value='합계'; cell.alignment={horizontal:'left'}; }
+        else if(c.money){ cell.value=data.reduce((s,r)=>s+(Number(r[c.k])||0),0); cell.numFmt='#,##0'; cell.alignment={horizontal:'right'}; }
+        else if(c.num && c.k!=='qty'){ cell.alignment={horizontal:'center'}; }
+        else if(c.k==='qty'){ cell.value=data.reduce((s,r)=>s+(Number(r[c.k])||0),0); cell.alignment={horizontal:'center'}; }
+      });
+      tr.height=20;
+    }
+    // 컬럼 폭 + 틀 고정(제목+헤더)
+    cols.forEach((c,i)=>{ ws.getColumn(i+1).width=c.w||14; });
+    ws.views=[{state:'frozen', ySplit:2}];
+  }
+}
+function openMgmtReport(){
+  const def = mgmtPrevYm();
+  $('mgmtReportBody').innerHTML = mgmtReportPreview(def);
+  $('mgmtReportModal').classList.add('active'); document.body.classList.add('modal-open');
+}
+function closeMgmtReport(){ $('mgmtReportModal').classList.remove('active'); document.body.classList.remove('modal-open'); }
+function mgmtReportPreview(ym){
+  const rep = mgmtReportData(ym);
+  const total = rep.cats.reduce((s,c)=>s+c.rows.length,0);
+  const card = (n,c)=>`<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:12px;padding:13px 15px;background:${c.rows.length?'#fff7ed':'var(--bg-subtle)'};">
+      <div style="font-size:12px;font-weight:800;color:${c.rows.length?'#c2410c':'var(--text-tertiary)'};">${n} ${esc(c.key)}</div>
+      <div style="font-size:24px;font-weight:800;margin-top:6px;">${c.rows.length}<span style="font-size:12px;color:var(--text-tertiary);font-weight:700;"> 건</span></div>
+      <div style="font-size:11.5px;color:var(--text-tertiary);font-weight:600;margin-top:3px;">${esc(c.desc)}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-top:5px;">${fmtMoney(c.amt)}</div>
+    </div>`;
+  const comma = v => (Number(v)||0).toLocaleString('ko-KR');
+  const noteInput = (nk,id,val)=>`<input type="text" value="${esc(val)}" placeholder="사유 입력" oninput="setMgmtNote('${rep.ym}|${nk}|${id}', this.value)" style="width:100%;min-width:150px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;background:#fffdf4;">`;
+  const tbl = (n,c)=>{
+    const cols=c.cols;
+    const th = cols.map(x=>`<th style="padding:7px 9px;background:var(--bg-subtle);border:1px solid var(--border);font-size:11.5px;font-weight:800;color:var(--text-secondary);white-space:nowrap;text-align:${x.money?'right':(x.note?'left':(x.num?'center':'left'))};">${esc(x.h)}</th>`).join('');
+    const body = c.data.length ? c.data.map(r=>`<tr>`+cols.map(x=>{
+        if(x.note) return `<td style="padding:4px 6px;border:1px solid var(--border);">${noteInput(c.nk,r._id,r.note)}</td>`;
+        let v=r[x.k]; if(x.money) v=comma(v);
+        return `<td style="padding:6px 9px;border:1px solid var(--border);font-size:12px;white-space:nowrap;text-align:${x.money?'right':(x.num?'center':'left')};">${esc(String(v==null?'':v))}</td>`;
+      }).join('')+`</tr>`).join('')
+      : `<tr><td colspan="${cols.length}" style="padding:12px;text-align:center;color:var(--text-tertiary);border:1px solid var(--border);font-size:12px;">해당 건 없음</td></tr>`;
+    return `<div style="margin-top:15px;">
+        <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:6px;">${n} ${esc(c.key)} <span style="color:var(--text-tertiary);font-weight:700;">· ${c.rows.length}건</span></div>
+        <div style="overflow-x:auto;border-radius:8px;"><table style="width:100%;border-collapse:collapse;">
+          <thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>
+      </div>`;
+  };
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <span style="font-size:13px;font-weight:700;color:var(--text-secondary);">대상 월</span>
+      <input type="month" id="mgmtReportYm" value="${rep.ym}" onchange="$('mgmtReportBody').innerHTML=mgmtReportPreview(this.value)" style="height:36px;border:1px solid var(--border);border-radius:9px;padding:0 10px;font-size:13px;font-family:inherit;">
+      <span style="font-size:12px;color:var(--text-tertiary);">※ 매월 1일에 지난달 기준으로 받으면 돼요</span>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">${rep.cats.map((c,i)=>card(['①','②','③'][i],c)).join('')}</div>
+    <div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 12px;margin-bottom:2px;font-weight:600;">✏️ 비고(사유)는 아래 표에서 바로 입력하면 저장돼요 — 다운로드하는 엑셀에도 그대로 들어갑니다.</div>
+    <div style="max-height:44vh;overflow:auto;padding:2px 2px 4px;margin:4px -2px 16px;">${rep.cats.map((c,i)=>tbl(['①','②','③'][i],c)).join('')}</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;${total?'':'opacity:.5;pointer-events:none;'}" onclick="downloadMgmtReport($('mgmtReportYm').value); closeMgmtReport();">📥 ${esc(rep.ym)} 경영지원 리포트 엑셀 다운로드 (${total}건)</button>`;
+}
+/* 월초 자동 안내: 이번 달에 아직 리포트를 안 받았으면 재무 페이지에 배너 */
+function renderMgmtBanner(){
+  const el = $('mgmtReportBanner'); if(!el) return;
+  let done=''; try{ done=localStorage.getItem(MGMT_REPORT_LS)||''; }catch(e){}
+  const curMonth = new Date().toISOString().slice(0,7);
+  const prev = mgmtPrevYm();
+  const rep = mgmtReportData(prev);
+  const total = rep.cats.reduce((s,c)=>s+c.rows.length,0);
+  if (done===curMonth || !total){ el.innerHTML=''; return; }
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#eef4ff,#f5f0ff);border:1px solid #cdd8f5;border-radius:12px;padding:13px 16px;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="font-size:22px;">📊</span>
+      <div style="min-width:0;"><div style="font-size:13.5px;font-weight:800;color:#1d4ed8;">${esc(prev)} 경영지원 월간 리포트가 준비됐어요 · 총 ${total}건</div>
+        <div style="font-size:11.5px;color:var(--text-secondary);font-weight:600;margin-top:2px;">설치 진행중 ${rep.cats[0].rows.length} · 출고 계산서미발행 ${rep.cats[1].rows.length} · 설치완료 계산서미발행 ${rep.cats[2].rows.length}</div></div>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openMgmtReport()">리포트 보기 · 다운로드</button>
+    </div>`;
 }
 /* 세이프가드플러스 BOM LIST 바로가기 — 대시보드에 담아둔 페이지를 새 탭으로 열기 */
 function openBomList(){
